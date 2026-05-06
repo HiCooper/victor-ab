@@ -1,0 +1,312 @@
+package com.gateflow.victor.controller;
+
+import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
+import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
+import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.service.experiment.ExperimentService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+import com.gateflow.victor.common.exception.VictorException;
+
+/**
+ * 实验管理 API
+ */
+@RestController
+@RequestMapping("/api/v1/experiments")
+@RequiredArgsConstructor
+@Tag(name = "Experiment API", description = "实验管理接口")
+public class ExperimentController {
+
+    private final ExperimentService experimentService;
+    private final com.gateflow.victor.service.experiment.ExperimentLifecycleService lifecycleService;
+
+    @PostMapping
+    @Operation(summary = "创建实验", description = "创建新的AB实验")
+    public ResponseEntity<Experiment> createExperiment(
+            @Valid @RequestBody ExperimentCreateRequest request) {
+
+        Experiment experiment = new Experiment();
+        experiment.setExpId(request.getExpId());
+        experiment.setName(request.getName());
+        experiment.setDescription(request.getDescription());
+        experiment.setLayerId(request.getLayerId());
+        experiment.setBucketStart(request.getBucketStart());
+        experiment.setBucketEnd(request.getBucketEnd());
+        experiment.setTargetingRules(request.getTargetingRules());
+        experiment.setPrimaryMetric(request.getPrimaryMetric());
+        experiment.setSecondaryMetrics(request.getSecondaryMetrics());
+        experiment.setGuardrailMetrics(request.getGuardrailMetrics());
+        experiment.setCreatedBy(request.getCreatedBy());
+
+        // 根据trafficPercentage自动计算bucket边界
+        List<ExperimentCreateRequest.VariantRequest> processedVariants = 
+                calculateBucketBoundaries(request.getVariants());
+        
+        List<Variant> variants = null;
+        if (processedVariants != null) {
+            variants = processedVariants.stream().map(vr -> {
+                Variant v = new Variant();
+                v.setVariantKey(vr.getVariantKey());
+                v.setName(vr.getName());
+                v.setBucketStart(vr.getBucketStart());
+                v.setBucketEnd(vr.getBucketEnd());
+                v.setParams(vr.getParams());
+                return v;
+            }).toList();
+        }
+
+        Experiment created = experimentService.createExperiment(experiment, variants);
+        return ResponseEntity.ok(created);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "查询实验详情", description = "根据ID查询实验信息")
+    public ResponseEntity<Experiment> getExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id) {
+        Experiment experiment = experimentService.getExperiment(id);
+        if (experiment == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(experiment);
+    }
+
+    @GetMapping("/key/{expKey}")
+    @Operation(summary = "根据业务标识查询实验", description = "根据expId查询实验信息")
+    public ResponseEntity<Experiment> getExperimentByKey(
+            @Parameter(description = "实验业务标识") @PathVariable String expKey) {
+        Experiment experiment = experimentService.getExperimentByKey(expKey);
+        if (experiment == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(experiment);
+    }
+
+    @GetMapping
+    @Operation(summary = "查询实验列表", description = "查询所有实验或按条件筛选")
+    public ResponseEntity<List<Experiment>> listExperiments(
+            @Parameter(description = "层ID") @RequestParam(required = false) Long layerId,
+            @Parameter(description = "状态") @RequestParam(required = false) String status) {
+        List<Experiment> experiments = experimentService.listExperiments(layerId, status);
+        return ResponseEntity.ok(experiments);
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "分页查询实验列表", description = "分页查询实验，支持按层ID和状态筛选")
+    public ResponseEntity<Page<Experiment>> listExperimentsPaged(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int current,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "层ID") @RequestParam(required = false) Long layerId,
+            @Parameter(description = "状态") @RequestParam(required = false) String status) {
+        Page<Experiment> page = experimentService.listExperimentsPaged(current, size, layerId, status);
+        return ResponseEntity.ok(page);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新实验", description = "更新实验信息，如果包含variants则创建新版本")
+    public ResponseEntity<Experiment> updateExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestBody ExperimentUpdateRequest request) {
+
+        Experiment experiment = new Experiment();
+        experiment.setId(id);
+        experiment.setName(request.getName());
+        experiment.setDescription(request.getDescription());
+        experiment.setBucketStart(request.getBucketStart());
+        experiment.setBucketEnd(request.getBucketEnd());
+        experiment.setTargetingRules(request.getTargetingRules());
+        experiment.setPrimaryMetric(request.getPrimaryMetric());
+        experiment.setSecondaryMetrics(request.getSecondaryMetrics());
+        experiment.setGuardrailMetrics(request.getGuardrailMetrics());
+
+        // 如果包含variants，则创建新版本
+        if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+            Experiment updated = experimentService.updateExperimentWithVariants(experiment, request.getVariants());
+            return ResponseEntity.ok(updated);
+        }
+        
+        Experiment updated = experimentService.updateExperiment(experiment);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/start")
+    @Operation(summary = "启动实验", description = "将实验状态从草稿改为运行中")
+    public ResponseEntity<Experiment> startExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id) {
+        Experiment experiment = experimentService.startExperiment(id);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/stop")
+    @Operation(summary = "停止实验", description = "停止正在运行的实验")
+    public ResponseEntity<Experiment> stopExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id) {
+        Experiment experiment = experimentService.stopExperiment(id);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/submit")
+    @Operation(summary = "提交审核", description = "将实验从草稿提交为待审核状态")
+    public ResponseEntity<Experiment> submitForReview(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.submitForReview(id, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "审批通过", description = "审批通过实验，进入灰度阶段")
+    public ResponseEntity<Experiment> approveExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam String operator,
+            @RequestParam(required = false) String comment) {
+        Experiment experiment = experimentService.approveExperiment(id, operator, comment);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/reject")
+    @Operation(summary = "驳回实验", description = "驳回实验到草稿状态")
+    public ResponseEntity<Experiment> rejectExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam String operator,
+            @RequestParam String reason) {
+        Experiment experiment = experimentService.rejectExperiment(id, operator, reason);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/ramp")
+    @Operation(summary = "渐进放量", description = "将实验设置为灰度状态，可选择调整流量")
+    public ResponseEntity<Experiment> rampUpExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam(required = false) Integer bucketEnd,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.rampUpExperiment(id, bucketEnd, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/resume")
+    @Operation(summary = "恢复实验", description = "恢复已暂停的实验")
+    public ResponseEntity<Experiment> resumeExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.resumeExperiment(id, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/analyze")
+    @Operation(summary = "结束实验进入分析", description = "将实验状态转为分析中")
+    public ResponseEntity<Experiment> analyzeExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.analyzeExperiment(id, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/decision")
+    @Operation(summary = "生成决策", description = "基于分析结果生成决策建议")
+    public ResponseEntity<Experiment> makeDecision(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam String decision,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.makeDecision(id, decision, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/archive")
+    @Operation(summary = "归档实验", description = "实验结束并归档")
+    public ResponseEntity<Experiment> archiveExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam String decision,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.archiveExperiment(id, decision, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @PostMapping("/{id}/clone")
+    @Operation(summary = "克隆实验", description = "基于现有实验创建新实验草稿")
+    public ResponseEntity<Experiment> cloneExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @RequestParam String newExpId,
+            @RequestParam(required = false, defaultValue = "system") String operator) {
+        Experiment experiment = experimentService.cloneExperiment(id, newExpId, operator);
+        return ResponseEntity.ok(experiment);
+    }
+
+    @GetMapping("/{id}/actions")
+    @Operation(summary = "获取可用操作", description = "获取当前实验状态可执行的操作列表")
+    public ResponseEntity<List<String>> getAvailableActions(
+            @Parameter(description = "实验ID") @PathVariable Long id) {
+        Experiment experiment = experimentService.getExperiment(id);
+        if (experiment == null) {
+            return ResponseEntity.notFound().build();
+        }
+        com.gateflow.victor.common.enums.ExperimentStatus status = 
+            com.gateflow.victor.common.enums.ExperimentStatus.fromCode(experiment.getStatus());
+        return ResponseEntity.ok(lifecycleService.getAvailableActions(status));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除实验", description = "删除草稿或已停止的实验")
+    public ResponseEntity<Void> deleteExperiment(
+            @Parameter(description = "实验ID") @PathVariable Long id) {
+        experimentService.deleteExperiment(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/variants")
+    @Operation(summary = "查询实验版本", description = "查询实验的所有版本")
+    public ResponseEntity<List<Variant>> getExperimentVariants(
+            @Parameter(description = "实验ID") @PathVariable Long id) {
+        List<Variant> variants = experimentService.getExperimentVariants(id);
+        return ResponseEntity.ok(variants);
+    }
+    
+    /**
+     * 根据trafficPercentage自动计算bucket边界
+     */
+    private List<ExperimentCreateRequest.VariantRequest> calculateBucketBoundaries(
+            List<ExperimentCreateRequest.VariantRequest> variantRequests) {
+        
+        if (variantRequests == null || variantRequests.isEmpty()) {
+            return variantRequests;
+        }
+        
+        // 验证trafficPercentage必填
+        for (ExperimentCreateRequest.VariantRequest req : variantRequests) {
+            if (req.getTrafficPercentage() == null) {
+                throw new VictorException("variant " + req.getVariantKey() + " 缺少trafficPercentage字段");
+            }
+        }
+        
+        // 验证trafficPercentage总和
+        int totalPercentage = variantRequests.stream()
+                .mapToInt(ExperimentCreateRequest.VariantRequest::getTrafficPercentage)
+                .sum();
+        
+        if (totalPercentage != 100) {
+            throw new VictorException("流量比例总和必须为100%，当前为: " + totalPercentage + "%");
+        }
+        
+        // 自动计算bucket边界
+        int currentBucket = 0;
+        for (ExperimentCreateRequest.VariantRequest req : variantRequests) {
+            int percentage = req.getTrafficPercentage();
+            // bucket = percentage * 100 (0-100% -> 0-9999)
+            req.setBucketStart(currentBucket * 100);
+            req.setBucketEnd((currentBucket + percentage) * 100 - 1);
+            currentBucket += percentage;
+        }
+        
+        return variantRequests;
+    }
+}
