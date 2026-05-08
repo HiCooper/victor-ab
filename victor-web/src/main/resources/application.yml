@@ -63,7 +63,7 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
 
-  # Kafka配置（可选，未安装时可注释）
+  # Kafka配置 - 优化批量处理
   kafka:
     bootstrap-servers: localhost:9092
     producer:
@@ -71,14 +71,28 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
       retries: 3
+      # 批量发送配置
+      batch-size: 16384
+      buffer-memory: 33554432
+      linger-ms: 5
+      compression-type: lz4
     consumer:
       group-id: victor-consumer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       auto-offset-reset: earliest
       enable-auto-commit: false
+      # 批量拉取配置
+      max-poll-records: 500
+      fetch-min-size: 1024
+      fetch-max-wait: 500ms
       properties:
         spring.json.trusted.packages: "com.gateflow.victor.pipeline.ingestion.dto"
+    listener:
+      # 批量监听器配置
+      type: batch
+      ack-mode: MANUAL_IMMEDIATE
+      concurrency: 3
 
 # MyBatis-Plus配置
 mybatis-plus:
@@ -121,3 +135,8 @@ victor:
     url: jdbc:clickhouse://localhost:8123/victor
     user: victor
     password: victor123
+  stats:
+    clickhouse:
+      url: jdbc:clickhouse://localhost:8123/victor
+      user: victor
+      password: victor123

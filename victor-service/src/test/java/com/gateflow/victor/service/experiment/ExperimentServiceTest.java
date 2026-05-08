@@ -38,6 +38,12 @@ class ExperimentServiceTest {
     @Mock
     private VariantMapper variantMapper;
 
+    @Mock
+    private ExperimentLifecycleService lifecycleService;
+
+    @Mock
+    private VariantVersionService versionService;
+
     @InjectMocks
     private ExperimentService experimentService;
 
@@ -85,6 +91,7 @@ class ExperimentServiceTest {
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
         when(experimentMapper.insert(any(Experiment.class))).thenReturn(1);
         when(variantMapper.insert(any(Variant.class))).thenReturn(1);
+        when(versionService.generateVersion()).thenReturn("v1.0.0");
 
         // 使用两个variant覆盖完整桶范围
         List<Variant> variants = List.of(testVariant, testVariant2);
@@ -173,7 +180,8 @@ class ExperimentServiceTest {
     void startExperiment_Success() {
         testExperiment.setStatus("draft");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(variantMapper.selectByExpId(1L)).thenReturn(List.of(testVariant, testVariant2));
+        // 使用 selectActiveVariants 而不是 selectByExpId
+        when(variantMapper.selectActiveVariants(1L)).thenReturn(List.of(testVariant, testVariant2));
         when(experimentMapper.updateById(any(Experiment.class))).thenReturn(1);
 
         Experiment started = experimentService.startExperiment(1L);
@@ -181,7 +189,7 @@ class ExperimentServiceTest {
         assertNotNull(started);
         assertEquals("running", started.getStatus());
         verify(experimentMapper).updateById(any(Experiment.class));
-        verify(variantMapper).selectByExpId(1L);
+        verify(variantMapper).selectActiveVariants(1L);
     }
 
     @Test
@@ -240,14 +248,15 @@ class ExperimentServiceTest {
     @Test
     @DisplayName("查询实验版本 - 成功")
     void getExperimentVariants_Success() {
+        // getExperimentVariants 调用的是 selectActiveVariants
         List<Variant> variants = List.of(testVariant);
-        when(variantMapper.selectByExpId(1L)).thenReturn(variants);
+        when(variantMapper.selectActiveVariants(1L)).thenReturn(variants);
 
         List<Variant> result = experimentService.getExperimentVariants(1L);
 
         assertEquals(1, result.size());
         assertEquals("control", result.get(0).getVariantKey());
-        verify(variantMapper).selectByExpId(1L);
+        verify(variantMapper).selectActiveVariants(1L);
     }
 
     @Test

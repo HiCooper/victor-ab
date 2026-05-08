@@ -67,15 +67,19 @@ CREATE TABLE victor_experiment (
 CREATE TABLE victor_variant (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     exp_id BIGINT NOT NULL COMMENT '引用victor_experiment.id主键',
+    version VARCHAR(32) NOT NULL DEFAULT '00000000000000' COMMENT '版本号: 时间戳格式 20260506143000',
     variant_key VARCHAR(64) NOT NULL COMMENT '版本标识',
     name VARCHAR(128) COMMENT '版本名称',
     bucket_start INT COMMENT '桶起始位置',
     bucket_end INT COMMENT '桶结束位置',
-    params JSON COMMENT '版本参数',
+    params VARCHAR(64) NOT NULL COMMENT '版本参数',
+    is_active BOOLEAN DEFAULT TRUE COMMENT '当前活跃版本',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (exp_id) REFERENCES victor_experiment(id),
-    UNIQUE KEY uk_exp_variant (exp_id, variant_key),
-    INDEX idx_exp_id (exp_id)
+    UNIQUE KEY uk_exp_version_variant (exp_id, version, variant_key),
+    INDEX idx_exp_id (exp_id),
+    INDEX idx_exp_version (exp_id, version),
+    INDEX idx_exp_active (exp_id, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='版本配置表';
 
 -- ============================================
