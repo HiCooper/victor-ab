@@ -68,4 +68,9 @@ public class VictorConfig {
      */
     @Builder.Default
     private int eventBatchSize = 100;
+
+    /**
+     * 离线缓存目录 (默认: ~/.victor)
+     */
+    private String cacheDir;
 }

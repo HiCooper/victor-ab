@@ -71,7 +71,17 @@ public class VariantVersionService {
         validateVariantKeys(newVariants);
 
         // 2. 自动重新分配分桶边界（确保无重叠、无间隙）
-        redistributeBucketRanges(newVariants);
+        // 注意：仅在 Variant 没有预设 bucketStart/bucketEnd 时才重新分配
+        // 如果前端已通过 trafficPercentage 指定了比例（由 ExperimentService.calculateBucketBoundaries 计算），则跳过
+        boolean hasPredefinedBoundaries = newVariants.stream()
+            .anyMatch(v -> v.getBucketStart() != null && v.getBucketEnd() != null);
+        
+        if (!hasPredefinedBoundaries) {
+            redistributeBucketRanges(newVariants);
+            log.info("Auto-redistributed bucket ranges for {} variants", newVariants.size());
+        } else {
+            log.info("Using predefined bucket boundaries for {} variants", newVariants.size());
+        }
 
         // 3. 将当前版本标记为非活跃
         variantMapper.deactivateAllVariants(bizExpId);

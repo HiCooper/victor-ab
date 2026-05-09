@@ -54,14 +54,11 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(experiment.getLayerId()));
         }
 
-        // 验证桶范围
-        validateBucketRange(experiment, layer);
-
         // 计算变体桶边界（如果前端未提供）
-        List<Variant> processedVariants = calculateVariantBucketBoundaries(variants, experiment);
+        List<Variant> processedVariants = calculateVariantBucketBoundaries(variants);
 
-        // 验证版本桶范围总和
-        validateVariantBucketRanges(processedVariants, experiment);
+        // 验证版本桶范围
+        validateVariantBucketRanges(processedVariants);
 
         // 生成实验ID（格式：年最后一位+月日+随机数，共7位）
         String expId = ExperimentIdGenerator.generate();
@@ -111,8 +108,6 @@ public class ExperimentService {
         if (!ExperimentStatus.DRAFT.getCode().equals(existing.getStatus())) {
             // 非草稿状态只能修改描述等非核心字段
             experiment.setLayerId(existing.getLayerId());
-            experiment.setBucketStart(existing.getBucketStart());
-            experiment.setBucketEnd(existing.getBucketEnd());
         }
 
         experiment.setUpdatedAt(LocalDateTime.now());
@@ -313,11 +308,24 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
+        // 获取当前活跃版本
+        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
+        if (variants.isEmpty()) {
+            throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
+        }
+
+        // 更新所有变体的 bucketEnd 实现放量
         if (newBucketEnd != null) {
-            if (newBucketEnd <= experiment.getBucketStart() || newBucketEnd > 9999) {
+            if (newBucketEnd > 9999) {
                 throw new VictorException(ErrorCode.BKT_INVALID_END, String.valueOf(newBucketEnd));
             }
-            experiment.setBucketEnd(newBucketEnd);
+            for (Variant variant : variants) {
+                if (variant.getBucketStart() != null) {
+                    // 保持 bucketStart，调整 bucketEnd
+                    variant.setBucketEnd(Math.min(newBucketEnd, variant.getBucketStart() + (variant.getBucketEnd() - variant.getBucketStart())));
+                    variantMapper.updateById(variant);
+                }
+            }
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
@@ -327,7 +335,6 @@ public class ExperimentService {
             lifecycleService.validateTransition(from, ExperimentStatus.RAMP);
         }
 
-        
         experiment.setStatus(ExperimentStatus.RAMP.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -481,8 +488,6 @@ public class ExperimentService {
         cloned.setName(source.getName() + " (Clone)");
         cloned.setDescription(source.getDescription());
         cloned.setLayerId(source.getLayerId());
-        cloned.setBucketStart(source.getBucketStart());
-        cloned.setBucketEnd(source.getBucketEnd());
         cloned.setTargetingRules(source.getTargetingRules());
         cloned.setPrimaryMetric(source.getPrimaryMetric());
         cloned.setSecondaryMetrics(source.getSecondaryMetrics());
@@ -655,8 +660,9 @@ public class ExperimentService {
 
     /**
      * 计算变体桶边界（当变体未提供 bucketStart/bucketEnd 时）
+     * 默认使用完整的 0-9999 桶范围
      */
-    private List<Variant> calculateVariantBucketBoundaries(List<Variant> variants, Experiment experiment) {
+    private List<Variant> calculateVariantBucketBoundaries(List<Variant> variants) {
         if (variants == null || variants.isEmpty()) {
             return variants;
         }
@@ -669,14 +675,15 @@ public class ExperimentService {
         }
 
         int totalPercentage = variants.stream()
-            .mapToInt(v -> getVariantTrafficPercentage(v, experiment))
+            .mapToInt(v -> getVariantTrafficPercentage(v))
             .sum();
 
         if (totalPercentage == 0) {
-            int bucketRange = experiment.getBucketEnd() - experiment.getBucketStart() + 1;
+            // 未指定比例，均分 0-9999
+            int bucketRange = 10000;
             int perVariant = bucketRange / variants.size();
             int remainder = bucketRange % variants.size();
-            int currentStart = experiment.getBucketStart();
+            int currentStart = 0;
 
             for (int i = 0; i < variants.size(); i++) {
                 Variant v = variants.get(i);
@@ -690,10 +697,10 @@ public class ExperimentService {
                 throw new VictorException("BKT_002", "流量比例总和必须为100%，当前为: " + totalPercentage + "%");
             }
 
-            int currentStart = experiment.getBucketStart();
+            int currentStart = 0;
             for (Variant v : variants) {
-                int percentage = getVariantTrafficPercentage(v, experiment);
-                int bucketSpan = (int) Math.round(percentage / 100.0 * (experiment.getBucketEnd() - experiment.getBucketStart() + 1));
+                int percentage = getVariantTrafficPercentage(v);
+                int bucketSpan = (int) Math.round(percentage / 100.0 * 10000);
                 v.setBucketStart(currentStart);
                 v.setBucketEnd(currentStart + bucketSpan - 1);
                 currentStart += bucketSpan;
@@ -703,7 +710,7 @@ public class ExperimentService {
         return variants;
     }
 
-    private int getVariantTrafficPercentage(Variant variant, Experiment experiment) {
+    private int getVariantTrafficPercentage(Variant variant) {
         // If params contain traffic info, use it; otherwise equal distribution
         if (variant.getParams() != null) {
             try {
@@ -718,74 +725,24 @@ public class ExperimentService {
     }
 
     /**
-     * 验证桶范围
-     */
-    private void validateBucketRange(Experiment experiment, Layer layer) {
-        if (experiment.getBucketStart() < 0 || experiment.getBucketEnd() >= 10000) {
-            throw new VictorException("BKT_001", "Bucket range must be in [0, 9999]");
-        }
-        if (experiment.getBucketStart() > experiment.getBucketEnd()) {
-            throw new VictorException("BKT_001", "Bucket start must be less than bucket end");
-        }
-
-        // 验证层内桶范围不冲突
-        checkLayerBucketConflict(experiment, layer);
-    }
-
-    /**
-     * 检测层内其他运行中实验的桶范围冲突
-     */
-    private void checkLayerBucketConflict(Experiment experiment, Layer layer) {
-        List<Experiment> layerExperiments = experimentMapper.selectByLayerId(layer.getId());
-        if (layerExperiments == null) {
-            return;
-        }
-
-        int newStart = experiment.getBucketStart();
-        int newEnd = experiment.getBucketEnd();
-
-        for (Experiment existing : layerExperiments) {
-            if (existing.getId() != null && existing.getId().equals(experiment.getId())) {
-                continue;
-            }
-            String status = existing.getStatus();
-            if (ExperimentStatus.RUNNING.getCode().equals(status) ||
-                ExperimentStatus.RAMP.getCode().equals(status) ||
-                ExperimentStatus.PAUSED.getCode().equals(status)) {
-
-                Integer existingStart = existing.getBucketStart();
-                Integer existingEnd = existing.getBucketEnd();
-
-                if (existingStart != null && existingEnd != null &&
-                    newStart <= existingEnd && newEnd >= existingStart) {
-                    throw new VictorException("BKT_003",
-                        "实验 '" + existing.getName() + "' 的桶范围 [" + existingStart + ", " + existingEnd +
-                        "] 与当前范围 [" + newStart + ", " + newEnd + "] 重叠");
-                }
-            }
-        }
-    }
-
-    /**
      * 验证版本桶范围
      */
-    private void validateVariantBucketRanges(List<Variant> variants, Experiment experiment) {
+    private void validateVariantBucketRanges(List<Variant> variants) {
         if (variants == null || variants.isEmpty()) {
             return;
         }
 
         int totalBuckets = 0;
         for (Variant variant : variants) {
-            if (variant.getBucketStart() < experiment.getBucketStart() ||
-                variant.getBucketEnd() > experiment.getBucketEnd()) {
-                throw new VictorException("BKT_002", "Variant bucket range must be within experiment bucket range");
+            if (variant.getBucketStart() < 0 || variant.getBucketEnd() > 9999) {
+                throw new VictorException("BKT_002", "Variant bucket range must be within [0, 9999]");
             }
             totalBuckets += (variant.getBucketEnd() - variant.getBucketStart() + 1);
         }
 
-        int expectedBuckets = experiment.getBucketEnd() - experiment.getBucketStart() + 1;
-        if (totalBuckets != expectedBuckets) {
-            throw new VictorException("BKT_002", "Variant bucket ranges must cover entire experiment bucket range");
+        // 变体桶范围总和必须覆盖 0-9999 (即 10000 个桶)
+        if (totalBuckets != 10000) {
+            throw new VictorException("BKT_002", "Variant bucket ranges must cover entire 0-9999 bucket range, total: " + totalBuckets);
         }
     }
 

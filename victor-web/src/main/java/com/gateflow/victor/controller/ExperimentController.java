@@ -39,8 +39,6 @@ public class ExperimentController {
         experiment.setName(request.getName());
         experiment.setDescription(request.getDescription());
         experiment.setLayerId(request.getLayerId());
-        experiment.setBucketStart(request.getBucketStart());
-        experiment.setBucketEnd(request.getBucketEnd());
         experiment.setTargetingRules(request.getTargetingRules());
         experiment.setPrimaryMetric(request.getPrimaryMetric());
         experiment.setSecondaryMetrics(request.getSecondaryMetrics());
@@ -115,8 +113,6 @@ public class ExperimentController {
         experiment.setId(id);
         experiment.setName(request.getName());
         experiment.setDescription(request.getDescription());
-        experiment.setBucketStart(request.getBucketStart());
-        experiment.setBucketEnd(request.getBucketEnd());
         experiment.setTargetingRules(request.getTargetingRules());
         experiment.setPrimaryMetric(request.getPrimaryMetric());
         experiment.setSecondaryMetrics(request.getSecondaryMetrics());

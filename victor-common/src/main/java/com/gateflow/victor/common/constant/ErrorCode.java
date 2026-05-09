@@ -46,6 +46,7 @@ public enum ErrorCode {
 
     // ========== 分域 (DOM) ==========
     DOMAIN_NOT_FOUND("DOM_001", "分域不存在"),
+    DOMAIN_HAS_LAYERS("DOM_002", "域下存在层，无法删除"),
 
     // ========== 通用 (SYS) ==========
     SYS_INTERNAL_ERROR("SYS_001", "系统内部错误"),

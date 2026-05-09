@@ -178,8 +178,8 @@ public class VariantService {
      * 验证桶范围
      */
     private void validateBucketRange(Variant variant, Experiment experiment) {
-        if (variant.getBucketStart() < experiment.getBucketStart() ||
-            variant.getBucketEnd() > experiment.getBucketEnd()) {
+        if (variant.getBucketStart() < 0 ||
+            variant.getBucketEnd() > 9999) {
             throw new VictorException(ErrorCode.VARIANT_BUCKET_OUT_OF_RANGE);
         }
         if (variant.getBucketStart() > variant.getBucketEnd()) {

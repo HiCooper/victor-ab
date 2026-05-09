@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.*;
 
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -46,24 +45,6 @@ public class Experiment {
      * 实验状态
      */
     private String status;
-
-    /**
-     * 流量占比 (0.0 - 1.0)
-     */
-    @TableField("traffic_ratio")
-    private BigDecimal trafficRatio;
-
-    /**
-     * 桶起始位置 (0 - 9999)
-     */
-    @TableField("bucket_start")
-    private Integer bucketStart;
-
-    /**
-     * 桶结束位置 (0 - 9999)
-     */
-    @TableField("bucket_end")
-    private Integer bucketEnd;
 
     /**
      * 定向规则 (JSON)

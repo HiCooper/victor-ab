@@ -38,18 +38,6 @@ public class ExperimentCreateRequest {
     private Long layerId;
 
     /**
-     * 桶起始位置 (0 - 9999)
-     */
-    @NotNull(message = "bucketStart不能为空")
-    private Integer bucketStart;
-
-    /**
-     * 桶结束位置 (0 - 9999)
-     */
-    @NotNull(message = "bucketEnd不能为空")
-    private Integer bucketEnd;
-
-    /**
      * 定向规则 (JSON字符串)
      */
     private String targetingRules;

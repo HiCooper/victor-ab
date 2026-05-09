@@ -23,16 +23,6 @@ public class ExperimentUpdateRequest {
     private String description;
 
     /**
-     * 桶起始位置 (0 - 9999)
-     */
-    private Integer bucketStart;
-
-    /**
-     * 桶结束位置 (0 - 9999)
-     */
-    private Integer bucketEnd;
-
-    /**
      * 定向规则 (JSON字符串)
      */
     private String targetingRules;

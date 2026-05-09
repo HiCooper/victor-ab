@@ -173,8 +173,8 @@ public class ConfigService {
 
         ConfigResponse.ExperimentConfig config = new ConfigResponse.ExperimentConfig();
         config.setExpId(exp.getExpId());
-        config.setBucketStart(exp.getBucketStart());
-        config.setBucketEnd(exp.getBucketEnd());
+        config.setBucketStart(0);
+        config.setBucketEnd(9999);
 
         if (layer != null) {
             config.setLayerId(layer.getLayerId());
