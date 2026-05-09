@@ -17,8 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-import com.gateflow.victor.common.exception.VictorException;
-
 /**
  * 实验管理 API
  */
@@ -37,7 +35,6 @@ public class ExperimentController {
             @Valid @RequestBody ExperimentCreateRequest request) {
 
         Experiment experiment = new Experiment();
-        experiment.setExpId(request.getExpId());
         experiment.setName(request.getName());
         experiment.setDescription(request.getDescription());
         experiment.setLayerId(request.getLayerId());
@@ -49,13 +46,8 @@ public class ExperimentController {
         experiment.setGuardrailMetrics(request.getGuardrailMetrics());
         experiment.setCreatedBy(request.getCreatedBy());
 
-        // 根据trafficPercentage自动计算bucket边界
-        List<ExperimentCreateRequest.VariantRequest> processedVariants = 
-                calculateBucketBoundaries(request.getVariants());
-        
-        List<Variant> variants = null;
-        if (processedVariants != null) {
-            variants = processedVariants.stream().map(vr -> {
+        List<Variant> variants = request.getVariants() != null
+            ? request.getVariants().stream().map(vr -> {
                 Variant v = new Variant();
                 v.setVariantKey(vr.getVariantKey());
                 v.setName(vr.getName());
@@ -63,8 +55,8 @@ public class ExperimentController {
                 v.setBucketEnd(vr.getBucketEnd());
                 v.setParams(vr.getParams());
                 return v;
-            }).toList();
-        }
+            }).toList()
+            : null;
 
         Experiment created = experimentService.createExperiment(experiment, variants);
         return ResponseEntity.ok(created);
@@ -269,44 +261,5 @@ public class ExperimentController {
             @Parameter(description = "实验ID") @PathVariable Long id) {
         List<Variant> variants = experimentService.getExperimentVariants(id);
         return ResponseEntity.ok(variants);
-    }
-    
-    /**
-     * 根据trafficPercentage自动计算bucket边界
-     */
-    private List<ExperimentCreateRequest.VariantRequest> calculateBucketBoundaries(
-            List<ExperimentCreateRequest.VariantRequest> variantRequests) {
-        
-        if (variantRequests == null || variantRequests.isEmpty()) {
-            return variantRequests;
-        }
-        
-        // 验证trafficPercentage必填
-        for (ExperimentCreateRequest.VariantRequest req : variantRequests) {
-            if (req.getTrafficPercentage() == null) {
-                throw new VictorException("variant " + req.getVariantKey() + " 缺少trafficPercentage字段");
-            }
-        }
-        
-        // 验证trafficPercentage总和
-        int totalPercentage = variantRequests.stream()
-                .mapToInt(ExperimentCreateRequest.VariantRequest::getTrafficPercentage)
-                .sum();
-        
-        if (totalPercentage != 100) {
-            throw new VictorException("流量比例总和必须为100%，当前为: " + totalPercentage + "%");
-        }
-        
-        // 自动计算bucket边界
-        int currentBucket = 0;
-        for (ExperimentCreateRequest.VariantRequest req : variantRequests) {
-            int percentage = req.getTrafficPercentage();
-            // bucket = percentage * 100 (0-100% -> 0-9999)
-            req.setBucketStart(currentBucket * 100);
-            req.setBucketEnd((currentBucket + percentage) * 100 - 1);
-            currentBucket += percentage;
-        }
-        
-        return variantRequests;
     }
 }

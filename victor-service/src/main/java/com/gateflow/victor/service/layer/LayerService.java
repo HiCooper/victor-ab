@@ -5,6 +5,7 @@ import com.gateflow.victor.domain.entity.Domain;
 import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.infra.mapper.DomainMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,7 @@ public class LayerService {
         if (layer.getDomainId() != null) {
             Domain domain = domainMapper.selectById(layer.getDomainId());
             if (domain == null) {
-                throw new VictorException("Domain not found: " + layer.getDomainId());
+                throw new VictorException(ErrorCode.DOMAIN_NOT_FOUND, String.valueOf(layer.getDomainId()));
             }
         }
 
@@ -65,7 +66,7 @@ public class LayerService {
     public Layer updateLayer(Layer layer) {
         Layer existing = layerMapper.selectById(layer.getId());
         if (existing == null) {
-            throw new VictorException("Layer not found: " + layer.getId());
+            throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(layer.getId()));
         }
 
         // 盐值不能修改（会影响分桶结果）
@@ -86,13 +87,13 @@ public class LayerService {
     public void deleteLayer(Long layerId) {
         Layer layer = layerMapper.selectById(layerId);
         if (layer == null) {
-            throw new VictorException("Layer not found: " + layerId);
+            throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(layerId));
         }
 
         // 检查是否有实验正在使用
         List<?> experiments = experimentMapper.selectByLayerId(layerId);
         if (!experiments.isEmpty()) {
-            throw new VictorException("Cannot delete layer with existing experiments");
+            throw new VictorException(ErrorCode.LAYER_HAS_EXPERIMENTS);
         }
 
         layerMapper.deleteById(layerId);
@@ -147,7 +148,7 @@ public class LayerService {
     public Layer disableLayer(Long layerId) {
         Layer layer = layerMapper.selectById(layerId);
         if (layer == null) {
-            throw new VictorException("Layer not found: " + layerId);
+            throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(layerId));
         }
 
         layer.setUpdatedAt(LocalDateTime.now());
@@ -166,7 +167,7 @@ public class LayerService {
     public Layer enableLayer(Long layerId) {
         Layer layer = layerMapper.selectById(layerId);
         if (layer == null) {
-            throw new VictorException("Layer not found: " + layerId);
+            throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(layerId));
         }
 
         layer.setUpdatedAt(LocalDateTime.now());

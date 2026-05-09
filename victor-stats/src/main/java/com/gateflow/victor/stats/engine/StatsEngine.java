@@ -45,6 +45,10 @@ public class StatsEngine {
         return msprt.execute(c, t, obs);
     }
     
+    public MetricsRepository getMetricsRepository() {
+        return metricsRepository;
+    }
+
     /**
      * 分析实验 - 端到端实验报告生成
      * 

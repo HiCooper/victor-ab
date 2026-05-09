@@ -111,7 +111,7 @@ class ExperimentServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> experimentService.createExperiment(testExperiment, Collections.emptyList()));
 
-        assertTrue(exception.getMessage().contains("Layer not found"));
+        assertTrue(exception.getMessage().contains("层不存在"));
         verify(experimentMapper, never()).insert(any(Experiment.class));
     }
 
@@ -200,7 +200,7 @@ class ExperimentServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> experimentService.startExperiment(999L));
 
-        assertTrue(exception.getMessage().contains("Experiment not found"));
+        assertTrue(exception.getMessage().contains("实验不存在"));
         verify(experimentMapper, never()).updateById(any(Experiment.class));
     }
 
@@ -241,7 +241,7 @@ class ExperimentServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> experimentService.deleteExperiment(1L));
 
-        assertTrue(exception.getMessage().contains("Running experiment cannot be deleted"));
+        assertTrue(exception.getMessage().contains("运行中的实验不能删除"));
         verify(experimentMapper, never()).deleteById(anyLong());
     }
 
@@ -287,7 +287,7 @@ class ExperimentServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> experimentService.updateExperiment(update));
 
-        assertTrue(exception.getMessage().contains("Experiment not found"));
+        assertTrue(exception.getMessage().contains("实验不存在"));
         verify(experimentMapper, never()).updateById(any(Experiment.class));
     }
 }

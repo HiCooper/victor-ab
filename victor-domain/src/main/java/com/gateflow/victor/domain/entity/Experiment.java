@@ -1,6 +1,7 @@
 package com.gateflow.victor.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+
 import lombok.Data;
 
 import java.math.BigDecimal;

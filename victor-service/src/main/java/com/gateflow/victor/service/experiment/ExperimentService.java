@@ -1,5 +1,6 @@
 package com.gateflow.victor.service.experiment;
 
+import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.util.ExperimentIdGenerator;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
@@ -47,14 +48,17 @@ public class ExperimentService {
         // 验证层是否存在
         Layer layer = layerMapper.selectById(experiment.getLayerId());
         if (layer == null) {
-            throw new VictorException("Layer not found: " + experiment.getLayerId());
+            throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(experiment.getLayerId()));
         }
 
         // 验证桶范围
         validateBucketRange(experiment, layer);
 
+        // 计算变体桶边界（如果前端未提供）
+        List<Variant> processedVariants = calculateVariantBucketBoundaries(variants, experiment);
+
         // 验证版本桶范围总和
-        validateVariantBucketRanges(variants, experiment);
+        validateVariantBucketRanges(processedVariants, experiment);
 
         // 生成实验ID（格式：年最后一位+月日+随机数，共7位）
         String expId = ExperimentIdGenerator.generate();
@@ -71,10 +75,10 @@ public class ExperimentService {
         log.info("Created experiment with ID: {}", expId);
 
         // 插入版本（使用版本控制服务）
-        if (variants != null && !variants.isEmpty()) {
+        if (processedVariants != null && !processedVariants.isEmpty()) {
             String version = versionService.generateVersion();
             LocalDateTime now = LocalDateTime.now();
-            for (Variant variant : variants) {
+            for (Variant variant : processedVariants) {
                 variant.setExpId(experiment.getId());
                 variant.setVersion(version);
                 variant.setIsActive(true);
@@ -97,7 +101,7 @@ public class ExperimentService {
     public Experiment updateExperiment(Experiment experiment) {
         Experiment existing = experimentMapper.selectById(experiment.getId());
         if (existing == null) {
-            throw new VictorException("Experiment not found: " + experiment.getId());
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experiment.getId()));
         }
 
         // 只有草稿状态可以修改核心配置
@@ -160,7 +164,7 @@ public class ExperimentService {
         // 验证trafficPercentage必填
         for (ExperimentCreateRequest.VariantRequest req : variantRequests) {
             if (req.getTrafficPercentage() == null) {
-                throw new VictorException("variant " + req.getVariantKey() + " 缺少trafficPercentage字段");
+                throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, req.getVariantKey() + " 缺少trafficPercentage字段");
             }
         }
         
@@ -170,7 +174,7 @@ public class ExperimentService {
                 .sum();
         
         if (totalPercentage != 100) {
-            throw new VictorException("流量比例总和必须为100%，当前为: " + totalPercentage + "%");
+            throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, "当前为: " + totalPercentage + "%");
         }
         
         // 自动计算bucket边界
@@ -199,20 +203,20 @@ public class ExperimentService {
     public Experiment startExperiment(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         // 只有草稿状态或暂停状态可以启动/恢复
-        String status = experiment.getStatus();
-        if (!ExperimentStatus.DRAFT.getCode().equals(status) && 
+        String status = experiment.getStatus();        
+        if (!ExperimentStatus.DRAFT.getCode().equals(status) &&
             !ExperimentStatus.PAUSED.getCode().equals(status)) {
-            throw new VictorException("Only draft or paused experiment can be started");
+            throw new VictorException(ErrorCode.EXP_ONLY_DRAFT_CAN_START);
         }
 
         // 验证活跃版本是否存在
         List<Variant> variants = variantMapper.selectActiveVariants(expId);
         if (variants.isEmpty()) {
-            throw new VictorException("Experiment must have at least one active variant");
+            throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
         }
 
         experiment.setStatus(ExperimentStatus.RUNNING.getCode());
@@ -231,13 +235,13 @@ public class ExperimentService {
     public Experiment submitForReview(Long expId, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.REVIEW);
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.REVIEW.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -255,13 +259,13 @@ public class ExperimentService {
     public Experiment approveExperiment(Long expId, String operator, String comment) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.RAMP);
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.RAMP.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -279,13 +283,13 @@ public class ExperimentService {
     public Experiment rejectExperiment(Long expId, String operator, String reason) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.DRAFT);
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.DRAFT.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -303,12 +307,12 @@ public class ExperimentService {
     public Experiment rampUpExperiment(Long expId, Integer newBucketEnd, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         if (newBucketEnd != null) {
             if (newBucketEnd <= experiment.getBucketStart() || newBucketEnd > 9999) {
-                throw new VictorException("Invalid bucket end: " + newBucketEnd);
+                throw new VictorException(ErrorCode.BKT_INVALID_END, String.valueOf(newBucketEnd));
             }
             experiment.setBucketEnd(newBucketEnd);
         }
@@ -320,7 +324,7 @@ public class ExperimentService {
             lifecycleService.validateTransition(from, ExperimentStatus.RAMP);
         }
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.RAMP.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -338,13 +342,13 @@ public class ExperimentService {
     public Experiment resumeExperiment(Long expId, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.RUNNING.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -373,7 +377,7 @@ public class ExperimentService {
     public Experiment stopExperiment(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         experiment.setStatus(ExperimentStatus.PAUSED.getCode());
@@ -390,13 +394,13 @@ public class ExperimentService {
     public Experiment analyzeExperiment(Long expId, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.ANALYZING);
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.ANALYZING.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -414,16 +418,16 @@ public class ExperimentService {
     public Experiment makeDecision(Long expId, String decision, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         
         if (!ExperimentStatus.ANALYZING.getCode().equals(experiment.getStatus())) {
-            throw new VictorException("Only analyzing experiment can make decision");
+            throw new VictorException(ErrorCode.EXP_DECISION_MUST_ANALYZING);
         }
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.DECISION.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -441,13 +445,13 @@ public class ExperimentService {
     public Experiment archiveExperiment(Long expId, String decision, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.ARCHIVE);
 
-        String oldStatus = experiment.getStatus();
+        
         experiment.setStatus(ExperimentStatus.ARCHIVE.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
@@ -465,7 +469,7 @@ public class ExperimentService {
     public Experiment cloneExperiment(Long expId, String newExpId, String operator) {
         Experiment source = experimentMapper.selectById(expId);
         if (source == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         // 创建新实验
@@ -516,13 +520,13 @@ public class ExperimentService {
     public void deleteExperiment(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         // 只有草稿或已停止状态可以删除
         if (ExperimentStatus.RUNNING.getCode().equals(experiment.getStatus()) ||
             ExperimentStatus.RAMP.getCode().equals(experiment.getStatus())) {
-            throw new VictorException("Running experiment cannot be deleted");
+            throw new VictorException(ErrorCode.EXP_CANNOT_DELETE_RUNNING);
         }
 
         // 先删除版本
@@ -639,16 +643,116 @@ public class ExperimentService {
     }
 
     /**
+     * 计算变体桶边界（当变体未提供 bucketStart/bucketEnd 时）
+     */
+    private List<Variant> calculateVariantBucketBoundaries(List<Variant> variants, Experiment experiment) {
+        if (variants == null || variants.isEmpty()) {
+            return variants;
+        }
+
+        boolean needsCalculation = variants.stream()
+            .anyMatch(v -> v.getBucketStart() == null || v.getBucketEnd() == null);
+
+        if (!needsCalculation) {
+            return variants;
+        }
+
+        int totalPercentage = variants.stream()
+            .mapToInt(v -> getVariantTrafficPercentage(v, experiment))
+            .sum();
+
+        if (totalPercentage == 0) {
+            int bucketRange = experiment.getBucketEnd() - experiment.getBucketStart() + 1;
+            int perVariant = bucketRange / variants.size();
+            int remainder = bucketRange % variants.size();
+            int currentStart = experiment.getBucketStart();
+
+            for (int i = 0; i < variants.size(); i++) {
+                Variant v = variants.get(i);
+                int end = currentStart + perVariant + (i < remainder ? 1 : 0) - 1;
+                v.setBucketStart(currentStart);
+                v.setBucketEnd(end);
+                currentStart = end + 1;
+            }
+        } else {
+            if (totalPercentage != 100) {
+                throw new VictorException("BKT_002", "流量比例总和必须为100%，当前为: " + totalPercentage + "%");
+            }
+
+            int currentStart = experiment.getBucketStart();
+            for (Variant v : variants) {
+                int percentage = getVariantTrafficPercentage(v, experiment);
+                int bucketSpan = (int) Math.round(percentage / 100.0 * (experiment.getBucketEnd() - experiment.getBucketStart() + 1));
+                v.setBucketStart(currentStart);
+                v.setBucketEnd(currentStart + bucketSpan - 1);
+                currentStart += bucketSpan;
+            }
+        }
+
+        return variants;
+    }
+
+    private int getVariantTrafficPercentage(Variant variant, Experiment experiment) {
+        // If params contain traffic info, use it; otherwise equal distribution
+        if (variant.getParams() != null) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode params =
+                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(variant.getParams());
+                if (params.has("trafficPercentage")) {
+                    return params.get("trafficPercentage").asInt();
+                }
+            } catch (Exception ignored) { }
+        }
+        return 0;
+    }
+
+    /**
      * 验证桶范围
      */
     private void validateBucketRange(Experiment experiment, Layer layer) {
         if (experiment.getBucketStart() < 0 || experiment.getBucketEnd() >= 10000) {
-            throw new VictorException("Bucket range must be in [0, 9999]");
+            throw new VictorException("BKT_001", "Bucket range must be in [0, 9999]");
         }
         if (experiment.getBucketStart() > experiment.getBucketEnd()) {
-            throw new VictorException("Bucket start must be less than bucket end");
+            throw new VictorException("BKT_001", "Bucket start must be less than bucket end");
         }
-        // TODO: 验证层内桶范围不冲突
+
+        // 验证层内桶范围不冲突
+        checkLayerBucketConflict(experiment, layer);
+    }
+
+    /**
+     * 检测层内其他运行中实验的桶范围冲突
+     */
+    private void checkLayerBucketConflict(Experiment experiment, Layer layer) {
+        List<Experiment> layerExperiments = experimentMapper.selectByLayerId(layer.getId());
+        if (layerExperiments == null) {
+            return;
+        }
+
+        int newStart = experiment.getBucketStart();
+        int newEnd = experiment.getBucketEnd();
+
+        for (Experiment existing : layerExperiments) {
+            if (existing.getId() != null && existing.getId().equals(experiment.getId())) {
+                continue;
+            }
+            String status = existing.getStatus();
+            if (ExperimentStatus.RUNNING.getCode().equals(status) ||
+                ExperimentStatus.RAMP.getCode().equals(status) ||
+                ExperimentStatus.PAUSED.getCode().equals(status)) {
+
+                Integer existingStart = existing.getBucketStart();
+                Integer existingEnd = existing.getBucketEnd();
+
+                if (existingStart != null && existingEnd != null &&
+                    newStart <= existingEnd && newEnd >= existingStart) {
+                    throw new VictorException("BKT_003",
+                        "实验 '" + existing.getName() + "' 的桶范围 [" + existingStart + ", " + existingEnd +
+                        "] 与当前范围 [" + newStart + ", " + newEnd + "] 重叠");
+                }
+            }
+        }
     }
 
     /**
@@ -663,15 +767,14 @@ public class ExperimentService {
         for (Variant variant : variants) {
             if (variant.getBucketStart() < experiment.getBucketStart() ||
                 variant.getBucketEnd() > experiment.getBucketEnd()) {
-                throw new VictorException("Variant bucket range must be within experiment bucket range");
+                throw new VictorException("BKT_002", "Variant bucket range must be within experiment bucket range");
             }
             totalBuckets += (variant.getBucketEnd() - variant.getBucketStart() + 1);
         }
 
-        // 版本桶范围总和应等于实验桶范围
         int expectedBuckets = experiment.getBucketEnd() - experiment.getBucketStart() + 1;
         if (totalBuckets != expectedBuckets) {
-            throw new VictorException("Variant bucket ranges must cover entire experiment bucket range");
+            throw new VictorException("BKT_002", "Variant bucket ranges must cover entire experiment bucket range");
         }
     }
 

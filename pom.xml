@@ -57,7 +57,7 @@
         <commons-lang3.version>3.14.0</commons-lang3.version>
 
         <!-- API Doc -->
-        <springdoc.version>2.5.0</springdoc.version>
+        <springdoc.version>2.8.3</springdoc.version>
 
         <!-- Test -->
         <junit.version>5.10.2</junit.version>

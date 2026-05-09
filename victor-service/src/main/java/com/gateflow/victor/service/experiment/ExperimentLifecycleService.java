@@ -1,6 +1,7 @@
 package com.gateflow.victor.service.experiment;
 
 import com.gateflow.victor.common.enums.ExperimentStatus;
+import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -59,7 +60,7 @@ public class ExperimentLifecycleService {
         Set<ExperimentStatus> allowedTargets = ALLOWED_TRANSITIONS.get(from);
         
         if (allowedTargets == null || !allowedTargets.contains(to)) {
-            throw new VictorException(String.format(
+            throw new VictorException(ErrorCode.LFC_INVALID_TRANSITION, String.format(
                 "Invalid state transition: %s -> %s. Allowed transitions: %s",
                 from.getDescription(),
                 to.getDescription(),

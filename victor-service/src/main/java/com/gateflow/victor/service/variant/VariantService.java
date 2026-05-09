@@ -4,7 +4,8 @@ import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
-import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.common.constant.ErrorCode;
+import com.gateflow.victor.common.enums.ExperimentStatus;import com.gateflow.victor.common.exception.VictorException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +34,12 @@ public class VariantService {
         // 验证实验是否存在
         Experiment experiment = experimentMapper.selectById(variant.getExpId());
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + variant.getExpId());
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(variant.getExpId()));
         }
 
         // 只有草稿状态可以添加版本
         if (!"draft".equals(experiment.getStatus())) {
-            throw new VictorException("Can only add variants to draft experiment");
+            throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_ADD);
         }
 
         // 验证桶范围
@@ -59,19 +60,19 @@ public class VariantService {
     @Transactional(rollbackFor = Exception.class)
     public List<Variant> createVariants(List<Variant> variants) {
         if (variants == null || variants.isEmpty()) {
-            throw new VictorException("Variants list cannot be empty");
+            throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
 
         // 所有版本应属于同一实验
         Long expId = variants.get(0).getExpId();
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
-            throw new VictorException("Experiment not found: " + expId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         // 只有草稿状态可以添加版本
         if (!"draft".equals(experiment.getStatus())) {
-            throw new VictorException("Can only add variants to draft experiment");
+            throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_ADD);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -95,18 +96,18 @@ public class VariantService {
     public Variant updateVariant(Variant variant) {
         Variant existing = variantMapper.selectById(variant.getId());
         if (existing == null) {
-            throw new VictorException("Variant not found: " + variant.getId());
+            throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variant.getId()));
         }
 
         // 验证实验状态
         Experiment experiment = experimentMapper.selectById(existing.getExpId());
         if (experiment == null) {
-            throw new VictorException("Experiment not found");
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND);
         }
 
         // 只有草稿状态可以修改版本
         if (!"draft".equals(experiment.getStatus())) {
-            throw new VictorException("Can only update variants in draft experiment");
+            throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_MODIFY);
         }
 
         // 验证桶范围
@@ -126,13 +127,13 @@ public class VariantService {
     public void deleteVariant(Long variantId) {
         Variant variant = variantMapper.selectById(variantId);
         if (variant == null) {
-            throw new VictorException("Variant not found: " + variantId);
+            throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variantId));
         }
 
         // 验证实验状态
         Experiment experiment = experimentMapper.selectById(variant.getExpId());
         if (experiment != null && !"draft".equals(experiment.getStatus())) {
-            throw new VictorException("Can only delete variants in draft experiment");
+            throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_DELETE);
         }
 
         variantMapper.deleteById(variantId);
@@ -164,10 +165,10 @@ public class VariantService {
     private void validateBucketRange(Variant variant, Experiment experiment) {
         if (variant.getBucketStart() < experiment.getBucketStart() ||
             variant.getBucketEnd() > experiment.getBucketEnd()) {
-            throw new VictorException("Variant bucket range must be within experiment bucket range");
+            throw new VictorException(ErrorCode.VARIANT_BUCKET_OUT_OF_RANGE);
         }
         if (variant.getBucketStart() > variant.getBucketEnd()) {
-            throw new VictorException("Bucket start must be less than bucket end");
+            throw new VictorException(ErrorCode.VARIANT_BUCKET_INVALID);
         }
     }
 }

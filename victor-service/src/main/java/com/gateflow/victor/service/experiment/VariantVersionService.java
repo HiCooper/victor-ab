@@ -3,6 +3,7 @@ package com.gateflow.victor.service.experiment;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +56,7 @@ public class VariantVersionService {
     @Transactional(rollbackFor = Exception.class)
     public String createNewVersion(Long expId, List<Variant> newVariants) {
         if (newVariants == null || newVariants.isEmpty()) {
-            throw new VictorException("Variant list cannot be empty");
+            throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
 
         // 1. 验证分桶配置（仅验证variant_key唯一性）
@@ -124,7 +125,7 @@ public class VariantVersionService {
     public List<Variant> getVariantsByVersion(Long expId, String version) {
         List<Variant> variants = variantMapper.selectByExpIdAndVersion(expId, version);
         if (variants.isEmpty()) {
-            throw new VictorException("Version not found: " + version);
+            throw new VictorException(ErrorCode.VER_NOT_FOUND, String.valueOf(version));
         }
         return variants;
     }
@@ -156,7 +157,7 @@ public class VariantVersionService {
         // 1. 验证目标版本存在
         List<Variant> targetVariants = variantMapper.selectByExpIdAndVersion(expId, targetVersion);
         if (targetVariants.isEmpty()) {
-            throw new VictorException("Version not found: " + targetVersion);
+            throw new VictorException(ErrorCode.VER_NOT_FOUND, String.valueOf(targetVersion));
         }
 
         // 2. 将当前版本标记为非活跃
@@ -166,7 +167,7 @@ public class VariantVersionService {
         // 3. 激活目标版本
         int activated = variantMapper.activateVersion(expId, targetVersion);
         if (activated == 0) {
-            throw new VictorException("Failed to activate version: " + targetVersion);
+            throw new VictorException(ErrorCode.VER_ACTIVATE_FAILED, String.valueOf(targetVersion));
         }
 
         log.info("Rolled back experiment {} to version {}", expId, targetVersion);
@@ -249,7 +250,7 @@ public class VariantVersionService {
      */
     private void validateVariantKeys(List<Variant> variants) {
         if (variants == null || variants.isEmpty()) {
-            throw new VictorException("Variant list cannot be empty");
+            throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
 
         // 检查variant_key唯一性
@@ -259,7 +260,7 @@ public class VariantVersionService {
             .count();
         
         if (distinctKeys != variants.size()) {
-            throw new VictorException("Duplicate variant_key found");
+            throw new VictorException(ErrorCode.VARIANT_DUPLICATE_KEY);
         }
     }
 
@@ -281,7 +282,7 @@ public class VariantVersionService {
         int variantCount = variants.size();
         
         if (variantCount == 0) {
-            throw new VictorException("Variant list cannot be empty");
+            throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
 
         // 计算每个分桶的基础大小
@@ -313,7 +314,7 @@ public class VariantVersionService {
         // 验证最后一个分桶的结束位置
         Variant lastVariant = variants.get(variantCount - 1);
         if (lastVariant.getBucketEnd() != 9999) {
-            throw new VictorException("Last variant should end at 9999, but got: " + lastVariant.getBucketEnd());
+            throw new VictorException(ErrorCode.BKT_LAST_END_MUST_9999, String.valueOf(lastVariant.getBucketEnd()));
         }
 
         log.info("Redistributed bucket ranges for {} variants: {}", variantCount,

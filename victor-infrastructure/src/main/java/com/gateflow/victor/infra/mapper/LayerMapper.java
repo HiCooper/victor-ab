@@ -23,4 +23,11 @@ public interface LayerMapper extends BaseMapper<Layer> {
      */
     @Select("SELECT * FROM victor_layer WHERE layer_id = #{layerId}")
     Layer selectByLayerId(@Param("layerId") String layerId);
+
+    /**
+     * 批量查询层（按ID列表）
+     */
+    @Select("<script>SELECT * FROM victor_layer WHERE id IN " +
+        "<foreach item='id' collection='ids' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    List<Layer> selectByIds(@Param("ids") List<Long> ids);
 }

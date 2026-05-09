@@ -111,7 +111,7 @@ class ExperimentLifecycleServiceTest {
         VictorException exception = assertThrows(VictorException.class, () -> 
             lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.RUNNING));
         
-        assertTrue(exception.getMessage().contains("Invalid state transition"));
+        assertTrue(exception.getMessage().contains("无效的状态转换"));
     }
 
     @Test
@@ -120,7 +120,7 @@ class ExperimentLifecycleServiceTest {
         VictorException exception = assertThrows(VictorException.class, () -> 
             lifecycleService.validateTransition(ExperimentStatus.RUNNING, ExperimentStatus.DRAFT));
         
-        assertTrue(exception.getMessage().contains("Invalid state transition"));
+        assertTrue(exception.getMessage().contains("无效的状态转换"));
     }
 
     @Test
@@ -130,7 +130,7 @@ class ExperimentLifecycleServiceTest {
             if (status != ExperimentStatus.ARCHIVE) {
                 VictorException exception = assertThrows(VictorException.class, () -> 
                     lifecycleService.validateTransition(ExperimentStatus.ARCHIVE, status));
-                assertTrue(exception.getMessage().contains("Invalid state transition"));
+                assertTrue(exception.getMessage().contains("无效的状态转换"));
             }
         }
     }

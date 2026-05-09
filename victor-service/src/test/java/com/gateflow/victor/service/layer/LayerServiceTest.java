@@ -109,7 +109,7 @@ class LayerServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> layerService.createLayer(layer));
 
-        assertTrue(exception.getMessage().contains("Domain not found"));
+        assertTrue(exception.getMessage().contains("分域不存在"));
         verify(layerMapper, never()).insert(any(Layer.class));
     }
 
@@ -223,7 +223,7 @@ class LayerServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> layerService.updateLayer(update));
 
-        assertTrue(exception.getMessage().contains("Layer not found"));
+        assertTrue(exception.getMessage().contains("层不存在"));
         verify(layerMapper, never()).updateById(any(Layer.class));
     }
 
@@ -271,7 +271,7 @@ class LayerServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> layerService.deleteLayer(999L));
 
-        assertTrue(exception.getMessage().contains("Layer not found"));
+        assertTrue(exception.getMessage().contains("层不存在"));
         verify(layerMapper, never()).deleteById(anyLong());
     }
 
@@ -287,7 +287,7 @@ class LayerServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> layerService.deleteLayer(1L));
 
-        assertTrue(exception.getMessage().contains("existing experiments"));
+        assertTrue(exception.getMessage().contains("无法删除"));
         verify(layerMapper, never()).deleteById(anyLong());
     }
 }

@@ -79,7 +79,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariant(testVariant));
 
-        assertTrue(exception.getMessage().contains("Experiment not found"));
+        assertTrue(exception.getMessage().contains("实验不存在"));
         verify(variantMapper, never()).insert(any(Variant.class));
     }
 
@@ -92,7 +92,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariant(testVariant));
 
-        assertTrue(exception.getMessage().contains("draft experiment"));
+        assertTrue(exception.getMessage().contains("草稿"));
         verify(variantMapper, never()).insert(any(Variant.class));
     }
 
@@ -121,7 +121,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariants(Collections.emptyList()));
 
-        assertTrue(exception.getMessage().contains("cannot be empty"));
+        assertTrue(exception.getMessage().contains("不能为空"));
         verify(variantMapper, never()).insert(any(Variant.class));
     }
 
@@ -197,7 +197,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.updateVariant(update));
 
-        assertTrue(exception.getMessage().contains("Variant not found"));
+        assertTrue(exception.getMessage().contains("变体不存在"));
         verify(variantMapper, never()).updateById(any(Variant.class));
     }
 
@@ -219,7 +219,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.updateVariant(update));
 
-        assertTrue(exception.getMessage().contains("draft experiment"));
+        assertTrue(exception.getMessage().contains("草稿"));
         verify(variantMapper, never()).updateById(any(Variant.class));
     }
 
@@ -247,7 +247,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.deleteVariant(999L));
 
-        assertTrue(exception.getMessage().contains("Variant not found"));
+        assertTrue(exception.getMessage().contains("变体不存在"));
         verify(variantMapper, never()).deleteById(anyLong());
     }
 
@@ -268,7 +268,7 @@ class VariantServiceTest {
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariant(variant));
 
-        assertTrue(exception.getMessage().contains("bucket range"));
+        assertTrue(exception.getMessage().contains("超出"));
         verify(variantMapper, never()).insert(any(Variant.class));
     }
 }

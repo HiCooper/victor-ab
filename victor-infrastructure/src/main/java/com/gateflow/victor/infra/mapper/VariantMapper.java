@@ -58,4 +58,12 @@ public interface VariantMapper extends BaseMapper<Variant> {
      */
     @Delete("DELETE FROM victor_variant WHERE exp_id = #{expId} AND version = #{version}")
     int deleteByVersion(@Param("expId") Long expId, @Param("version") String version);
+
+    /**
+     * 批量查询多个实验的活跃变体
+     */
+    @Select("<script>SELECT * FROM victor_variant WHERE exp_id IN " +
+        "<foreach item='id' collection='expIds' open='(' separator=',' close=')'>#{id}</foreach> " +
+        "AND is_active = TRUE ORDER BY exp_id, variant_key ASC</script>")
+    List<Variant> selectActiveVariantsByExpIds(@Param("expIds") List<Long> expIds);
 }

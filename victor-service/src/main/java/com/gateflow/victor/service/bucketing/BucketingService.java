@@ -5,8 +5,7 @@ import com.gateflow.victor.bucketing.BucketResult;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.domain.entity.Variant;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.LayerMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -62,36 +61,27 @@ public class BucketingService {
      * @return 分桶结果列表
      */
     public List<BucketResult> getAllVariants(String userId) {
-        // 查询所有运行中的实验
         List<Experiment> experiments = experimentMapper.selectRunningExperiments();
 
         if (experiments.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 批量查询关联数据
-        Set<Long> layerIds = experiments.stream()
+        // 批量查询关联数据 - 替代 N+1 循环
+        List<Long> layerIds = experiments.stream()
                 .map(Experiment::getLayerId)
-                .collect(Collectors.toSet());
+                .distinct()
+                .toList();
+        Map<Long, Layer> layerMap = layerMapper.selectByIds(layerIds).stream()
+                .collect(Collectors.toMap(Layer::getId, l -> l));
 
-        Map<Long, Layer> layerMap = new HashMap<>();
-        for (Long layerId : layerIds) {
-            Layer layer = layerMapper.selectById(layerId);
-            if (layer != null) {
-                layerMap.put(layerId, layer);
-            }
-        }
-
-        Set<Long> expIds = experiments.stream()
+        List<Long> expIds = experiments.stream()
                 .map(Experiment::getId)
-                .collect(Collectors.toSet());
+                .distinct()
+                .toList();
+        Map<Long, List<Variant>> variantMap = variantMapper.selectActiveVariantsByExpIds(expIds).stream()
+                .collect(Collectors.groupingBy(Variant::getExpId));
 
-        Map<Long, List<Variant>> variantMap = new HashMap<>();
-        for (Long expId : expIds) {
-            variantMap.put(expId, variantMapper.selectByExpId(expId));
-        }
-
-        // 构建实验规格列表
         List<BucketEngine.ExperimentSpec> specs = experiments.stream()
                 .filter(exp -> isBucketable(exp.getStatus()))
                 .map(exp -> buildExperimentSpec(
@@ -101,7 +91,6 @@ public class BucketingService {
                 ))
                 .toList();
 
-        // 批量计算分桶
         return BucketEngine.computeAllBucketResults(userId, specs);
     }
 

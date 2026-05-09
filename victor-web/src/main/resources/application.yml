@@ -25,9 +25,9 @@ spring:
   # 数据源配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: victor123
+    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${VICTOR_DB_USER:root}
+    password: ${VICTOR_DB_PASSWORD:}
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initial-size: 5
@@ -132,11 +132,21 @@ victor:
     kafka-topic: victor-events
     batch-size: 100
   clickhouse:
-    url: jdbc:clickhouse://localhost:8123/victor
-    user: victor
-    password: victor123
+    url: ${VICTOR_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
+    user: ${VICTOR_CLICKHOUSE_USER:victor}
+    password: ${VICTOR_CLICKHOUSE_PASSWORD:}
   stats:
     clickhouse:
-      url: jdbc:clickhouse://localhost:8123/victor
-      user: victor
-      password: victor123
+      url: ${VICTOR_STATS_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
+      user: ${VICTOR_STATS_CLICKHOUSE_USER:victor}
+      password: ${VICTOR_STATS_CLICKHOUSE_PASSWORD:}
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
