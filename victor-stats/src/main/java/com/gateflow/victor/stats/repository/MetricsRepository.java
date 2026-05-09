@@ -214,30 +214,30 @@ public class MetricsRepository {
      */
     public Map<String, VariantStats> queryRealtimeStats(String expId, int minutes) {
         Map<String, VariantStats> results = new HashMap<>();
-        
+
         LocalDateTime since = LocalDateTime.now().minusMinutes(minutes);
         String sinceStr = since.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        
+
         String sql = """
-            SELECT 
-                variant,
-                layer,
-                sum(total_events) AS total_events,
-                sum(unique_users) AS total_users,
-                sum(conversions) AS total_conversions,
-                sum(total_revenue) AS total_revenue
+            SELECT
+                variants[1] AS variant,
+                layers[1] AS layer,
+                count() AS total_events,
+                uniqExact(user_id) AS total_users,
+                countIf(event_type = 'conversion') AS total_conversions,
+                0 AS total_revenue
             FROM victor.events
             WHERE has(exp_ids, ?)
               AND timestamp >= ?
-            GROUP BY variant, layer
+            GROUP BY variants[1], layers[1]
             """;
-        
+
         try (Connection conn = config.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+
             ps.setString(1, expId);
             ps.setString(2, sinceStr);
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     VariantStats stats = new VariantStats();
@@ -247,18 +247,18 @@ public class MetricsRepository {
                     stats.setTotalConversions(rs.getLong("total_conversions"));
                     stats.setTotalEvents(rs.getLong("total_events"));
                     stats.setTotalRevenue(rs.getDouble("total_revenue"));
-                    
+
                     if (stats.getTotalUsers() > 0) {
                         stats.setConversionRate((double) stats.getTotalConversions() / stats.getTotalUsers());
                     }
-                    
+
                     results.put(stats.getVariant(), stats);
                 }
             }
         } catch (SQLException e) {
             log.error("Failed to query realtime stats for expId={}", expId, e);
         }
-        
+
         return results;
     }
     

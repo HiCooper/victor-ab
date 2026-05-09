@@ -1,5 +1,7 @@
 package com.gateflow.victor.service;
 
+import com.gateflow.victor.stats.repository.MetricsRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -12,41 +14,34 @@ import java.util.*;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MetricsService {
+
+    private final MetricsRepository metricsRepository;
 
     /**
      * Get real-time metrics for an experiment
      */
     public List<Map<String, Object>> getRealtimeMetrics(String expId, Integer windowMinutes) {
         log.info("Getting realtime metrics for experiment: {}, window: {} minutes", expId, windowMinutes);
-        
-        // Return mock data for demo
+
+        Map<String, MetricsRepository.VariantStats> stats = metricsRepository.queryRealtimeStats(expId, windowMinutes);
+
         List<Map<String, Object>> metrics = new ArrayList<>();
-        
-        // Control group metrics
-        Map<String, Object> controlMetrics = new LinkedHashMap<>();
-        controlMetrics.put("expId", expId);
-        controlMetrics.put("variant", "control");
-        controlMetrics.put("timestamp", LocalDateTime.now().toString());
-        controlMetrics.put("totalEvents", 156);
-        controlMetrics.put("uniqueUsers", 98);
-        controlMetrics.put("conversions", 12);
-        controlMetrics.put("conversionRate", 0.1224);
-        controlMetrics.put("totalRevenue", 1560.0);
-        metrics.add(controlMetrics);
-        
-        // Treatment group metrics
-        Map<String, Object> treatmentMetrics = new LinkedHashMap<>();
-        treatmentMetrics.put("expId", expId);
-        treatmentMetrics.put("variant", "treatment");
-        treatmentMetrics.put("timestamp", LocalDateTime.now().toString());
-        treatmentMetrics.put("totalEvents", 162);
-        treatmentMetrics.put("uniqueUsers", 102);
-        treatmentMetrics.put("conversions", 18);
-        treatmentMetrics.put("conversionRate", 0.1765);
-        treatmentMetrics.put("totalRevenue", 2340.0);
-        metrics.add(treatmentMetrics);
-        
+        for (Map.Entry<String, MetricsRepository.VariantStats> entry : stats.entrySet()) {
+            MetricsRepository.VariantStats variantStats = entry.getValue();
+            Map<String, Object> metric = new LinkedHashMap<>();
+            metric.put("expId", expId);
+            metric.put("variant", variantStats.getVariant());
+            metric.put("timestamp", LocalDateTime.now().toString());
+            metric.put("totalEvents", variantStats.getTotalEvents());
+            metric.put("uniqueUsers", variantStats.getTotalUsers());
+            metric.put("conversions", variantStats.getTotalConversions());
+            metric.put("conversionRate", variantStats.getConversionRate());
+            metric.put("totalRevenue", variantStats.getTotalRevenue());
+            metrics.add(metric);
+        }
+
         return metrics;
     }
 
