@@ -56,4 +56,17 @@ public class MetricsController {
         Map<String, Object> stats = metricsService.getDashboardStats();
         return ResponseEntity.ok(stats);
     }
+
+    /**
+     * Get event details for an experiment
+     */
+    @GetMapping("/events")
+    public ResponseEntity<List<Map<String, Object>>> getEventDetails(
+            @RequestParam String expId,
+            @RequestParam(required = false, defaultValue = "100") Integer limit,
+            @RequestParam(required = false, defaultValue = "0") Integer offset) {
+        log.info("Getting event details for experiment: {}, limit: {}, offset: {}", expId, limit, offset);
+        List<Map<String, Object>> events = metricsService.getEventDetails(expId, limit, offset);
+        return ResponseEntity.ok(events);
+    }
 }

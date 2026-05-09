@@ -10,7 +10,10 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -261,7 +264,64 @@ public class MetricsRepository {
 
         return results;
     }
-    
+
+    /**
+     * 查询事件明细
+     */
+    public List<Map<String, Object>> queryEventDetails(String expId, int limit, int offset) {
+        List<Map<String, Object>> events = new ArrayList<>();
+
+        String sql = """
+            SELECT
+                event_id,
+                event_type,
+                user_id,
+                timestamp,
+                platform,
+                device_id,
+                session_id,
+                variants,
+                layers,
+                properties
+            FROM victor.events
+            WHERE has(exp_ids, ?)
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+            """;
+
+        try (Connection conn = config.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, expId);
+            ps.setInt(2, limit);
+            ps.setInt(3, offset);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> event = new LinkedHashMap<>();
+                    event.put("eventId", rs.getString("event_id"));
+                    event.put("eventType", rs.getString("event_type"));
+                    event.put("userId", rs.getString("user_id"));
+                    event.put("timestamp", rs.getTimestamp("timestamp").toString());
+                    event.put("platform", rs.getString("platform"));
+                    event.put("deviceId", rs.getString("device_id"));
+                    event.put("sessionId", rs.getString("session_id"));
+                    // Array columns - get first element or whole array
+                    Array variantsArray = rs.getArray("variants");
+                    event.put("variant", variantsArray != null ? variantsArray.getArray() : null);
+                    Array layersArray = rs.getArray("layers");
+                    event.put("layer", layersArray != null ? layersArray.getArray() : null);
+                    event.put("properties", rs.getString("properties"));
+                    events.add(event);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query event details for expId={}", expId, e);
+        }
+
+        return events;
+    }
+
     /**
      * 变体统计内部类
      */

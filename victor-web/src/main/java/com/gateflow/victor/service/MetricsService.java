@@ -91,7 +91,7 @@ public class MetricsService {
      */
     public Map<String, Object> getDashboardStats() {
         log.info("Getting dashboard statistics");
-        
+
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalExperiments", 156);
         stats.put("activeExperiments", 12);
@@ -99,7 +99,15 @@ public class MetricsService {
         stats.put("significantPositive", 5);
         stats.put("significantNegative", 2);
         stats.put("pendingReports", 3);
-        
+
         return stats;
+    }
+
+    /**
+     * Get event details for an experiment
+     */
+    public List<Map<String, Object>> getEventDetails(String expId, int limit, int offset) {
+        log.info("Getting event details for experiment: {}, limit: {}, offset: {}", expId, limit, offset);
+        return metricsRepository.queryEventDetails(expId, limit, offset);
     }
 }
