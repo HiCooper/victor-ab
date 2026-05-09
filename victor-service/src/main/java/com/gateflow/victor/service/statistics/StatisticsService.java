@@ -57,10 +57,10 @@ public class StatisticsService {
             return buildEmptyMetricsResponse();
         }
 
-        String controlVariant = variants.get(0).getVariantKey();
+        String controlVariant = variants.get(0).getBucketId();
         List<String> treatmentVariants = variants.stream()
             .skip(1)
-            .map(Variant::getVariantKey)
+            .map(Variant::getBucketId)
             .toList();
 
         return buildMetricsResponse(report, controlVariant, treatmentVariants);
@@ -87,8 +87,8 @@ public class StatisticsService {
         String expId = experiment.getExpId();
         List<TimeSeriesDataResponse.DataPoint> dataPoints = new ArrayList<>();
 
-        String controlVariant = variants.get(0).getVariantKey();
-        String treatmentVariant = variants.size() > 1 ? variants.get(1).getVariantKey() : null;
+        String controlVariant = variants.get(0).getBucketId();
+        String treatmentVariant = variants.size() > 1 ? variants.get(1).getBucketId() : null;
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> controlDaily =
             statsEngine.getMetricsRepository().queryDailyTrend(expId, controlVariant, startDate, endDate);
@@ -149,7 +149,7 @@ public class StatisticsService {
         long totalUsers = 0;
 
         for (Variant variant : variants) {
-            String key = variant.getVariantKey();
+            String key = variant.getBucketId();
             var stats = variantStats.get(key);
             long users = stats != null ? stats.getTotalUsers() : 0;
             totalUsers += users;
@@ -206,12 +206,12 @@ public class StatisticsService {
         LocalDate aaEnd = experimentStart.minusDays(1);
 
         String expId = experiment.getExpId();
-        String controlKey = variants.get(0).getVariantKey();
+        String controlKey = variants.get(0).getBucketId();
 
         List<AATestResponse.AATestResult> results = new ArrayList<>();
 
         for (int i = 1; i < variants.size(); i++) {
-            String treatmentKey = variants.get(i).getVariantKey();
+            String treatmentKey = variants.get(i).getBucketId();
 
             var controlStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, aaStart, aaEnd)
                 .get(controlKey);
@@ -278,8 +278,8 @@ public class StatisticsService {
         }
 
         String expId = experiment.getExpId();
-        String controlVariant = variants.get(0).getVariantKey();
-        String treatmentVariant = variants.size() > 1 ? variants.get(1).getVariantKey() : null;
+        String controlVariant = variants.get(0).getBucketId();
+        String treatmentVariant = variants.size() > 1 ? variants.get(1).getBucketId() : null;
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> controlDaily =
             statsEngine.getMetricsRepository().queryDailyTrend(expId, controlVariant, startDate, endDate);
@@ -322,10 +322,10 @@ public class StatisticsService {
                 .build();
         }
 
-        String controlVariant = variants.get(0).getVariantKey();
+        String controlVariant = variants.get(0).getBucketId();
         List<String> treatmentVariants = variants.stream()
             .skip(1)
-            .map(Variant::getVariantKey)
+            .map(Variant::getBucketId)
             .toList();
 
         return statsEngine.analyzeExperiment(

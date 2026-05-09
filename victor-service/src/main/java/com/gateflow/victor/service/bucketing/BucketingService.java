@@ -5,8 +5,10 @@ import com.gateflow.victor.bucketing.BucketResult;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.domain.entity.Variant;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;import com.gateflow.victor.infra.mapper.LayerMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,7 @@ public class BucketingService {
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
     private final VariantMapper variantMapper;
+    private final ExperimentWhitelistService whitelistService;
 
     /**
      * 获取用户在指定实验中的分桶结果
@@ -45,7 +48,13 @@ public class BucketingService {
         }
 
         // 查询版本
-        List<Variant> variants = variantMapper.selectByExpId(experiment.getId());
+        List<Variant> variants = variantMapper.selectByExpId(experiment.getExpId());
+
+        // 先检查白名单
+        String whitelistBucketId = whitelistService.getBucketIdForWhitelistedUser(experiment.getExpId(), userId);
+        if (whitelistBucketId != null) {
+            return BucketResult.hit(userId, experimentKey, -1, whitelistBucketId, layer.getLayerId());
+        }
 
         // 构建实验规格
         BucketEngine.ExperimentSpec spec = buildExperimentSpec(experiment, layer, variants);
@@ -75,11 +84,11 @@ public class BucketingService {
         Map<Long, Layer> layerMap = layerMapper.selectByIds(layerIds).stream()
                 .collect(Collectors.toMap(Layer::getId, l -> l));
 
-        List<Long> expIds = experiments.stream()
-                .map(Experiment::getId)
+        List<String> expIds = experiments.stream()
+                .map(Experiment::getExpId)
                 .distinct()
                 .toList();
-        Map<Long, List<Variant>> variantMap = variantMapper.selectActiveVariantsByExpIds(expIds).stream()
+        Map<String, List<Variant>> variantMap = variantMapper.selectActiveVariantsByExpIds(expIds).stream()
                 .collect(Collectors.groupingBy(Variant::getExpId));
 
         List<BucketEngine.ExperimentSpec> specs = experiments.stream()
@@ -87,7 +96,7 @@ public class BucketingService {
                 .map(exp -> buildExperimentSpec(
                         exp,
                         layerMap.get(exp.getLayerId()),
-                        variantMap.getOrDefault(exp.getId(), Collections.emptyList())
+                        variantMap.getOrDefault(exp.getExpId(), Collections.emptyList())
                 ))
                 .toList();
 
@@ -102,7 +111,7 @@ public class BucketingService {
 
         List<BucketEngine.VariantSpec> variantSpecs = variants.stream()
                 .map(v -> new BucketEngine.VariantSpec(
-                        v.getVariantKey(),
+                        v.getBucketId(),
                         v.getBucketStart(),
                         v.getBucketEnd()
                 ))

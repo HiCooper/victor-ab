@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -31,8 +32,8 @@ public class VariantService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Variant createVariant(Variant variant) {
-        // 验证实验是否存在
-        Experiment experiment = experimentMapper.selectById(variant.getExpId());
+        // 验证实验是否存在（通过业务expId查询）
+        Experiment experiment = experimentMapper.selectByExpId(variant.getExpId());
         if (experiment == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(variant.getExpId()));
         }
@@ -63,9 +64,9 @@ public class VariantService {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
 
-        // 所有版本应属于同一实验
-        Long expId = variants.get(0).getExpId();
-        Experiment experiment = experimentMapper.selectById(expId);
+        // 所有版本应属于同一实验（通过业务expId查询）
+        String expId = variants.get(0).getExpId();
+        Experiment experiment = experimentMapper.selectByExpId(expId);
         if (experiment == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
@@ -99,8 +100,8 @@ public class VariantService {
             throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variant.getId()));
         }
 
-        // 验证实验状态
-        Experiment experiment = experimentMapper.selectById(existing.getExpId());
+        // 验证实验状态（通过业务expId查询）
+        Experiment experiment = experimentMapper.selectByExpId(existing.getExpId());
         if (experiment == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND);
         }
@@ -130,8 +131,8 @@ public class VariantService {
             throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variantId));
         }
 
-        // 验证实验状态
-        Experiment experiment = experimentMapper.selectById(variant.getExpId());
+        // 验证实验状态（通过业务expId查询）
+        Experiment experiment = experimentMapper.selectByExpId(variant.getExpId());
         if (experiment != null && !"draft".equals(experiment.getStatus())) {
             throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_DELETE);
         }
@@ -140,13 +141,27 @@ public class VariantService {
     }
 
     /**
-     * 查询实验的所有版本
+     * 查询实验的所有版本（通过业务expId查询）
      *
-     * @param expId 实验ID
+     * @param expId 业务实验ID
      * @return 版本列表
      */
-    public List<Variant> getVariantsByExperiment(Long expId) {
+    public List<Variant> getVariantsByExperiment(String expId) {
         return variantMapper.selectByExpId(expId);
+    }
+
+    /**
+     * 查询实验的所有版本（通过主键expId查询）
+     *
+     * @param expId 数据库主键ID
+     * @return 版本列表
+     */
+    public List<Variant> getVariantsByExperimentId(Long expId) {
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            return Collections.emptyList();
+        }
+        return variantMapper.selectByExpId(experiment.getExpId());
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.common.util.BucketIdGenerator;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
 import com.gateflow.victor.domain.entity.Experiment;
@@ -49,11 +50,11 @@ public class ExperimentController {
         List<Variant> variants = request.getVariants() != null
             ? request.getVariants().stream().map(vr -> {
                 Variant v = new Variant();
-                v.setVariantKey(vr.getVariantKey());
+                v.setBucketId(BucketIdGenerator.generate());
                 v.setName(vr.getName());
                 v.setBucketStart(vr.getBucketStart());
                 v.setBucketEnd(vr.getBucketEnd());
-                v.setParams(vr.getParams());
+                v.setParams(vr.getParams() != null ? vr.getParams() : "{}");
                 return v;
             }).toList()
             : null;

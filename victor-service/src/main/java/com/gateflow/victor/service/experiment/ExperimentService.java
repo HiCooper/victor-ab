@@ -2,6 +2,7 @@ package com.gateflow.victor.service.experiment;
 
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;
+import com.gateflow.victor.common.util.BucketIdGenerator;
 import com.gateflow.victor.common.util.ExperimentIdGenerator;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.entity.Experiment;
@@ -17,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collections;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -79,13 +82,13 @@ public class ExperimentService {
             String version = versionService.generateVersion();
             LocalDateTime now = LocalDateTime.now();
             for (Variant variant : processedVariants) {
-                variant.setExpId(experiment.getId());
+                variant.setExpId(experiment.getExpId());
                 variant.setVersion(version);
                 variant.setIsActive(true);
                 variant.setCreatedAt(now);
                 variantMapper.insert(variant);
             }
-            log.info("Created experiment {} with version {}", experiment.getId(), version);
+            log.info("Created experiment {} with version {}", experiment.getExpId(), version);
         }
 
         return experiment;
@@ -135,7 +138,7 @@ public class ExperimentService {
         // 3. 转换VariantRequest为Variant实体
         List<Variant> newVariants = processedVariants.stream().map(req -> {
             Variant variant = new Variant();
-            variant.setVariantKey(req.getVariantKey());
+            variant.setBucketId(BucketIdGenerator.generate());
             variant.setName(req.getName());
             variant.setBucketStart(req.getBucketStart());
             variant.setBucketEnd(req.getBucketEnd());
@@ -214,7 +217,7 @@ public class ExperimentService {
         }
 
         // 验证活跃版本是否存在
-        List<Variant> variants = variantMapper.selectActiveVariants(expId);
+        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
         if (variants.isEmpty()) {
             throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
         }
@@ -492,13 +495,13 @@ public class ExperimentService {
         experimentMapper.insert(cloned);
 
         // 克隆版本
-        List<Variant> sourceVariants = variantMapper.selectByExpId(expId);
+        List<Variant> sourceVariants = variantMapper.selectByExpId(source.getExpId());
         if (!sourceVariants.isEmpty()) {
             LocalDateTime now = LocalDateTime.now();
             for (Variant sourceVariant : sourceVariants) {
                 Variant clonedVariant = new Variant();
-                clonedVariant.setExpId(cloned.getId());
-                clonedVariant.setVariantKey(sourceVariant.getVariantKey());
+                clonedVariant.setExpId(cloned.getExpId());
+                clonedVariant.setBucketId(BucketIdGenerator.generate());
                 clonedVariant.setName(sourceVariant.getName());
                 clonedVariant.setBucketStart(sourceVariant.getBucketStart());
                 clonedVariant.setBucketEnd(sourceVariant.getBucketEnd());
@@ -529,8 +532,8 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.EXP_CANNOT_DELETE_RUNNING);
         }
 
-        // 先删除版本
-        variantMapper.deleteByExpId(expId);
+        // 先删除版本（通过业务expId）
+        variantMapper.deleteByExpId(experiment.getExpId());
 
         // 删除实验
         experimentMapper.deleteById(expId);
@@ -604,21 +607,29 @@ public class ExperimentService {
     /**
      * 查询实验的版本列表（默认返回当前活跃版本）
      *
-     * @param expId 实验ID
+     * @param expId 实验主键ID
      * @return 版本列表
      */
     public List<Variant> getExperimentVariants(Long expId) {
-        return variantMapper.selectActiveVariants(expId);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            return Collections.emptyList();
+        }
+        return variantMapper.selectActiveVariants(experiment.getExpId());
     }
 
     /**
      * 查询实验的所有历史版本
      *
-     * @param expId 实验ID
+     * @param expId 实验主键ID
      * @return 所有版本列表
      */
     public List<Variant> getAllExperimentVariants(Long expId) {
-        return variantMapper.selectByExpId(expId);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            return Collections.emptyList();
+        }
+        return variantMapper.selectByExpId(experiment.getExpId());
     }
 
     /**

@@ -19,10 +19,10 @@ public class Variant {
     private Long id;
 
     /**
-     * 所属实验ID (引用victor_experiment.id)
+     * 所属实验业务ID (victor_experiment.exp_id)
      */
     @TableField("exp_id")
-    private Long expId;
+    private String expId;
 
     /**
      * 版本号 (时间戳格式: 20260506143000)
@@ -31,10 +31,10 @@ public class Variant {
     private String version;
 
     /**
-     * 版本标识 (如: control, treatment_a)
+     * 分桶ID (如: control, treatment)
      */
-    @TableField("variant_key")
-    private String variantKey;
+    @TableField("bucket_id")
+    private String bucketId;
 
     /**
      * 版本名称

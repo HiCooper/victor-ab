@@ -1,5 +1,6 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.common.util.BucketIdGenerator;
 import com.gateflow.victor.domain.dto.VariantCreateRequest;
 import com.gateflow.victor.domain.dto.VariantUpdateRequest;
 import com.gateflow.victor.domain.entity.Variant;
@@ -31,7 +32,7 @@ public class VariantController {
     public ResponseEntity<Variant> createVariant(@Valid @RequestBody VariantCreateRequest request) {
         Variant variant = new Variant();
         variant.setExpId(request.getExpId());
-        variant.setVariantKey(request.getVariantKey());
+        variant.setBucketId(BucketIdGenerator.generate());
         variant.setName(request.getName());
         variant.setBucketStart(request.getBucketStart());
         variant.setBucketEnd(request.getBucketEnd());
@@ -47,7 +48,7 @@ public class VariantController {
         List<Variant> variants = requests.stream().map(req -> {
             Variant v = new Variant();
             v.setExpId(req.getExpId());
-            v.setVariantKey(req.getVariantKey());
+            v.setBucketId(BucketIdGenerator.generate());
             v.setName(req.getName());
             v.setBucketStart(req.getBucketStart());
             v.setBucketEnd(req.getBucketEnd());
@@ -74,7 +75,7 @@ public class VariantController {
     @Operation(summary = "查询实验版本列表", description = "查询指定实验的所有版本")
     public ResponseEntity<List<Variant>> getVariantsByExperiment(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
-        List<Variant> variants = variantService.getVariantsByExperiment(expId);
+        List<Variant> variants = variantService.getVariantsByExperimentId(expId);
         return ResponseEntity.ok(variants);
     }
 

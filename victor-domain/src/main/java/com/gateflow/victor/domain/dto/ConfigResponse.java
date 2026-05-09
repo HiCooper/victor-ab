@@ -78,9 +78,9 @@ public class ConfigResponse {
     @Data
     public static class VariantConfig {
         /**
-         * 版本标识
+         * 分桶ID
          */
-        private String variantKey;
+        private String bucketId;
 
         /**
          * 桶起始位置

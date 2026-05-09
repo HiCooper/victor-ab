@@ -11,10 +11,10 @@ import lombok.Data;
 public class VariantCreateRequest {
 
     /**
-     * 所属实验ID
+     * 所属实验业务ID (victor_experiment.exp_id)
      */
-    @NotNull(message = "expId不能为空")
-    private Long expId;
+    @NotBlank(message = "expId不能为空")
+    private String expId;
 
     /**
      * 版本标识

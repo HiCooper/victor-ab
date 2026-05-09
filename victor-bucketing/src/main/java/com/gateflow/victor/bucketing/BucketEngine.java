@@ -49,7 +49,7 @@ public final class BucketEngine {
 
         for (VariantSpec spec : variantSpecs) {
             if (bucket >= spec.getBucketStart() && bucket <= spec.getBucketEnd()) {
-                return spec.getVariantKey();
+                return spec.getBucketId();
             }
         }
 
@@ -139,17 +139,17 @@ public final class BucketEngine {
      * 版本规格 - 用于分桶计算的版本配置
      */
     public static class VariantSpec {
-        private final String variantKey;
+        private final String bucketId;
         private final int bucketStart;
         private final int bucketEnd;
 
-        public VariantSpec(String variantKey, int bucketStart, int bucketEnd) {
-            this.variantKey = variantKey;
+        public VariantSpec(String bucketId, int bucketStart, int bucketEnd) {
+            this.bucketId = bucketId;
             this.bucketStart = bucketStart;
             this.bucketEnd = bucketEnd;
         }
 
-        public String getVariantKey() { return variantKey; }
+        public String getBucketId() { return bucketId; }
         public int getBucketStart() { return bucketStart; }
         public int getBucketEnd() { return bucketEnd; }
     }

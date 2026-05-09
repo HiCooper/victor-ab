@@ -2,6 +2,7 @@ package com.gateflow.victor.service.experiment;
 
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 /**
  * 实验版本控制服务
- * 
+ *
  * 功能：
  * 1. 编辑实验时自动创建新版本
  * 2. 查询版本历史
@@ -31,10 +32,11 @@ import java.util.stream.Collectors;
 public class VariantVersionService {
 
     private final VariantMapper variantMapper;
+    private final ExperimentMapper experimentMapper;
 
     /**
      * 生成版本号（时间戳格式）
-     * 
+     *
      * @return 版本号，例如: 20260506143000
      */
     public String generateVersion() {
@@ -43,13 +45,13 @@ public class VariantVersionService {
 
     /**
      * 创建新版本（编辑实验时调用）
-     * 
+     *
      * 流程：
      * 1. 将当前所有版本标记为非活跃
      * 2. 生成新版本号
      * 3. 插入新版本的分桶配置
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @param newVariants 新的分桶配置列表
      * @return 新版本号
      */
@@ -59,6 +61,12 @@ public class VariantVersionService {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
 
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
+        }
+        String bizExpId = experiment.getExpId();
+
         // 1. 验证分桶配置（仅验证variant_key唯一性）
         validateVariantKeys(newVariants);
 
@@ -66,8 +74,8 @@ public class VariantVersionService {
         redistributeBucketRanges(newVariants);
 
         // 3. 将当前版本标记为非活跃
-        variantMapper.deactivateAllVariants(expId);
-        log.info("Deactivated all variants for experiment {}", expId);
+        variantMapper.deactivateAllVariants(bizExpId);
+        log.info("Deactivated all variants for experiment {}", bizExpId);
 
         // 4. 生成新版本号
         String newVersion = generateVersion();
@@ -76,16 +84,16 @@ public class VariantVersionService {
         // 5. 插入新版本的分桶
         for (Variant variant : newVariants) {
             variant.setId(null); // 清除ID，作为新记录插入
-            variant.setExpId(expId);
+            variant.setExpId(bizExpId);
             variant.setVersion(newVersion);
             variant.setIsActive(true);
             variant.setCreatedAt(now);
             variantMapper.insert(variant);
         }
 
-        log.info("Created new version {} for experiment {} with {} variants, bucket ranges: {}", 
-            newVersion, expId, newVariants.size(),
-            newVariants.stream().map(v -> v.getVariantKey() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
+        log.info("Created new version {} for experiment {} with {} variants, bucket ranges: {}",
+            newVersion, bizExpId, newVariants.size(),
+            newVariants.stream().map(v -> v.getBucketId() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
                 .collect(Collectors.joining(", ")));
 
         return newVersion;
@@ -93,12 +101,16 @@ public class VariantVersionService {
 
     /**
      * 获取实验的当前活跃版本
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @return 活跃版本列表
      */
     public List<Variant> getActiveVariants(Long expId) {
-        List<Variant> variants = variantMapper.selectActiveVariants(expId);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            return List.of();
+        }
+        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
         if (variants.isEmpty()) {
             log.warn("No active variants found for experiment {}", expId);
         }
@@ -107,23 +119,31 @@ public class VariantVersionService {
 
     /**
      * 获取实验的所有版本列表
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @return 所有版本列表
      */
     public List<Variant> getAllVariants(Long expId) {
-        return variantMapper.selectByExpId(expId);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            return List.of();
+        }
+        return variantMapper.selectByExpId(experiment.getExpId());
     }
 
     /**
      * 获取实验的指定版本
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @param version 版本号
      * @return 版本列表
      */
     public List<Variant> getVariantsByVersion(Long expId, String version) {
-        List<Variant> variants = variantMapper.selectByExpIdAndVersion(expId, version);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
+        }
+        List<Variant> variants = variantMapper.selectByExpIdAndVersion(experiment.getExpId(), version);
         if (variants.isEmpty()) {
             throw new VictorException(ErrorCode.VER_NOT_FOUND, String.valueOf(version));
         }
@@ -132,60 +152,76 @@ public class VariantVersionService {
 
     /**
      * 获取实验的所有版本号列表
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @return 版本号列表（按时间倒序）
      */
     public List<String> getVersionHistory(Long expId) {
-        return variantMapper.selectVersionsByExpId(expId);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            return List.of();
+        }
+        return variantMapper.selectVersionsByExpId(experiment.getExpId());
     }
 
     /**
      * 回滚到指定版本
-     * 
+     *
      * 流程：
      * 1. 验证目标版本存在
      * 2. 将当前版本标记为非活跃
      * 3. 激活目标版本
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @param targetVersion 目标版本号
      * @return 回滚后的版本列表
      */
     @Transactional(rollbackFor = Exception.class)
     public List<Variant> rollbackToVersion(Long expId, String targetVersion) {
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
+        }
+        String bizExpId = experiment.getExpId();
+
         // 1. 验证目标版本存在
-        List<Variant> targetVariants = variantMapper.selectByExpIdAndVersion(expId, targetVersion);
+        List<Variant> targetVariants = variantMapper.selectByExpIdAndVersion(bizExpId, targetVersion);
         if (targetVariants.isEmpty()) {
             throw new VictorException(ErrorCode.VER_NOT_FOUND, String.valueOf(targetVersion));
         }
 
         // 2. 将当前版本标记为非活跃
-        variantMapper.deactivateAllVariants(expId);
-        log.info("Deactivated all variants for experiment {} before rollback", expId);
+        variantMapper.deactivateAllVariants(bizExpId);
+        log.info("Deactivated all variants for experiment {} before rollback", bizExpId);
 
         // 3. 激活目标版本
-        int activated = variantMapper.activateVersion(expId, targetVersion);
+        int activated = variantMapper.activateVersion(bizExpId, targetVersion);
         if (activated == 0) {
             throw new VictorException(ErrorCode.VER_ACTIVATE_FAILED, String.valueOf(targetVersion));
         }
 
-        log.info("Rolled back experiment {} to version {}", expId, targetVersion);
+        log.info("Rolled back experiment {} to version {}", bizExpId, targetVersion);
 
         return targetVariants;
     }
 
     /**
      * 对比两个版本的差异
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @param version1 版本1
      * @param version2 版本2
      * @return 版本对比结果
      */
     public VersionComparison compareVersions(Long expId, String version1, String version2) {
-        List<Variant> variants1 = variantMapper.selectByExpIdAndVersion(expId, version1);
-        List<Variant> variants2 = variantMapper.selectByExpIdAndVersion(expId, version2);
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
+        }
+        String bizExpId = experiment.getExpId();
+
+        List<Variant> variants1 = variantMapper.selectByExpIdAndVersion(bizExpId, version1);
+        List<Variant> variants2 = variantMapper.selectByExpIdAndVersion(bizExpId, version2);
 
         if (variants1.isEmpty()) {
             throw new VictorException("Version not found: " + version1);
@@ -210,18 +246,24 @@ public class VariantVersionService {
 
     /**
      * 清理旧版本（保留最近N个版本）
-     * 
-     * @param expId 实验ID
+     *
+     * @param expId 实验主键ID
      * @param keepCount 保留的版本数量
      * @return 删除的版本数量
      */
     @Transactional(rollbackFor = Exception.class)
     public int cleanupOldVersions(Long expId, int keepCount) {
-        List<String> versions = variantMapper.selectVersionsByExpId(expId);
-        
+        Experiment experiment = experimentMapper.selectById(expId);
+        if (experiment == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
+        }
+        String bizExpId = experiment.getExpId();
+
+        List<String> versions = variantMapper.selectVersionsByExpId(bizExpId);
+
         if (versions.size() <= keepCount) {
-            log.info("No old versions to cleanup for experiment {} (current: {}, keep: {})", 
-                expId, versions.size(), keepCount);
+            log.info("No old versions to cleanup for experiment {} (current: {}, keep: {})",
+                bizExpId, versions.size(), keepCount);
             return 0;
         }
 
@@ -229,19 +271,19 @@ public class VariantVersionService {
         // 删除超出保留数量的旧版本（跳过当前活跃版本）
         for (int i = keepCount; i < versions.size(); i++) {
             String version = versions.get(i);
-            
+
             // 不删除活跃版本
-            List<Variant> activeVariants = variantMapper.selectByExpIdAndVersion(expId, version);
+            List<Variant> activeVariants = variantMapper.selectByExpIdAndVersion(bizExpId, version);
             boolean isActive = activeVariants.stream().anyMatch(Variant::getIsActive);
-            
+
             if (!isActive) {
-                variantMapper.deleteByVersion(expId, version);
+                variantMapper.deleteByVersion(bizExpId, version);
                 deleted++;
-                log.info("Deleted old version {} for experiment {}", version, expId);
+                log.info("Deleted old version {} for experiment {}", version, bizExpId);
             }
         }
 
-        log.info("Cleaned up {} old versions for experiment {}", deleted, expId);
+        log.info("Cleaned up {} old versions for experiment {}", deleted, bizExpId);
         return deleted;
     }
 
@@ -255,10 +297,10 @@ public class VariantVersionService {
 
         // 检查variant_key唯一性
         long distinctKeys = variants.stream()
-            .map(Variant::getVariantKey)
+            .map(Variant::getBucketId)
             .distinct()
             .count();
-        
+
         if (distinctKeys != variants.size()) {
             throw new VictorException(ErrorCode.VARIANT_DUPLICATE_KEY);
         }
@@ -266,12 +308,12 @@ public class VariantVersionService {
 
     /**
      * 自动重新分配分桶边界
-     * 
+     *
      * 策略：
      * 1. 将所有分桶平均分配 [0, 9999] 的范围
      * 2. 确保无重叠、无间隙
      * 3. 最后一个分桶的bucketEnd固定为9999
-     * 
+     *
      * 例如：
      * - 2个分桶: control[0-4999], treatment[5000-9999]
      * - 3个分桶: control[0-3332], treatment_a[3333-6665], treatment_b[6666-9999]
@@ -280,7 +322,7 @@ public class VariantVersionService {
     private void redistributeBucketRanges(List<Variant> variants) {
         int totalBuckets = 10000; // [0, 9999]
         int variantCount = variants.size();
-        
+
         if (variantCount == 0) {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
@@ -292,7 +334,7 @@ public class VariantVersionService {
         int currentStart = 0;
         for (int i = 0; i < variantCount; i++) {
             Variant variant = variants.get(i);
-            
+
             // 前 remainder 个分桶各多分配1个单位
             int size = baseSize + (i < remainder ? 1 : 0);
             int currentEnd = currentStart + size - 1;
@@ -305,8 +347,8 @@ public class VariantVersionService {
             variant.setBucketStart(currentStart);
             variant.setBucketEnd(currentEnd);
 
-            log.debug("Assigned bucket range for {}: [{}, {}]", 
-                variant.getVariantKey(), currentStart, currentEnd);
+            log.debug("Assigned bucket range for {}: [{}, {}]",
+                variant.getBucketId(), currentStart, currentEnd);
 
             currentStart = currentEnd + 1;
         }
@@ -318,7 +360,7 @@ public class VariantVersionService {
         }
 
         log.info("Redistributed bucket ranges for {} variants: {}", variantCount,
-            variants.stream().map(v -> v.getVariantKey() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
+            variants.stream().map(v -> v.getBucketId() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
                 .collect(Collectors.joining(", ")));
     }
 
@@ -336,22 +378,22 @@ public class VariantVersionService {
 
         public String getVersion1() { return version1; }
         public void setVersion1(String version1) { this.version1 = version1; }
-        
+
         public String getVersion2() { return version2; }
         public void setVersion2(String version2) { this.version2 = version2; }
-        
+
         public List<Variant> getVariants1() { return variants1; }
         public void setVariants1(List<Variant> variants1) { this.variants1 = variants1; }
-        
+
         public List<Variant> getVariants2() { return variants2; }
         public void setVariants2(List<Variant> variants2) { this.variants2 = variants2; }
-        
+
         public boolean isHasDifferences() { return hasDifferences; }
         public void setHasDifferences(boolean hasDifferences) { this.hasDifferences = hasDifferences; }
-        
+
         public int getVariantCount1() { return variantCount1; }
         public void setVariantCount1(int variantCount1) { this.variantCount1 = variantCount1; }
-        
+
         public int getVariantCount2() { return variantCount2; }
         public void setVariantCount2(int variantCount2) { this.variantCount2 = variantCount2; }
     }
