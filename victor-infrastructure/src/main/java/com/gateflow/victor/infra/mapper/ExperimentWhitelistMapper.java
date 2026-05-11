@@ -26,7 +26,8 @@ public interface ExperimentWhitelistMapper extends BaseMapper<ExperimentWhitelis
 
     /**
      * 根据用户ID查询白名单记录
+     * 使用 FIND_IN_SET 精确匹配逗号分隔的用户ID列表，避免 LIKE 模糊匹配的误匹配问题
      */
-    @Select("SELECT * FROM victor_experiment_whitelist WHERE user_ids LIKE CONCAT('%', #{userId}, '%')")
+    @Select("SELECT * FROM victor_experiment_whitelist WHERE FIND_IN_SET(#{userId}, user_ids) > 0")
     List<ExperimentWhitelist> selectByUserId(@Param("userId") String userId);
 }
