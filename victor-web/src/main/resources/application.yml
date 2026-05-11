@@ -134,12 +134,12 @@ victor:
   clickhouse:
     url: ${VICTOR_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
     user: ${VICTOR_CLICKHOUSE_USER:victor}
-    password: ${VICTOR_CLICKHOUSE_PASSWORD:}
+    password: ${VICTOR_CLICKHOUSE_PASSWORD:victor123}
   stats:
     clickhouse:
       url: ${VICTOR_STATS_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
       user: ${VICTOR_STATS_CLICKHOUSE_USER:victor}
-      password: ${VICTOR_STATS_CLICKHOUSE_PASSWORD:}
+      password: ${VICTOR_STATS_CLICKHOUSE_PASSWORD:victor123}
 # Actuator配置
 management:
   endpoints:

@@ -218,9 +218,7 @@ public class MetricsRepository {
     public Map<String, VariantStats> queryRealtimeStats(String expId, int minutes) {
         Map<String, VariantStats> results = new HashMap<>();
 
-        LocalDateTime since = LocalDateTime.now().minusMinutes(minutes);
-        String sinceStr = since.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-
+        // 使用INTERVAL语法，避免时区问题
         String sql = """
             SELECT
                 variants[1] AS variant,
@@ -231,7 +229,7 @@ public class MetricsRepository {
                 0 AS total_revenue
             FROM victor.events
             WHERE has(exp_ids, ?)
-              AND timestamp >= ?
+              AND timestamp >= now() - INTERVAL ? MINUTE
             GROUP BY variants[1], layers[1]
             """;
 
@@ -239,7 +237,7 @@ public class MetricsRepository {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, expId);
-            ps.setString(2, sinceStr);
+            ps.setInt(2, minutes);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

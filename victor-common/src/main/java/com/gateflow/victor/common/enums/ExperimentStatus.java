@@ -14,7 +14,22 @@ public enum ExperimentStatus {
     DRAFT("draft", "草稿"),
 
     /**
-     * 待审核 - 等待审批
+     * 待审批 - 等待审批（新增）
+     */
+    PENDING_APPROVAL("pending_approval", "待审批"),
+
+    /**
+     * 已审批 - 审批通过，可以启动
+     */
+    APPROVED("approved", "已审批"),
+
+    /**
+     * 已拒绝 - 审批未通过
+     */
+    REJECTED("rejected", "已拒绝"),
+
+    /**
+     * 待审核 - 等待审批 (兼容旧代码)
      */
     REVIEW("review", "待审核"),
 
@@ -42,6 +57,11 @@ public enum ExperimentStatus {
      * 决策阶段 - 分析完成，等待决策
      */
     DECISION("decision", "决策阶段"),
+
+    /**
+     * 已停止 - 实验结束
+     */
+    STOPPED("stopped", "已停止"),
 
     /**
      * 已归档 - 实验结束并归档

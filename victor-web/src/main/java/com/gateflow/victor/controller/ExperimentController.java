@@ -92,6 +92,13 @@ public class ExperimentController {
         return ResponseEntity.ok(experiments);
     }
 
+    @GetMapping("/pending")
+    @Operation(summary = "查询待审批实验列表", description = "查询所有待审批的实验")
+    public ResponseEntity<List<Experiment>> listPendingExperiments() {
+        List<Experiment> experiments = experimentService.listPendingExperiments();
+        return ResponseEntity.ok(experiments);
+    }
+
     @GetMapping("/page")
     @Operation(summary = "分页查询实验列表", description = "分页查询实验，支持按层ID和状态筛选")
     public ResponseEntity<Page<Experiment>> listExperimentsPaged(

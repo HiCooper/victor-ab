@@ -21,11 +21,23 @@ public class ExperimentLifecycleService {
     private static final Map<ExperimentStatus, Set<ExperimentStatus>> ALLOWED_TRANSITIONS = new HashMap<>();
 
     static {
-        // 草稿 -> 待审核/删除
-        ALLOWED_TRANSITIONS.put(ExperimentStatus.DRAFT, 
-            Set.of(ExperimentStatus.REVIEW));
+        // 草稿 -> 待审批/删除
+        ALLOWED_TRANSITIONS.put(ExperimentStatus.DRAFT,
+            Set.of(ExperimentStatus.PENDING_APPROVAL));
 
-        // 待审核 -> 草稿(驳回)/渐进上线(通过)
+        // 待审批 -> 已审批(通过)/已拒绝(驳回)
+        ALLOWED_TRANSITIONS.put(ExperimentStatus.PENDING_APPROVAL,
+            Set.of(ExperimentStatus.APPROVED, ExperimentStatus.REJECTED));
+
+        // 已审批 -> 渐进上线
+        ALLOWED_TRANSITIONS.put(ExperimentStatus.APPROVED,
+            Set.of(ExperimentStatus.RAMP));
+
+        // 已拒绝 -> 草稿(重新修改)
+        ALLOWED_TRANSITIONS.put(ExperimentStatus.REJECTED,
+            Set.of(ExperimentStatus.DRAFT));
+
+        // 待审核(兼容旧代码) -> 草稿(驳回)/渐进上线(通过)
         ALLOWED_TRANSITIONS.put(ExperimentStatus.REVIEW,
             Set.of(ExperimentStatus.DRAFT, ExperimentStatus.RAMP));
 
@@ -49,8 +61,9 @@ public class ExperimentLifecycleService {
         ALLOWED_TRANSITIONS.put(ExperimentStatus.DECISION,
             Set.of(ExperimentStatus.RAMP, ExperimentStatus.ARCHIVE));
 
-        // 已归档 -> 不可转换
+        // 已归档/已停止 -> 不可转换
         ALLOWED_TRANSITIONS.put(ExperimentStatus.ARCHIVE, Set.of());
+        ALLOWED_TRANSITIONS.put(ExperimentStatus.STOPPED, Set.of());
     }
 
     /**
@@ -98,13 +111,17 @@ public class ExperimentLifecycleService {
      */
     public List<String> getAvailableActions(ExperimentStatus status) {
         return switch (status) {
-            case DRAFT -> List.of("提交审核", "删除");
+            case DRAFT -> List.of("提交审批", "删除");
+            case PENDING_APPROVAL -> List.of("审批通过", "驳回");
+            case APPROVED -> List.of("启动", "删除");
+            case REJECTED -> List.of("重新编辑");
+            case RUNNING -> List.of("暂停", "停止");
+            case PAUSED -> List.of("恢复", "停止");
+            case STOPPED -> List.of("查看");
             case REVIEW -> List.of("审批通过", "驳回");
             case RAMP -> List.of("全量运行", "暂停");
-            case RUNNING -> List.of("暂停", "结束分析");
-            case PAUSED -> List.of("恢复运行", "结束分析");
             case ANALYZING -> List.of("生成决策");
-            case DECISION -> List.of("全量发布", "回滚归档", "迭代优化");
+            case DECISION -> List.of("全量发布", "回滚归档");
             case ARCHIVE -> List.of("查看");
         };
     }

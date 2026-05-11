@@ -585,6 +585,19 @@ public class ExperimentService {
     }
 
     /**
+     * 查询待审批的实验列表
+     *
+     * @return 待审批的实验列表
+     */
+    public List<Experiment> listPendingExperiments() {
+        return experimentMapper.selectList(
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
+                .eq(Experiment::getStatus, ExperimentStatus.PENDING_APPROVAL.getCode())
+                .orderByAsc(Experiment::getCreatedAt)
+        );
+    }
+
+    /**
      * 分页查询实验列表
      *
      * @param current 当前页码
