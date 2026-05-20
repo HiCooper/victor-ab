@@ -124,10 +124,6 @@ docker-compose -f docker-compose-dev.yml up -d
 
 数据库会自动通过 Flyway 进行迁移，也可以手动执行：
 
-```bash
-mysql -h localhost -u root -pvictor123 victor_experiment < init-db-simple.sql
-```
-
 #### 3. 编译项目
 
 ```bash
@@ -180,7 +176,7 @@ docker-compose logs -f victor-service
 ### 核心文档
 
 - [实验ID生成器使用说明](docs/EXPERIMENT_ID_GENERATOR_USAGE.md) - 实验ID生成规则和最佳实践
-- [数据库变更日志](DB_CHANGELOG.md) - 数据库版本变更记录
+- [数据库变更日志](docs/DB_CHANGELOG.md) - 数据库版本变更记录
 
 ### API 文档
 
@@ -289,7 +285,7 @@ export SPRING_DATA_REDIS_PORT=6379
 - **victor_user_assignment**: 用户分配记录表
 - **victor_config_version**: 配置版本表
 
-详见 [数据库变更日志](DB_CHANGELOG.md) 和 Flyway 迁移脚本。
+详见 [数据库变更日志](docs/DB_CHANGELOG.md) 和 Flyway 迁移脚本。
 
 ---
 

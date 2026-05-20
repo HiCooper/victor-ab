@@ -94,7 +94,7 @@ MODIFY COLUMN params JSON DEFAULT NULL COMMENT '版本参数';
 ### 相关文档
 
 - [V2 迁移脚本](./victor-infrastructure/src/main/resources/db/migration/V2__add_variant_versioning.sql)
-- [Variant 实体类](./victor-domain/src/main/java/com/gateflow/victor/domain/entity/Variant.java)
+- [Variant 实体类](../victor-domain/src/main/java/com/gateflow/victor/domain/entity/Variant.java)
 
 ---
 
