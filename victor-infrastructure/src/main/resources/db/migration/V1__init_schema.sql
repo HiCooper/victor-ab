@@ -80,21 +80,6 @@ CREATE TABLE victor_variant (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='版本配置表';
 
 -- ============================================
--- 用户分桶记录表 (审计和SRM检验)
--- ============================================
-CREATE TABLE victor_user_assignment (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id VARCHAR(64) NOT NULL COMMENT '用户ID',
-    exp_id BIGINT NOT NULL COMMENT '实验ID',
-    variant_key VARCHAR(64) NOT NULL COMMENT '分配的版本标识',
-    bucket INT NOT NULL COMMENT '桶号(0-9999)',
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '分配时间',
-    INDEX idx_user_exp (user_id, exp_id),
-    INDEX idx_exp_variant (exp_id, variant_key),
-    INDEX idx_assigned_time (assigned_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户分桶记录表';
-
--- ============================================
 -- 配置版本表 (配置变更追踪)
 -- ============================================
 CREATE TABLE victor_config_version (
