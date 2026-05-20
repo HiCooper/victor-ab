@@ -12,6 +12,7 @@ import com.gateflow.victor.stats.algorithm.ZTest;
 import com.gateflow.victor.stats.engine.StatsEngine;
 import com.gateflow.victor.stats.model.ExperimentReport;
 import com.gateflow.victor.stats.model.TestResult;
+import com.gateflow.victor.stats.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class StatisticsService {
     private final VariantMapper variantMapper;
     private final LayerMapper layerMapper;
     private final StatsEngine statsEngine;
+    private final ReportRepository reportRepository;
     private final ZTest zTest;
 
     /**
@@ -45,12 +47,17 @@ public class StatisticsService {
             throw new RuntimeException("Experiment not found: " + experimentId);
         }
 
-        LocalDate startDate = experiment.getStartTime() != null
-            ? experiment.getStartTime().toLocalDate()
-            : LocalDate.now().minusDays(14);
-        LocalDate endDate = LocalDate.now();
+        // First try pre-computed report from offline stats jobs
+        ExperimentReport report = reportRepository.findLatestReport(experiment.getExpId());
 
-        ExperimentReport report = buildReport(experiment, startDate, endDate);
+        if (report == null) {
+            // Fall back to on-the-fly computation
+            LocalDate startDate = experiment.getStartTime() != null
+                ? experiment.getStartTime().toLocalDate()
+                : LocalDate.now().minusDays(14);
+            LocalDate endDate = LocalDate.now();
+            report = buildReport(experiment, startDate, endDate);
+        }
 
         List<Variant> variants = experimentService.getExperimentVariants(experimentId);
         if (variants.isEmpty()) {

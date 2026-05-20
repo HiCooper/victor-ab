@@ -336,6 +336,130 @@ public class MetricsRepository {
     }
     
     /**
+     * 查询用户级数据（CUPED 方差缩减用）
+     * 返回每用户的两个值：实验期转化状态 Y 和 实验前转化率 X
+     *
+     * @param expId 实验ID
+     * @param variant 变体名称
+     * @param startDate 实验开始日期
+     * @param endDate 实验结束日期
+     * @param preStartDate 实验前窗口开始日期
+     * @param preEndDate 实验前窗口结束日期
+     */
+    public List<UserMetric> queryUserLevelData(
+            String expId,
+            String variant,
+            LocalDate startDate,
+            LocalDate endDate,
+            LocalDate preStartDate,
+            LocalDate preEndDate
+    ) {
+        List<UserMetric> results = new ArrayList<>();
+
+        // Step 1: 查询实验期每用户的转化状态
+        String expSql = """
+            SELECT user_id, converted, conversion_count
+            FROM victor.user_experiment_stats FINAL
+            WHERE exp_id = ?
+              AND variant = ?
+              AND stat_date >= ?
+              AND stat_date <= ?
+            """;
+
+        Map<String, UserMetric> userMap = new LinkedHashMap<>();
+
+        try (Connection conn = config.getConnection();
+             PreparedStatement ps = conn.prepareStatement(expSql)) {
+
+            ps.setString(1, expId);
+            ps.setString(2, variant);
+            ps.setDate(3, Date.valueOf(startDate));
+            ps.setDate(4, Date.valueOf(endDate));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String userId = rs.getString("user_id");
+                    UserMetric m = new UserMetric();
+                    m.userId = userId;
+                    m.experimentValue = rs.getBoolean("converted") ? 1.0 : 0.0;
+                    m.preExperimentValue = 0.0; // will be filled in step 2
+                    userMap.put(userId, m);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query user-level experiment data for expId={}, variant={}", expId, variant, e);
+            return results;
+        }
+
+        if (userMap.isEmpty()) {
+            return results;
+        }
+
+        // Step 2: 查询实验前窗口同一批用户的历史转化率
+        List<String> userIds = new ArrayList<>(userMap.keySet());
+        String preSql = """
+            SELECT user_id,
+                   countIf(event_type = 'conversion') / count() AS pre_cvr
+            FROM victor.events
+            WHERE user_id IN (?""".replace("?", buildInClause(userIds.size()))
+            + """
+            )
+              AND event_date >= ?
+              AND event_date <= ?
+            GROUP BY user_id
+            """;
+
+        try (Connection conn = config.getConnection();
+             PreparedStatement ps = conn.prepareStatement(preSql)) {
+
+            for (int i = 0; i < userIds.size(); i++) {
+                ps.setString(i + 1, userIds.get(i));
+            }
+            ps.setDate(userIds.size() + 1, Date.valueOf(preStartDate));
+            ps.setDate(userIds.size() + 2, Date.valueOf(preEndDate));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String userId = rs.getString("user_id");
+                    UserMetric m = userMap.get(userId);
+                    if (m != null) {
+                        m.preExperimentValue = rs.getDouble("pre_cvr");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query pre-experiment data for expId={}, variant={}", expId, variant, e);
+        }
+
+        results.addAll(userMap.values());
+        return results;
+    }
+
+    /**
+     * Build a comma-separated ? placeholders for SQL IN clause.
+     */
+    private String buildInClause(int size) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < size; i++) {
+            if (i > 0) sb.append(",");
+            sb.append("?");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 用户级指标（CUPED 用）
+     */
+    @lombok.Data
+    public static class UserMetric {
+        private String userId;
+        /** 实验期转化标记 (0 或 1) */
+        private double experimentValue;
+        /** 实验前转化率 (0.0 ~ 1.0) */
+        private double preExperimentValue;
+    }
+
+    /**
      * 每日统计内部类
      */
     @lombok.Data

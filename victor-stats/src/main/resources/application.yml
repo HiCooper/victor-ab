@@ -1,0 +1,44 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: victor-stats
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${VICTOR_DB_USER:root}
+    password: ${VICTOR_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${VICTOR_REDIS_HOST:localhost}
+      port: ${VICTOR_REDIS_PORT:6379}
+      password: ${VICTOR_REDIS_PASSWORD:}
+      database: 0
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  flyway:
+    enabled: false
+
+victor:
+  stats:
+    clickhouse:
+      url: ${VICTOR_STATS_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
+      user: ${VICTOR_STATS_CLICKHOUSE_USER:victor}
+      password: ${VICTOR_STATS_CLICKHOUSE_PASSWORD:victor123}
+
+logging:
+  level:
+    root: INFO
+    com.gateflow.victor.stats: DEBUG
