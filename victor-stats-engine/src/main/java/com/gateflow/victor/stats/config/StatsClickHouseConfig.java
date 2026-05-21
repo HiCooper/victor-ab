@@ -1,6 +1,7 @@
 package com.gateflow.victor.stats.config;
 
 import com.clickhouse.jdbc.ClickHouseDataSource;
+import jakarta.annotation.PreDestroy;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -41,5 +42,11 @@ public class StatsClickHouseConfig {
             }
         }
         return dataSource.getConnection();
+    }
+
+    @PreDestroy
+    public void destroy() {
+        // ClickHouseDataSource does not expose close(); cleanup handled by GC
+        dataSource = null;
     }
 }

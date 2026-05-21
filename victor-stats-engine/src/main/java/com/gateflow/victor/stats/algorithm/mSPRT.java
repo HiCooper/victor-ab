@@ -5,6 +5,23 @@ import com.gateflow.victor.stats.model.SequentialTestResult;
 import com.gateflow.victor.stats.model.SequentialStatus;
 import org.springframework.stereotype.Component;
 
+/**
+ * mSPRT — 混合序贯概率比检验。
+ *
+ * TODO: Current implementation has known limitations:
+ * 1. Stateless: each call treats inputs as an independent snapshot. A proper mSPRT
+ *    must accumulate observations across sequential checks, updating a running
+ *    likelihood ratio until it crosses a boundary.
+ * 2. The lambda formula is a simplified approximation. Standard mSPRT (Johari et al.)
+ *    uses: Lambda_n = sqrt(sigma2/(sigma2 + n*tau2)) *
+ *    exp(tau2 * (sum_X)^2 / (2*sigma2*(sigma2 + n*tau2))).
+ * 3. cumulativeObs parameter is stored but not used in the lambda calculation.
+ *
+ * For production use, this should be refactored to:
+ * - Maintain state (running sum of observations) across invocations per experiment
+ * - Use the correct lambda recursion formula
+ * - Integrate with a time-series query pattern that feeds incremental data
+ */
 @Component
 public class mSPRT {
     private static final double ALPHA = 0.05;

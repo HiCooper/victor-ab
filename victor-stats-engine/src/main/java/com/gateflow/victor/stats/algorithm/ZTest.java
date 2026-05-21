@@ -15,6 +15,18 @@ public class ZTest {
         long controlSuccess, long controlTotal,
         long treatmentSuccess, long treatmentTotal
     ) {
+        if (controlTotal == 0 || treatmentTotal == 0) {
+            return TestResult.builder()
+                .testName("z_test")
+                .statistic(Double.NaN)
+                .pValue(1.0)
+                .significant(false)
+                .lift(LiftEstimate.of(0, 0, 0))
+                .confidenceInterval(ConfidenceInterval.of(0, 0, 0.95))
+                .message("Insufficient data: control or treatment has zero users")
+                .build();
+        }
+
         double pControl = (double) controlSuccess / controlTotal;
         double pTreatment = (double) treatmentSuccess / treatmentTotal;
         

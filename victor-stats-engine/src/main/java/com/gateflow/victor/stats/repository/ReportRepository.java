@@ -4,15 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.stats.model.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * ReportRepository - persists ExperimentReport to MySQL and provides read access.
@@ -209,5 +209,61 @@ public class ReportRepository {
             log.warn("Failed to parse JSON column: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Save CUPED-adjusted values per variant for a given date.
+     * Uses ON DUPLICATE KEY UPDATE for idempotent daily writes.
+     */
+    public void saveCupedValues(String expId, LocalDate reportDate,
+            Map<String, ExperimentReport.VariantSummary> cupedSummaries) {
+        String sql = """
+            INSERT INTO victor_cuped_values
+                (exp_id, report_date, variant, cuped_adjusted_mean, cuped_adjusted_variance)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                cuped_adjusted_mean = VALUES(cuped_adjusted_mean),
+                cuped_adjusted_variance = VALUES(cuped_adjusted_variance)
+            """;
+
+        for (Map.Entry<String, ExperimentReport.VariantSummary> entry : cupedSummaries.entrySet()) {
+            ExperimentReport.VariantSummary s = entry.getValue();
+            jdbc.update(sql, expId, reportDate, entry.getKey(),
+                s.getCupedAdjustedMean(), s.getCupedAdjustedVariance());
+        }
+        log.debug("Saved CUPED values for experiment {} on date {}: {} variants",
+            expId, reportDate, cupedSummaries.size());
+    }
+
+    /**
+     * Find the latest CUPED-adjusted values for an experiment.
+     * Returns empty map if no CUPED data exists.
+     */
+    public Map<String, CupedValueDto> findLatestCupedValues(String expId) {
+        String sql = """
+            SELECT variant, cuped_adjusted_mean, cuped_adjusted_variance
+            FROM victor_cuped_values
+            WHERE exp_id = ?
+              AND report_date = (SELECT MAX(report_date) FROM victor_cuped_values WHERE exp_id = ?)
+            """;
+
+        Map<String, CupedValueDto> results = new LinkedHashMap<>();
+        jdbc.query(sql, (rs, rowNum) -> {
+            results.put(rs.getString("variant"),
+                new CupedValueDto(
+                    rs.getString("variant"),
+                    rs.getDouble("cuped_adjusted_mean"),
+                    rs.getDouble("cuped_adjusted_variance")
+                ));
+        }, expId, expId);
+        return results;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class CupedValueDto {
+        private String variant;
+        private Double cupedAdjustedMean;
+        private Double cupedAdjustedVariance;
     }
 }

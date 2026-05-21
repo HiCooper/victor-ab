@@ -11,11 +11,24 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Kafka event consumer with batch processing.
+ *
+ * Error handling: Spring Boot auto-configures DefaultErrorHandler with 10 retries
+ * (FixedBackOff(0, 1s)). After exhausting retries, failed records are logged and
+ * the offset is committed (messages are silently dropped).
+ *
+ * TODO: Add DeadLetterPublishingRecoverer to route permanently-failed messages
+ *       to a dead-letter topic (e.g., victor-events-dlt) for inspection and replay.
+ *       Requires configuring a KafkaTemplate with:
+ *         - DeadLetterPublishingRecoverer(kafkaTemplate)
+ *         - DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 10L))
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class EventConsumer {
-    
+
     private final ClickHouseWriter writer;
 
     @KafkaListener(

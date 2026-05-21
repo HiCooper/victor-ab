@@ -46,6 +46,9 @@ public class ExperimentReport {
     // 决策原因
     private String recommendationReason;
     
+    // CUPED 是否已应用
+    private boolean cupedApplied;
+
     // 生成时间
     private long generatedAt;
     
@@ -76,6 +79,9 @@ public class ExperimentReport {
         private double totalRevenue;
         private double avgRevenuePerUser;
         private boolean isControl;
+        // CUPED 调整后的指标
+        private Double cupedAdjustedMean;
+        private Double cupedAdjustedVariance;
     }
     
     /**

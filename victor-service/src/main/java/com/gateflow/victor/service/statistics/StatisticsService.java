@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -337,13 +338,20 @@ public class StatisticsService {
             .map(Variant::getBucketId)
             .toList();
 
+        Map<String, Double> expectedProportions = new LinkedHashMap<>();
+        for (Variant v : variants) {
+            int bucketSize = v.getBucketEnd() - v.getBucketStart() + 1;
+            expectedProportions.put(v.getBucketId(), bucketSize / 10000.0);
+        }
+
         return statsEngine.analyzeExperiment(
             experiment.getExpId(),
             layerName,
             startDate,
             endDate,
             controlVariant,
-            treatmentVariants
+            treatmentVariants,
+            expectedProportions
         );
     }
 

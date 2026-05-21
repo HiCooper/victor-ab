@@ -3,6 +3,7 @@ package com.gateflow.victor.pipeline.storage;
 import com.clickhouse.jdbc.ClickHouseDataSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.pipeline.ingestion.dto.EventDTO;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
@@ -147,7 +148,16 @@ public class EventRepository {
             ps.setArray(11, conn.createArrayOf("String", new String[0]));
         }
         
-        ps.setString(12, event.getProperties() != null ? 
+        ps.setString(12, event.getProperties() != null ?
             objectMapper.writeValueAsString(event.getProperties()) : "{}");
+    }
+
+    @PreDestroy
+    public void destroy() {
+        // ClickHouseDataSource does not expose close(); cleanup handled by GC
+        if (dataSource != null) {
+            log.info("Releasing ClickHouse DataSource reference");
+            dataSource = null;
+        }
     }
 }

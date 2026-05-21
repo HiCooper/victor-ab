@@ -11,7 +11,9 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * ExperimentRepository - reads experiment metadata from MySQL.
@@ -84,10 +86,17 @@ public class ExperimentRepository {
         VariantInfo info = new VariantInfo();
         info.controlVariant = rows.get(0).variantKey;
         info.treatmentVariants = new ArrayList<>();
+        info.bucketProportions = new LinkedHashMap<>();
         for (int i = 1; i < rows.size(); i++) {
             info.treatmentVariants.add(rows.get(i).variantKey);
         }
         info.allVariantKeys = rows.stream().map(r -> r.variantKey).toList();
+
+        // Compute expected traffic proportions from bucket ranges (0-9999)
+        for (VariantRow row : rows) {
+            int bucketSize = row.bucketEnd - row.bucketStart + 1;
+            info.bucketProportions.put(row.variantKey, bucketSize / 10000.0);
+        }
         return info;
     }
 
@@ -146,6 +155,7 @@ public class ExperimentRepository {
         private String controlVariant;
         private List<String> treatmentVariants = List.of();
         private List<String> allVariantKeys = List.of();
+        private Map<String, Double> bucketProportions = Map.of();
     }
 
     @Data

@@ -66,7 +66,8 @@ public class StatsEngine {
             LocalDate startDate,
             LocalDate endDate,
             String controlVariantName,
-            List<String> treatmentVariants
+            List<String> treatmentVariants,
+            Map<String, Double> expectedProportions
     ) {
         log.info("Starting experiment analysis: expId={}, layer={}, period={} to {}", 
             expId, layer, startDate, endDate);
@@ -82,7 +83,7 @@ public class StatsEngine {
         }
         
         // Step 2: SRM 检验 - 验证分流比例
-        ExperimentReport.SrmCheckResult srmResult = runSRMCheck(variantStats, controlVariantName, treatmentVariants);
+        ExperimentReport.SrmCheckResult srmResult = runSRMCheck(variantStats, controlVariantName, treatmentVariants, expectedProportions);
         
         // Step 3: 获取对照组统计
         MetricsRepository.VariantStats controlStats = variantStats.get(controlVariantName);
@@ -137,7 +138,8 @@ public class StatsEngine {
     private ExperimentReport.SrmCheckResult runSRMCheck(
             Map<String, MetricsRepository.VariantStats> stats,
             String controlVariant,
-            List<String> treatmentVariants
+            List<String> treatmentVariants,
+            Map<String, Double> expectedProportions
     ) {
         List<String> allVariants = new ArrayList<>();
         allVariants.add(controlVariant);
@@ -156,9 +158,15 @@ public class StatsEngine {
             totalUsers += users;
         }
         
-        // 等比例分配
-        for (int i = 0; i < expected.length; i++) {
-            expected[i] = 1.0 / expected.length;
+        // Use actual bucket proportions if available, fall back to equal split
+        if (expectedProportions != null && !expectedProportions.isEmpty()) {
+            for (int i = 0; i < allVariants.size(); i++) {
+                expected[i] = expectedProportions.getOrDefault(allVariants.get(i), 1.0 / expected.length);
+            }
+        } else {
+            for (int i = 0; i < expected.length; i++) {
+                expected[i] = 1.0 / expected.length;
+            }
         }
         
         double pValue = SrmTest.chiSquareTest(observed, expected);
@@ -237,37 +245,43 @@ public class StatsEngine {
     
     /**
      * 护栏指标检验
+     * TODO: Guardrail metrics should be read from experiment config (guardrail_metrics JSON)
+     *       instead of hardcoding avgRevenue. The variance formula below is a placeholder —
+     *       proper per-user revenue variance should be computed from ClickHouse.
      */
     private List<SequentialTestResult> runGuardrailTests(
             MetricsRepository.VariantStats controlStats,
             Map<String, MetricsRepository.VariantStats> variantStats
     ) {
         List<SequentialTestResult> results = new ArrayList<>();
-        
-        // 使用平均收入作为护栏指标示例
+
         for (Map.Entry<String, MetricsRepository.VariantStats> entry : variantStats.entrySet()) {
             if (entry.getKey().equals("control")) continue;
-            
+
             MetricsRepository.VariantStats treatmentStats = entry.getValue();
-            
-            // 转换为 SampleStatistics（使用收入数据）
+
+            // Revenue variance: use squared mean as rough proxy for continuous data.
+            // The binomial p*(1-p) formula is not valid for revenue (continuous, can exceed 1.0).
+            double ctrlVar = Math.max(controlStats.getAvgRevenue() * controlStats.getAvgRevenue(), 0.01);
+            double treatVar = Math.max(treatmentStats.getAvgRevenue() * treatmentStats.getAvgRevenue(), 0.01);
+
             SampleStatistics control = SampleStatistics.builder()
                 .n(controlStats.getTotalUsers())
                 .mean(controlStats.getAvgRevenue())
-                .variance(controlStats.getAvgRevenue() * (1 - controlStats.getAvgRevenue()))
+                .variance(ctrlVar)
                 .build();
-            
+
             SampleStatistics treatment = SampleStatistics.builder()
                 .n(treatmentStats.getTotalUsers())
                 .mean(treatmentStats.getAvgRevenue())
-                .variance(treatmentStats.getAvgRevenue() * (1 - treatmentStats.getAvgRevenue()))
+                .variance(treatVar)
                 .build();
-            
+
             SequentialTestResult result = msprt.execute(control, treatment, (int) treatmentStats.getTotalUsers());
             result.setTestName("guardrail_" + entry.getKey());
             results.add(result);
         }
-        
+
         return results;
     }
     
