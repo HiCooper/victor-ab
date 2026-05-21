@@ -151,18 +151,12 @@ public class LayerService {
             throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(layerId));
         }
 
-        layer.setUpdatedAt(LocalDateTime.now());
+        layer.setEnabled(false);
         layerMapper.updateById(layer);
 
         return layer;
     }
 
-    /**
-     * 启用层
-     *
-     * @param layerId 层ID
-     * @return 更新后的层
-     */
     @Transactional(rollbackFor = Exception.class)
     public Layer enableLayer(Long layerId) {
         Layer layer = layerMapper.selectById(layerId);
@@ -170,7 +164,7 @@ public class LayerService {
             throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(layerId));
         }
 
-        layer.setUpdatedAt(LocalDateTime.now());
+        layer.setEnabled(true);
         layerMapper.updateById(layer);
 
         return layer;

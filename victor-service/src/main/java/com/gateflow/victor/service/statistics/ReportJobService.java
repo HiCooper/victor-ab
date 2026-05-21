@@ -1,4 +1,4 @@
-package com.gateflow.victor.service;
+package com.gateflow.victor.service.statistics;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

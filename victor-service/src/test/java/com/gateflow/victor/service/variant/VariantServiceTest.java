@@ -18,7 +18,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
@@ -45,14 +44,12 @@ class VariantServiceTest {
         testExperiment.setId(1L);
         testExperiment.setExpId("exp_test_001");
         testExperiment.setName("测试实验");
-        testExperiment.setBucketStart(0);
-        testExperiment.setBucketEnd(999);
         testExperiment.setStatus("draft");
 
         testVariant = new Variant();
         testVariant.setId(1L);
-        testVariant.setExpId(1L);
-        testVariant.setVariantKey("control");
+        testVariant.setExpId("exp_test_001");
+        testVariant.setBucketId("control");
         testVariant.setName("对照组");
         testVariant.setBucketStart(0);
         testVariant.setBucketEnd(499);
@@ -61,20 +58,20 @@ class VariantServiceTest {
     @Test
     @DisplayName("创建版本 - 成功")
     void createVariant_Success() {
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(variantMapper.insert(any(Variant.class))).thenReturn(1);
 
         Variant created = variantService.createVariant(testVariant);
 
         assertNotNull(created);
-        assertEquals("control", created.getVariantKey());
+        assertEquals("control", created.getBucketId());
         verify(variantMapper).insert(any(Variant.class));
     }
 
     @Test
     @DisplayName("创建版本 - 实验不存在")
     void createVariant_ExperimentNotFound() {
-        when(experimentMapper.selectById(1L)).thenReturn(null);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(null);
 
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariant(testVariant));
@@ -87,7 +84,7 @@ class VariantServiceTest {
     @DisplayName("创建版本 - 实验非草稿状态")
     void createVariant_NotDraftExperiment() {
         testExperiment.setStatus("running");
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
 
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariant(testVariant));
@@ -99,12 +96,12 @@ class VariantServiceTest {
     @Test
     @DisplayName("批量创建版本 - 成功")
     void createVariants_Success() {
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(variantMapper.insert(any(Variant.class))).thenReturn(1);
 
         Variant variant2 = new Variant();
-        variant2.setExpId(1L);
-        variant2.setVariantKey("treatment");
+        variant2.setExpId("exp_test_001");
+        variant2.setBucketId("treatment");
         variant2.setBucketStart(500);
         variant2.setBucketEnd(999);
 
@@ -133,7 +130,7 @@ class VariantServiceTest {
         Variant found = variantService.getVariant(1L);
 
         assertNotNull(found);
-        assertEquals("control", found.getVariantKey());
+        assertEquals("control", found.getBucketId());
         verify(variantMapper).selectById(1L);
     }
 
@@ -152,12 +149,12 @@ class VariantServiceTest {
     @DisplayName("查询实验版本列表 - 成功")
     void getVariantsByExperiment_Success() {
         List<Variant> variants = List.of(testVariant);
-        when(variantMapper.selectByExpId(1L)).thenReturn(variants);
+        when(variantMapper.selectByExpId("exp_test_001")).thenReturn(variants);
 
-        List<Variant> result = variantService.getVariantsByExperiment(1L);
+        List<Variant> result = variantService.getVariantsByExperiment("exp_test_001");
 
         assertEquals(1, result.size());
-        verify(variantMapper).selectByExpId(1L);
+        verify(variantMapper).selectByExpId("exp_test_001");
     }
 
     @Test
@@ -165,12 +162,12 @@ class VariantServiceTest {
     void updateVariant_Success() {
         Variant existing = new Variant();
         existing.setId(1L);
-        existing.setExpId(1L);
+        existing.setExpId("exp_test_001");
         existing.setBucketStart(0);
         existing.setBucketEnd(499);
 
         when(variantMapper.selectById(1L)).thenReturn(existing);
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(variantMapper.updateById(any(Variant.class))).thenReturn(1);
 
         Variant update = new Variant();
@@ -206,11 +203,11 @@ class VariantServiceTest {
     void updateVariant_NotDraftExperiment() {
         Variant existing = new Variant();
         existing.setId(1L);
-        existing.setExpId(1L);
+        existing.setExpId("exp_test_001");
 
         testExperiment.setStatus("running");
         when(variantMapper.selectById(1L)).thenReturn(existing);
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
 
         Variant update = new Variant();
         update.setId(1L);
@@ -228,15 +225,15 @@ class VariantServiceTest {
     void deleteVariant_Success() {
         Variant existing = new Variant();
         existing.setId(1L);
-        existing.setExpId(1L);
+        existing.setExpId("exp_test_001");
 
         when(variantMapper.selectById(1L)).thenReturn(existing);
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(variantMapper.deleteById(anyLong())).thenReturn(1);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
+        when(variantMapper.deleteById(1L)).thenReturn(1);
 
         variantService.deleteVariant(1L);
 
-        verify(variantMapper).deleteById(anyLong());
+        verify(variantMapper).deleteById(1L);
     }
 
     @Test
@@ -248,22 +245,23 @@ class VariantServiceTest {
                 () -> variantService.deleteVariant(999L));
 
         assertTrue(exception.getMessage().contains("变体不存在"));
-        verify(variantMapper, never()).deleteById(anyLong());
+        verify(variantMapper, never()).deleteById(999L);
     }
 
     @Test
     @DisplayName("桶范围验证 - 超出实验范围")
     void validateBucketRange_OutOfExperimentRange() {
-        testExperiment.setBucketStart(0);
-        testExperiment.setBucketEnd(499);
-
         Variant variant = new Variant();
-        variant.setExpId(1L);
-        variant.setVariantKey("control");
+        variant.setExpId("exp_test_001");
+        variant.setBucketId("control");
         variant.setBucketStart(0);
-        variant.setBucketEnd(999); // 超出实验范围
+        variant.setBucketEnd(9999); // 超出 0-9999
 
-        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
+
+        // VariantService.validateBucketRange checks 0-9999 bounds
+        // 9999 is within range, but let's test 10000 which is out of range
+        variant.setBucketEnd(10000);
 
         VictorException exception = assertThrows(VictorException.class,
                 () -> variantService.createVariant(variant));

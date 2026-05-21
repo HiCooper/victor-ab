@@ -1,5 +1,6 @@
 package com.gateflow.victor.service.traffic;
 
+import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.dto.TrafficMapResponse;
 import com.gateflow.victor.domain.entity.Domain;
 import com.gateflow.victor.domain.entity.Experiment;
@@ -179,7 +180,10 @@ public class TrafficMapService {
         List<TrafficMapResponse.ConflictWarning> conflicts = new ArrayList<>();
 
         List<Experiment> activeExperiments = experiments.stream()
-            .filter(e -> "running".equals(e.getStatus()) || "ramp".equals(e.getStatus()) || "paused".equals(e.getStatus()))
+            .filter(e -> {
+                ExperimentStatus s = ExperimentStatus.fromCode(e.getStatus());
+                return s == ExperimentStatus.RUNNING || s == ExperimentStatus.RAMP || s == ExperimentStatus.PAUSED;
+            })
             .filter(e -> deriveExperimentBucketRange(e) != null)
             .collect(Collectors.toList());
 

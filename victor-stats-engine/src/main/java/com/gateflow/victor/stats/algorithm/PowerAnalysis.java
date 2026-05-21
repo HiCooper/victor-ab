@@ -2,6 +2,7 @@ package com.gateflow.victor.stats.algorithm;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.math3.distribution.NormalDistribution;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -204,12 +205,13 @@ public class PowerAnalysis {
         return Z_BETA_080;
     }
 
+    private static final NormalDistribution STANDARD_NORMAL = new NormalDistribution(0, 1);
+
     /**
      * 标准正态分布累积分布函数
      */
     private static double normalCDF(double z) {
-        // 使用近似公式
-        return 1.0 / (1.0 + Math.exp(-1.702 * z));
+        return STANDARD_NORMAL.cumulativeProbability(z);
     }
 
     @Data

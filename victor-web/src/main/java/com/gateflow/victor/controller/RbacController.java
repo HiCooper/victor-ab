@@ -2,6 +2,8 @@ package com.gateflow.victor.controller;
 
 import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.rbac.RbacService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/v1/rbac")
 @RequiredArgsConstructor
+@Tag(name = "RBAC API", description = "角色权限管理接口")
 public class RbacController {
 
     private final RbacService rbacService;
@@ -24,6 +27,7 @@ public class RbacController {
      * 获取当前用户权限
      */
     @GetMapping("/permissions")
+    @Operation(summary = "获取当前用户权限", description = "返回当前用户的所有权限及角色")
     public ResponseEntity<Map<String, Object>> getPermissions(
             @RequestHeader(value = "X-User-Id", required = false, defaultValue = "1") Long userId) {
         Set<Permission> permissions = rbacService.getPermissionsByUserId(userId);
@@ -38,6 +42,7 @@ public class RbacController {
      * 检查权限
      */
     @GetMapping("/check")
+    @Operation(summary = "检查权限", description = "检查用户是否拥有指定权限")
     public ResponseEntity<Map<String, Boolean>> checkPermission(
             @RequestHeader(value = "X-User-Id", required = false, defaultValue = "1") Long userId,
             @RequestParam String permission) {
@@ -56,6 +61,7 @@ public class RbacController {
      * 获取角色列表
      */
     @GetMapping("/roles")
+    @Operation(summary = "获取角色列表", description = "返回系统所有预定义角色及描述")
     public ResponseEntity<Map<String, Object>> getRoles() {
         var roles = rbacService.getDefaultRoles();
         Map<String, Object> response = new HashMap<>();

@@ -63,6 +63,11 @@ public class ExperimentCreateRequest {
     private String createdBy;
 
     /**
+     * 是否启用自动灰度推进（默认关闭）
+     */
+    private Boolean autoRampEnabled;
+
+    /**
      * 版本配置列表
      */
     private List<VariantRequest> variants;

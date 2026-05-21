@@ -58,7 +58,7 @@ spring:
 
   # Flyway配置
   flyway:
-    enabled: false
+    enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
@@ -93,6 +93,9 @@ spring:
       type: batch
       ack-mode: MANUAL_IMMEDIATE
       concurrency: 3
+      observation-enabled: true
+    template:
+      observation-enabled: true
 
 # MyBatis-Plus配置
 mybatis-plus:
@@ -100,7 +103,7 @@ mybatis-plus:
   type-aliases-package: com.gateflow.victor.domain.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       id-type: auto
@@ -125,6 +128,8 @@ logging:
     root: INFO
     com.gateflow.victor: DEBUG
     org.springframework.web: INFO
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 
 # Victor Pipeline配置
 victor:
@@ -145,8 +150,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,httptrace,scheduledtasks
   endpoint:
     health:
       show-details: always
       show-components: always
+  # 分布式追踪配置
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:}

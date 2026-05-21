@@ -1,6 +1,8 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.PowerAnalysisRequest;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.analysis.PowerAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +26,7 @@ public class PowerAnalysisController {
 
     @PostMapping("/calculate")
     @Operation(summary = "计算样本量", description = "根据基准转化率、MDE、alpha、power 计算每组所需样本量")
+    @RequirePermission(Permission.POWER_ANALYSIS)
     public ResponseEntity<Map<String, Object>> calculateSampleSize(
             @Valid @RequestBody PowerAnalysisRequest request) {
         return ResponseEntity.ok(powerAnalysisService.runPowerAnalysis(request));

@@ -13,6 +13,7 @@ public enum ErrorCode {
     EXP_ONLY_DRAFT_CAN_START("EXP_004", "只有草稿或暂停状态的实验可以启动"),
     EXP_NO_ACTIVE_VARIANT("EXP_005", "实验必须至少有一个活跃版本"),
     EXP_DECISION_MUST_ANALYZING("EXP_006", "只有分析中的实验可以生成决策"),
+    EXP_ALREADY_EXISTS("EXP_007", "实验ID已存在"),
 
     // ========== 层管理 (LYR) ==========
     LAYER_NOT_FOUND("LYR_001", "层不存在"),

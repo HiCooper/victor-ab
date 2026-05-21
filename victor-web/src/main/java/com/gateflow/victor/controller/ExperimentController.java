@@ -1,9 +1,11 @@
 package com.gateflow.victor.controller;
 
 import com.gateflow.victor.common.util.BucketIdGenerator;
+import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
 import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -32,6 +34,7 @@ public class ExperimentController {
 
     @PostMapping
     @Operation(summary = "创建实验", description = "创建新的AB实验")
+    @RequirePermission(Permission.CREATE_EXPERIMENT)
     public ResponseEntity<Experiment> createExperiment(
             @Valid @RequestBody ExperimentCreateRequest request) {
 
@@ -44,6 +47,7 @@ public class ExperimentController {
         experiment.setSecondaryMetrics(request.getSecondaryMetrics());
         experiment.setGuardrailMetrics(request.getGuardrailMetrics());
         experiment.setCreatedBy(request.getCreatedBy());
+        experiment.setAutoRampEnabled(request.getAutoRampEnabled());
 
         List<Variant> variants = request.getVariants() != null
             ? request.getVariants().stream().map(vr -> {
@@ -112,9 +116,10 @@ public class ExperimentController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新实验", description = "更新实验信息，如果包含variants则创建新版本")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Experiment> updateExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
-            @RequestBody ExperimentUpdateRequest request) {
+            @Valid @RequestBody ExperimentUpdateRequest request) {
 
         Experiment experiment = new Experiment();
         experiment.setId(id);
@@ -137,6 +142,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/start")
     @Operation(summary = "启动实验", description = "将实验状态从草稿改为运行中")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Experiment> startExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id) {
         Experiment experiment = experimentService.startExperiment(id);
@@ -145,6 +151,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/stop")
     @Operation(summary = "停止实验", description = "停止正在运行的实验")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Experiment> stopExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id) {
         Experiment experiment = experimentService.stopExperiment(id);
@@ -153,6 +160,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审核", description = "将实验从草稿提交为待审核状态")
+    @RequirePermission(Permission.SUBMIT_APPROVAL)
     public ResponseEntity<Experiment> submitForReview(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam(required = false, defaultValue = "system") String operator) {
@@ -162,6 +170,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过", description = "审批通过实验，进入灰度阶段")
+    @RequirePermission(Permission.APPROVE_EXPERIMENT)
     public ResponseEntity<Experiment> approveExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam String operator,
@@ -172,6 +181,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/reject")
     @Operation(summary = "驳回实验", description = "驳回实验到草稿状态")
+    @RequirePermission(Permission.APPROVE_EXPERIMENT)
     public ResponseEntity<Experiment> rejectExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam String operator,
@@ -182,6 +192,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/ramp")
     @Operation(summary = "渐进放量", description = "将实验设置为灰度状态，可选择调整流量")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Experiment> rampUpExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam(required = false) Integer bucketEnd,
@@ -192,6 +203,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/resume")
     @Operation(summary = "恢复实验", description = "恢复已暂停的实验")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Experiment> resumeExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam(required = false, defaultValue = "system") String operator) {
@@ -201,6 +213,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/analyze")
     @Operation(summary = "结束实验进入分析", description = "将实验状态转为分析中")
+    @RequirePermission(Permission.APPROVE_EXPERIMENT)
     public ResponseEntity<Experiment> analyzeExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam(required = false, defaultValue = "system") String operator) {
@@ -210,6 +223,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/decision")
     @Operation(summary = "生成决策", description = "基于分析结果生成决策建议")
+    @RequirePermission(Permission.APPROVE_EXPERIMENT)
     public ResponseEntity<Experiment> makeDecision(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam String decision,
@@ -220,6 +234,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/archive")
     @Operation(summary = "归档实验", description = "实验结束并归档")
+    @RequirePermission(Permission.APPROVE_EXPERIMENT)
     public ResponseEntity<Experiment> archiveExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam String decision,
@@ -230,6 +245,7 @@ public class ExperimentController {
 
     @PostMapping("/{id}/clone")
     @Operation(summary = "克隆实验", description = "基于现有实验创建新实验草稿")
+    @RequirePermission(Permission.CREATE_EXPERIMENT)
     public ResponseEntity<Experiment> cloneExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
             @RequestParam String newExpId,
@@ -253,6 +269,7 @@ public class ExperimentController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除实验", description = "删除草稿或已停止的实验")
+    @RequirePermission(Permission.DELETE_EXPERIMENT)
     public ResponseEntity<Void> deleteExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id) {
         experimentService.deleteExperiment(id);

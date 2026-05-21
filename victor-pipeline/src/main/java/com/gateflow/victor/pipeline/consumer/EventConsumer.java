@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -22,14 +23,20 @@ public class EventConsumer {
         groupId = "victor-consumer",
         batch = "true"
     )
-    public void consumeBatch(List<ConsumerRecord<String, EventDTO>> records) {
+    public void consumeBatch(List<ConsumerRecord<String, EventDTO>> records, Acknowledgment acknowledgment) {
         log.debug("Received {} events from Kafka", records.size());
-        
+
         List<EventDTO> events = new ArrayList<>();
         for (ConsumerRecord<String, EventDTO> record : records) {
             events.add(record.value());
         }
-        
-        writer.writeBatch(events);
+
+        try {
+            writer.writeBatch(events);
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            log.error("Failed to process batch of {} events, re-throwing for Kafka retry", events.size(), e);
+            throw new org.springframework.kafka.KafkaException("Batch processing failed", e);
+        }
     }
 }

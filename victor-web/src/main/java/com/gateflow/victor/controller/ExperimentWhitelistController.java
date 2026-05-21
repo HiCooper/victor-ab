@@ -1,6 +1,8 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.entity.ExperimentWhitelist;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,6 +26,7 @@ public class ExperimentWhitelistController {
 
     @PostMapping("/experiments/{expId}/buckets/{bucketId}/users")
     @Operation(summary = "添加白名单用户", description = "向实验指定分桶添加白名单用户")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<ExperimentWhitelist> addUsers(
             @Parameter(description = "实验业务ID") @PathVariable String expId,
             @Parameter(description = "分桶ID") @PathVariable String bucketId,
@@ -34,6 +37,7 @@ public class ExperimentWhitelistController {
 
     @DeleteMapping("/experiments/{expId}/buckets/{bucketId}/users")
     @Operation(summary = "移除白名单用户", description = "从实验指定分桶移除白名单用户")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Void> removeUsers(
             @Parameter(description = "实验业务ID") @PathVariable String expId,
             @Parameter(description = "分桶ID") @PathVariable String bucketId,

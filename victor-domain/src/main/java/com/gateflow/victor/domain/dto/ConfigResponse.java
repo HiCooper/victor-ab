@@ -80,6 +80,7 @@ public class ConfigResponse {
         /**
          * 分桶ID
          */
+        @com.fasterxml.jackson.annotation.JsonProperty("variantKey")
         private String bucketId;
 
         /**

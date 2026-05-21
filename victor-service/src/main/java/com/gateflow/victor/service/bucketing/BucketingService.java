@@ -8,6 +8,7 @@ import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -132,6 +133,7 @@ public class BucketingService {
      * 判断实验是否可分桶
      */
     private boolean isBucketable(String status) {
-        return "running".equals(status) || "ramp".equals(status);
+        ExperimentStatus s = ExperimentStatus.fromCode(status);
+        return s != null && s.isBucketable();
     }
 }

@@ -39,10 +39,10 @@
             <artifactId>victor-pipeline</artifactId>
         </dependency>
 
-        <!-- Victor Stats -->
+        <!-- Victor Stats Engine -->
         <dependency>
             <groupId>com.gateflow</groupId>
-            <artifactId>victor-stats</artifactId>
+            <artifactId>victor-stats-engine</artifactId>
         </dependency>
 
         <!-- Spring Boot Starter Web -->
@@ -67,6 +67,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer Tracing - 分布式追踪 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
         </dependency>
 
         <!-- SpringDoc OpenAPI -->

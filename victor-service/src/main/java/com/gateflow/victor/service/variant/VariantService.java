@@ -39,7 +39,7 @@ public class VariantService {
         }
 
         // 只有草稿状态可以添加版本
-        if (!"draft".equals(experiment.getStatus())) {
+        if (!ExperimentStatus.DRAFT.getCode().equals(experiment.getStatus())) {
             throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_ADD);
         }
 
@@ -72,7 +72,7 @@ public class VariantService {
         }
 
         // 只有草稿状态可以添加版本
-        if (!"draft".equals(experiment.getStatus())) {
+        if (!ExperimentStatus.DRAFT.getCode().equals(experiment.getStatus())) {
             throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_ADD);
         }
 
@@ -107,7 +107,7 @@ public class VariantService {
         }
 
         // 只有草稿状态可以修改版本
-        if (!"draft".equals(experiment.getStatus())) {
+        if (!ExperimentStatus.DRAFT.getCode().equals(experiment.getStatus())) {
             throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_MODIFY);
         }
 
@@ -133,7 +133,7 @@ public class VariantService {
 
         // 验证实验状态（通过业务expId查询）
         Experiment experiment = experimentMapper.selectByExpId(variant.getExpId());
-        if (experiment != null && !"draft".equals(experiment.getStatus())) {
+        if (experiment != null && !ExperimentStatus.DRAFT.getCode().equals(experiment.getStatus())) {
             throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_DELETE);
         }
 

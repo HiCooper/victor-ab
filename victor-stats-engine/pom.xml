@@ -10,9 +10,9 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>victor-stats</artifactId>
-    <name>Victor Stats</name>
-    <description>统计分析引擎 - SRM检验、CUPED方差缩减、t/z检验、BH校正、mSPRT序贯检验</description>
+    <artifactId>victor-stats-engine</artifactId>
+    <name>Victor Stats Engine</name>
+    <description>统计分析引擎库 - SRM检验、CUPED方差缩减、t/z检验、BH校正、mSPRT序贯检验</description>
 
     <dependencies>
         <dependency>
@@ -29,13 +29,11 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-math3</artifactId>
-            <version>3.6.1</version>
         </dependency>
 
         <dependency>
             <groupId>com.clickhouse</groupId>
             <artifactId>clickhouse-jdbc</artifactId>
-            <version>0.6.0</version>
         </dependency>
 
         <dependency>
@@ -55,11 +53,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
@@ -71,12 +64,4 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>

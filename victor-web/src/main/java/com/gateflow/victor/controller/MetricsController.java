@@ -1,6 +1,6 @@
 package com.gateflow.victor.controller;
 
-import com.gateflow.victor.service.MetricsService;
+import com.gateflow.victor.service.statistics.MetricsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/metrics")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class MetricsController {
 
     private final MetricsService metricsService;

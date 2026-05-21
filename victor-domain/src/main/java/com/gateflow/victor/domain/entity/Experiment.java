@@ -83,6 +83,12 @@ public class Experiment {
     private LocalDateTime endTime;
 
     /**
+     * 是否启用自动灰度推进（默认关闭，用户手动开启）
+     */
+    @TableField("auto_ramp_enabled")
+    private Boolean autoRampEnabled;
+
+    /**
      * 创建人
      */
     @TableField("created_by")

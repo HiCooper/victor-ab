@@ -52,14 +52,12 @@ class ExperimentControllerTest {
         testExperiment.setName("测试实验");
         testExperiment.setDescription("测试实验描述");
         testExperiment.setLayerId(1L);
-        testExperiment.setBucketStart(0);
-        testExperiment.setBucketEnd(999);
         testExperiment.setStatus("draft");
 
         testVariant = new Variant();
         testVariant.setId(1L);
-        testVariant.setExpId(1L);
-        testVariant.setVariantKey("control");
+        testVariant.setExpId("exp_test_001");
+        testVariant.setBucketId("control");
         testVariant.setName("对照组");
         testVariant.setBucketStart(0);
         testVariant.setBucketEnd(499);
@@ -74,8 +72,6 @@ class ExperimentControllerTest {
         request.setName("测试实验");
         request.setDescription("测试实验描述");
         request.setLayerId(1L);
-        request.setBucketStart(0);
-        request.setBucketEnd(999);
 
         ExperimentCreateRequest.VariantRequest variantRequest = new ExperimentCreateRequest.VariantRequest();
         variantRequest.setVariantKey("control");
@@ -106,8 +102,6 @@ class ExperimentControllerTest {
         ExperimentCreateRequest request = new ExperimentCreateRequest();
         request.setName("测试实验");
         request.setLayerId(1L);
-        request.setBucketStart(0);
-        request.setBucketEnd(999);
 
         // 执行请求
         mockMvc.perform(post("/api/v1/experiments")
@@ -278,7 +272,7 @@ class ExperimentControllerTest {
 
         mockMvc.perform(get("/api/v1/experiments/1/variants"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].variantKey").value("control"));
+                .andExpect(jsonPath("$[0].bucketId").value("control"));
 
         verify(experimentService).getExperimentVariants(1L);
     }

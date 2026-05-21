@@ -46,6 +46,9 @@ public class Layer {
     @TableField("sort_order")
     private Integer sortOrder;
 
+    @TableField("enabled")
+    private Boolean enabled;
+
     /**
      * 创建时间
      */

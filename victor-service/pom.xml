@@ -39,10 +39,10 @@
             <artifactId>victor-infrastructure</artifactId>
         </dependency>
 
-        <!-- Victor Stats -->
+        <!-- Victor Stats Engine -->
         <dependency>
             <groupId>com.gateflow</groupId>
-            <artifactId>victor-stats</artifactId>
+            <artifactId>victor-stats-engine</artifactId>
         </dependency>
 
         <!-- Spring Boot Starter -->

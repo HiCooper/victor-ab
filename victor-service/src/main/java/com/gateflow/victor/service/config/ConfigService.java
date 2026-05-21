@@ -3,10 +3,12 @@ package com.gateflow.victor.service.config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.bucketing.BucketEngine;
+import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.dto.ConfigResponse;
 import com.gateflow.victor.domain.entity.*;
 import com.gateflow.victor.infra.mapper.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ConfigService {
 
     private final ExperimentMapper experimentMapper;
@@ -207,6 +210,7 @@ public class ConfigService {
         try {
             return objectMapper.readValue(paramsJson, Map.class);
         } catch (JsonProcessingException e) {
+            log.warn("Failed to parse params JSON: {}", e.getMessage());
             return Collections.emptyMap();
         }
     }
@@ -237,7 +241,8 @@ public class ConfigService {
      * 判断实验是否可分桶
      */
     private boolean isBucketable(String status) {
-        return "running".equals(status) || "ramp".equals(status);
+        ExperimentStatus s = ExperimentStatus.fromCode(status);
+        return s != null && s.isBucketable();
     }
 
     /**

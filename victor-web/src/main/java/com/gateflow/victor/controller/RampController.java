@@ -1,5 +1,7 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.config.RequirePermission;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.ramp.RampScheduler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +32,7 @@ public class RampController {
 
     @PostMapping("/experiments/{expId}/advance")
     @Operation(summary = "手动推进灰度", description = "手动将实验推进到下一个灰度阶段")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Map<String, Object>> advanceRamp(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
         rampScheduler.manuallyAdvanceRamp(expId);

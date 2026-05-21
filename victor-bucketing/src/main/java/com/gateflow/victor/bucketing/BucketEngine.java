@@ -32,7 +32,8 @@ public final class BucketEngine {
         int hash = MurmurHash3.hash32(hashInput.getBytes(StandardCharsets.UTF_8));
         
         // 取模得到桶号 (0 - TOTAL_BUCKETS-1)
-        return Math.abs(hash) % BucketConstants.TOTAL_BUCKETS;
+        // 使用位掩码而非 Math.abs 以规避 Integer.MIN_VALUE 溢出问题
+        return (hash & Integer.MAX_VALUE) % BucketConstants.TOTAL_BUCKETS;
     }
 
     /**

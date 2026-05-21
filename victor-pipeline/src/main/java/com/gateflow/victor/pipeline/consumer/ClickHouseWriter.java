@@ -26,13 +26,12 @@ public class ClickHouseWriter {
         if (events == null || events.isEmpty()) {
             return;
         }
-        
+
         try {
             int count = eventRepository.insertBatch(events);
             log.info("Successfully wrote {} events to ClickHouse", count);
         } catch (Exception e) {
             log.error("Failed to write batch of {} events to ClickHouse", events.size(), e);
-            // 回退到逐条写入
             fallbackToSingleInsert(events);
         }
     }
@@ -43,7 +42,7 @@ public class ClickHouseWriter {
     private void fallbackToSingleInsert(List<EventDTO> events) {
         int success = 0;
         int failed = 0;
-        
+
         for (EventDTO event : events) {
             try {
                 eventRepository.insert(event);
@@ -53,7 +52,12 @@ public class ClickHouseWriter {
                 failed++;
             }
         }
-        
-        log.warn("Fallback insert completed: success={}, failed={}", success, failed);
+
+        if (failed > 0) {
+            throw new RuntimeException(
+                String.format("Batch write failed, fallback also incomplete: success=%d, failed=%d", success, failed));
+        }
+
+        log.warn("Fallback insert completed: all {} events written individually", success);
     }
 }

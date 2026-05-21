@@ -33,7 +33,7 @@ public class Variant {
     /**
      * 分桶ID (如: control, treatment)
      */
-    @TableField("bucket_id")
+    @TableField("variant_key")
     private String bucketId;
 
     /**

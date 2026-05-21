@@ -320,8 +320,7 @@ public class ExperimentService {
                 throw new VictorException(ErrorCode.BKT_INVALID_END, String.valueOf(newBucketEnd));
             }
             for (Variant variant : variants) {
-                if (variant.getBucketStart() != null) {
-                    // 保持 bucketStart，调整 bucketEnd
+                if (variant.getBucketStart() != null && variant.getBucketEnd() != null) {
                     variant.setBucketEnd(Math.min(newBucketEnd, variant.getBucketStart() + (variant.getBucketEnd() - variant.getBucketStart())));
                     variantMapper.updateById(variant);
                 }
@@ -480,6 +479,12 @@ public class ExperimentService {
         Experiment source = experimentMapper.selectById(expId);
         if (source == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
+        }
+
+        // 验证新 expId 唯一性
+        Experiment existing = experimentMapper.selectByExpId(newExpId);
+        if (existing != null) {
+            throw new VictorException(ErrorCode.EXP_ALREADY_EXISTS, "Experiment ID already exists: " + newExpId);
         }
 
         // 创建新实验
@@ -747,6 +752,9 @@ public class ExperimentService {
 
         int totalBuckets = 0;
         for (Variant variant : variants) {
+            if (variant.getBucketStart() == null || variant.getBucketEnd() == null) {
+                throw new VictorException("BKT_002", "Variant bucket range must not be null");
+            }
             if (variant.getBucketStart() < 0 || variant.getBucketEnd() > 9999) {
                 throw new VictorException("BKT_002", "Variant bucket range must be within [0, 9999]");
             }

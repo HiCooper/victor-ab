@@ -1,5 +1,7 @@
 package com.gateflow.victor.service.statistics;
 
+import com.gateflow.victor.common.constant.ErrorCode;
+import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.dto.*;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
@@ -44,7 +46,7 @@ public class StatisticsService {
     public ExperimentMetricsResponse getMetricResults(Long experimentId) {
         Experiment experiment = experimentService.getExperiment(experimentId);
         if (experiment == null) {
-            throw new RuntimeException("Experiment not found: " + experimentId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
         // First try pre-computed report from offline stats jobs
@@ -79,7 +81,7 @@ public class StatisticsService {
     public TimeSeriesDataResponse getTimeSeriesData(Long experimentId, Integer days) {
         Experiment experiment = experimentService.getExperiment(experimentId);
         if (experiment == null) {
-            throw new RuntimeException("Experiment not found: " + experimentId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
         int d = days != null ? days : 14;
@@ -128,7 +130,7 @@ public class StatisticsService {
     public BucketStatisticsResponse getBucketStatistics(Long experimentId) {
         Experiment experiment = experimentService.getExperiment(experimentId);
         if (experiment == null) {
-            throw new RuntimeException("Experiment not found: " + experimentId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
         List<Variant> variants = experimentService.getExperimentVariants(experimentId);
@@ -194,7 +196,7 @@ public class StatisticsService {
     public AATestResponse getAATestResults(Long experimentId) {
         Experiment experiment = experimentService.getExperiment(experimentId);
         if (experiment == null) {
-            throw new RuntimeException("Experiment not found: " + experimentId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
         List<Variant> variants = experimentService.getExperimentVariants(experimentId);
@@ -272,7 +274,7 @@ public class StatisticsService {
     public TrafficDataResponse getTrafficData(Long experimentId, Integer days) {
         Experiment experiment = experimentService.getExperiment(experimentId);
         if (experiment == null) {
-            throw new RuntimeException("Experiment not found: " + experimentId);
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
         int d = days != null ? days : 7;

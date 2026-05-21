@@ -44,8 +44,8 @@ class VariantControllerTest {
     void setUp() {
         testVariant = new Variant();
         testVariant.setId(1L);
-        testVariant.setExpId(1L);
-        testVariant.setVariantKey("control");
+        testVariant.setExpId("exp_test_001");
+        testVariant.setBucketId("control");
         testVariant.setName("对照组");
         testVariant.setBucketStart(0);
         testVariant.setBucketEnd(499);
@@ -56,7 +56,7 @@ class VariantControllerTest {
     @DisplayName("创建版本 - 成功")
     void createVariant_Success() throws Exception {
         VariantCreateRequest request = new VariantCreateRequest();
-        request.setExpId(1L);
+        request.setExpId("exp_test_001");
         request.setVariantKey("control");
         request.setName("对照组");
         request.setBucketStart(0);
@@ -68,7 +68,7 @@ class VariantControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.variantKey").value("control"))
+                .andExpect(jsonPath("$.bucketId").value("control"))
                 .andExpect(jsonPath("$.name").value("对照组"));
 
         verify(variantService).createVariant(any(Variant.class));
@@ -78,7 +78,7 @@ class VariantControllerTest {
     @DisplayName("创建版本 - 缺少必填字段")
     void createVariant_MissingRequiredField() throws Exception {
         VariantCreateRequest request = new VariantCreateRequest();
-        request.setExpId(1L);
+        request.setExpId("exp_test_001");
         request.setName("对照组"); // 缺少variantKey
 
         mockMvc.perform(post("/api/v1/variants")
@@ -93,14 +93,14 @@ class VariantControllerTest {
     @DisplayName("批量创建版本 - 成功")
     void createVariants_Success() throws Exception {
         VariantCreateRequest request1 = new VariantCreateRequest();
-        request1.setExpId(1L);
+        request1.setExpId("exp_test_001");
         request1.setVariantKey("control");
         request1.setName("对照组");
         request1.setBucketStart(0);
         request1.setBucketEnd(499);
 
         VariantCreateRequest request2 = new VariantCreateRequest();
-        request2.setExpId(1L);
+        request2.setExpId("exp_test_001");
         request2.setVariantKey("treatment");
         request2.setName("实验组");
         request2.setBucketStart(500);
@@ -127,7 +127,7 @@ class VariantControllerTest {
         mockMvc.perform(get("/api/v1/variants/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.variantKey").value("control"));
+                .andExpect(jsonPath("$.bucketId").value("control"));
 
         verify(variantService).getVariant(1L);
     }
@@ -147,25 +147,25 @@ class VariantControllerTest {
     @DisplayName("查询实验版本列表 - 成功")
     void getVariantsByExperiment_Success() throws Exception {
         List<Variant> variants = List.of(testVariant);
-        when(variantService.getVariantsByExperiment(1L)).thenReturn(variants);
+        when(variantService.getVariantsByExperimentId(1L)).thenReturn(variants);
 
         mockMvc.perform(get("/api/v1/variants/experiment/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].variantKey").value("control"));
+                .andExpect(jsonPath("$[0].bucketId").value("control"));
 
-        verify(variantService).getVariantsByExperiment(1L);
+        verify(variantService).getVariantsByExperimentId(1L);
     }
 
     @Test
     @DisplayName("查询实验版本列表 - 空列表")
     void getVariantsByExperiment_EmptyList() throws Exception {
-        when(variantService.getVariantsByExperiment(1L)).thenReturn(Collections.emptyList());
+        when(variantService.getVariantsByExperimentId(1L)).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/v1/variants/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        verify(variantService).getVariantsByExperiment(1L);
+        verify(variantService).getVariantsByExperimentId(1L);
     }
 
     @Test

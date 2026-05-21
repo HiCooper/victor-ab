@@ -20,7 +20,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
@@ -65,24 +64,22 @@ class ExperimentServiceTest {
         testExperiment.setExpId("exp_test_001");
         testExperiment.setName("测试实验");
         testExperiment.setLayerId(1L);
-        testExperiment.setBucketStart(0);
-        testExperiment.setBucketEnd(999);
         testExperiment.setStatus("draft");
 
         // 两个variant覆盖完整的实验桶范围 0-999 (共1000个桶)
         testVariant = new Variant();
         testVariant.setId(1L);
-        testVariant.setExpId(1L);
-        testVariant.setVariantKey("control");
+        testVariant.setExpId("exp_test_001");
+        testVariant.setBucketId("control");
         testVariant.setBucketStart(0);
-        testVariant.setBucketEnd(499);
+        testVariant.setBucketEnd(4999);
 
         testVariant2 = new Variant();
         testVariant2.setId(2L);
-        testVariant2.setExpId(1L);
-        testVariant2.setVariantKey("treatment");
-        testVariant2.setBucketStart(500);
-        testVariant2.setBucketEnd(999);
+        testVariant2.setExpId("exp_test_001");
+        testVariant2.setBucketId("treatment");
+        testVariant2.setBucketStart(5000);
+        testVariant2.setBucketEnd(9999);
     }
 
     @Test
@@ -93,7 +90,6 @@ class ExperimentServiceTest {
         when(variantMapper.insert(any(Variant.class))).thenReturn(1);
         when(versionService.generateVersion()).thenReturn("v1.0.0");
 
-        // 使用两个variant覆盖完整桶范围
         List<Variant> variants = List.of(testVariant, testVariant2);
         Experiment created = experimentService.createExperiment(testExperiment, variants);
 
@@ -180,8 +176,7 @@ class ExperimentServiceTest {
     void startExperiment_Success() {
         testExperiment.setStatus("draft");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        // 使用 selectActiveVariants 而不是 selectByExpId
-        when(variantMapper.selectActiveVariants(1L)).thenReturn(List.of(testVariant, testVariant2));
+        when(variantMapper.selectActiveVariants("exp_test_001")).thenReturn(List.of(testVariant, testVariant2));
         when(experimentMapper.updateById(any(Experiment.class))).thenReturn(1);
 
         Experiment started = experimentService.startExperiment(1L);
@@ -189,7 +184,7 @@ class ExperimentServiceTest {
         assertNotNull(started);
         assertEquals("running", started.getStatus());
         verify(experimentMapper).updateById(any(Experiment.class));
-        verify(variantMapper).selectActiveVariants(1L);
+        verify(variantMapper).selectActiveVariants("exp_test_001");
     }
 
     @Test
@@ -223,13 +218,13 @@ class ExperimentServiceTest {
     void deleteExperiment_Success() {
         testExperiment.setStatus("draft");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(variantMapper.deleteByExpId(1L)).thenReturn(1);
-        when(experimentMapper.deleteById(anyLong())).thenReturn(1);
+        when(variantMapper.deleteByExpId("exp_test_001")).thenReturn(1);
+        when(experimentMapper.deleteById(1L)).thenReturn(1);
 
         experimentService.deleteExperiment(1L);
 
-        verify(variantMapper).deleteByExpId(1L);
-        verify(experimentMapper).deleteById(anyLong());
+        verify(variantMapper).deleteByExpId("exp_test_001");
+        verify(experimentMapper).deleteById(1L);
     }
 
     @Test
@@ -242,21 +237,21 @@ class ExperimentServiceTest {
                 () -> experimentService.deleteExperiment(1L));
 
         assertTrue(exception.getMessage().contains("运行中的实验不能删除"));
-        verify(experimentMapper, never()).deleteById(anyLong());
+        verify(experimentMapper, never()).deleteById(1L);
     }
 
     @Test
     @DisplayName("查询实验版本 - 成功")
     void getExperimentVariants_Success() {
-        // getExperimentVariants 调用的是 selectActiveVariants
         List<Variant> variants = List.of(testVariant);
-        when(variantMapper.selectActiveVariants(1L)).thenReturn(variants);
+        when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
+        when(variantMapper.selectActiveVariants("exp_test_001")).thenReturn(variants);
 
         List<Variant> result = experimentService.getExperimentVariants(1L);
 
         assertEquals(1, result.size());
-        assertEquals("control", result.get(0).getVariantKey());
-        verify(variantMapper).selectActiveVariants(1L);
+        assertEquals("control", result.get(0).getBucketId());
+        verify(variantMapper).selectActiveVariants("exp_test_001");
     }
 
     @Test

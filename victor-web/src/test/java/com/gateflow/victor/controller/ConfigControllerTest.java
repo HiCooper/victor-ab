@@ -53,7 +53,7 @@ class ConfigControllerTest {
         expConfig.setBucketEnd(999);
 
         ConfigResponse.VariantConfig variantConfig = new ConfigResponse.VariantConfig();
-        variantConfig.setVariantKey("control");
+        variantConfig.setBucketId("control");
         variantConfig.setBucketStart(0);
         variantConfig.setBucketEnd(499);
         Map<String, Object> params = new HashMap<>();

@@ -24,7 +24,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
@@ -77,14 +76,12 @@ class ConfigServiceTest {
         testExperiment.setExpId("exp_test_001");
         testExperiment.setName("测试实验");
         testExperiment.setLayerId(1L);
-        testExperiment.setBucketStart(0);
-        testExperiment.setBucketEnd(999);
         testExperiment.setStatus("running");
 
         testVariant = new Variant();
         testVariant.setId(1L);
-        testVariant.setExpId(1L);
-        testVariant.setVariantKey("control");
+        testVariant.setExpId("exp_test_001");
+        testVariant.setBucketId("control");
         testVariant.setBucketStart(0);
         testVariant.setBucketEnd(499);
         testVariant.setParams("{\"color\":\"blue\"}");
@@ -95,7 +92,7 @@ class ConfigServiceTest {
     void getFullConfig_Success() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
-        when(variantMapper.selectByExpId(1L)).thenReturn(List.of(testVariant));
+        when(variantMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
 
         ConfigResponse response = configService.getFullConfig("server");
 
@@ -112,7 +109,7 @@ class ConfigServiceTest {
 
         verify(experimentMapper).selectRunningExperiments();
         verify(layerMapper).selectById(1L);
-        verify(variantMapper).selectByExpId(1L);
+        verify(variantMapper).selectByExpId("exp_test_001");
     }
 
     @Test
@@ -134,7 +131,7 @@ class ConfigServiceTest {
     void getFullConfig_LayerNotFound() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
         when(layerMapper.selectById(1L)).thenReturn(null);
-        when(variantMapper.selectByExpId(1L)).thenReturn(List.of(testVariant));
+        when(variantMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
 
         ConfigResponse response = configService.getFullConfig("server");
 
@@ -142,7 +139,7 @@ class ConfigServiceTest {
         assertEquals(1, response.getExperiments().size());
 
         ConfigResponse.ExperimentConfig expConfig = response.getExperiments().get(0);
-        assertNull(expConfig.getLayerId()); // 层不存在，layerId为null
+        assertNull(expConfig.getLayerId());
         assertNull(expConfig.getSalt());
     }
 
@@ -221,7 +218,7 @@ class ConfigServiceTest {
         ConfigService.VersionInfo versionInfo = configService.getLatestVersion();
 
         assertNotNull(versionInfo);
-        assertNotNull(versionInfo.getVersion()); // 自动生成版本号
+        assertNotNull(versionInfo.getVersion());
         verify(configVersionMapper).selectLatestVersion();
     }
 

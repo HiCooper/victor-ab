@@ -1,8 +1,10 @@
 package com.gateflow.victor.controller;
 
 import com.gateflow.victor.common.util.BucketIdGenerator;
+import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.VariantCreateRequest;
 import com.gateflow.victor.domain.dto.VariantUpdateRequest;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.service.variant.VariantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +31,7 @@ public class VariantController {
 
     @PostMapping
     @Operation(summary = "创建版本", description = "创建单个实验版本")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Variant> createVariant(@Valid @RequestBody VariantCreateRequest request) {
         Variant variant = new Variant();
         variant.setExpId(request.getExpId());
@@ -44,6 +47,7 @@ public class VariantController {
 
     @PostMapping("/batch")
     @Operation(summary = "批量创建版本", description = "批量创建实验版本")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<List<Variant>> createVariants(@Valid @RequestBody List<VariantCreateRequest> requests) {
         List<Variant> variants = requests.stream().map(req -> {
             Variant v = new Variant();
@@ -81,6 +85,7 @@ public class VariantController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新版本", description = "更新版本信息")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Variant> updateVariant(
             @Parameter(description = "版本ID") @PathVariable Long id,
             @RequestBody VariantUpdateRequest request) {
@@ -97,6 +102,7 @@ public class VariantController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除版本", description = "删除草稿实验中的版本")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Void> deleteVariant(
             @Parameter(description = "版本ID") @PathVariable Long id) {
         variantService.deleteVariant(id);

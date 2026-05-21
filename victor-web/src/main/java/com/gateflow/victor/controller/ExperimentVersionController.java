@@ -1,5 +1,7 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.config.RequirePermission;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.gateflow.victor.service.experiment.VariantVersionService;
@@ -60,6 +62,7 @@ public class ExperimentVersionController {
 
     @PostMapping("/rollback/{version}")
     @Operation(summary = "回滚到指定版本", description = "将实验回滚到指定的历史版本")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Map<String, Object>> rollbackToVersion(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "目标版本号") @PathVariable String version) {
@@ -85,6 +88,7 @@ public class ExperimentVersionController {
 
     @DeleteMapping("/cleanup")
     @Operation(summary = "清理旧版本", description = "清理实验的旧版本，保留最近N个版本")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Map<String, Object>> cleanupOldVersions(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "保留版本数量") @RequestParam(defaultValue = "10") int keep) {

@@ -17,9 +17,9 @@ import java.util.Properties;
 @Component
 @ConfigurationProperties(prefix = "victor.stats.clickhouse")
 public class StatsClickHouseConfig {
-    private String url = "jdbc:clickhouse://localhost:8123/victor";
-    private String user = "victor";
-    private String password = "victor123";
+    private String url;
+    private String user;
+    private String password;
     
     private volatile ClickHouseDataSource dataSource;
     
@@ -33,6 +33,9 @@ public class StatsClickHouseConfig {
                     Properties props = new Properties();
                     props.setProperty("user", user);
                     props.setProperty("password", password);
+                    props.setProperty("socket_timeout", "30000");
+                    props.setProperty("connection_timeout", "10000");
+                    props.setProperty("max_execution_time", "120");
                     dataSource = new ClickHouseDataSource(url, props);
                 }
             }

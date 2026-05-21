@@ -2,8 +2,10 @@ package com.gateflow.victor.controller;
 
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.entity.Domain;
 import com.gateflow.victor.domain.entity.Layer;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.infra.mapper.DomainMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -30,6 +32,7 @@ public class DomainController {
 
     @PostMapping
     @Operation(summary = "创建域", description = "创建新的流量域")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Domain> createDomain(@RequestBody Domain domain) {
         if (domain.getTrafficRatio() == null) {
             domain.setTrafficRatio(java.math.BigDecimal.ONE);
@@ -74,6 +77,7 @@ public class DomainController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新域", description = "更新域信息")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Domain> updateDomain(
             @Parameter(description = "域ID") @PathVariable Long id,
             @RequestBody Domain domain) {
@@ -89,6 +93,7 @@ public class DomainController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除域", description = "删除没有层的域")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Void> deleteDomain(
             @Parameter(description = "域ID") @PathVariable Long id) {
         Domain domain = domainMapper.selectById(id);

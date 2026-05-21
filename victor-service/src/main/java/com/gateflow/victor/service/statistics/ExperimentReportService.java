@@ -1,4 +1,4 @@
-package com.gateflow.victor.service;
+package com.gateflow.victor.service.statistics;
 
 import com.gateflow.victor.stats.engine.StatsEngine;
 import lombok.RequiredArgsConstructor;

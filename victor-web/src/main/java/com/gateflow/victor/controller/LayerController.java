@@ -1,8 +1,10 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.LayerCreateRequest;
 import com.gateflow.victor.domain.dto.LayerUpdateRequest;
 import com.gateflow.victor.domain.entity.Layer;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.layer.LayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,6 +29,7 @@ public class LayerController {
 
     @PostMapping
     @Operation(summary = "创建层", description = "创建新的分流层")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Layer> createLayer(@Valid @RequestBody LayerCreateRequest request) {
         Layer layer = new Layer();
         layer.setLayerId(request.getLayerId());
@@ -78,6 +81,7 @@ public class LayerController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新层", description = "更新层信息")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Layer> updateLayer(
             @Parameter(description = "层ID") @PathVariable Long id,
             @RequestBody LayerUpdateRequest request) {
@@ -92,6 +96,7 @@ public class LayerController {
 
     @PostMapping("/{id}/enable")
     @Operation(summary = "启用层", description = "启用禁用的层")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Layer> enableLayer(
             @Parameter(description = "层ID") @PathVariable Long id) {
         Layer layer = layerService.enableLayer(id);
@@ -100,6 +105,7 @@ public class LayerController {
 
     @PostMapping("/{id}/disable")
     @Operation(summary = "禁用层", description = "禁用层")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Layer> disableLayer(
             @Parameter(description = "层ID") @PathVariable Long id) {
         Layer layer = layerService.disableLayer(id);
@@ -108,6 +114,7 @@ public class LayerController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除层", description = "删除没有实验的层")
+    @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Void> deleteLayer(
             @Parameter(description = "层ID") @PathVariable Long id) {
         layerService.deleteLayer(id);

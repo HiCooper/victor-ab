@@ -119,6 +119,7 @@ public class ExperimentRepository {
         s.layerKey = rs.getString("layer_key");
         s.salt = rs.getString("salt");
         s.primaryMetric = rs.getString("primary_metric");
+        s.guardrailMetrics = rs.getString("guardrail_metrics");
         s.startTime = rs.getTimestamp("start_time") != null
             ? rs.getTimestamp("start_time").toLocalDateTime() : null;
         s.endTime = rs.getTimestamp("end_time") != null
@@ -135,6 +136,7 @@ public class ExperimentRepository {
         private String layerKey;
         private String salt;
         private String primaryMetric;
+        private String guardrailMetrics;
         private LocalDateTime startTime;
         private LocalDateTime endTime;
     }
