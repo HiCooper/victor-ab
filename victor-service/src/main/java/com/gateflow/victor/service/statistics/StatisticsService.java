@@ -12,7 +12,9 @@ import com.gateflow.victor.service.experiment.ExperimentService;
 import com.gateflow.victor.stats.algorithm.SrmTest;
 import com.gateflow.victor.stats.algorithm.ZTest;
 import com.gateflow.victor.stats.engine.StatsEngine;
+import com.gateflow.victor.stats.model.ConfidenceInterval;
 import com.gateflow.victor.stats.model.ExperimentReport;
+import com.gateflow.victor.stats.model.LiftEstimate;
 import com.gateflow.victor.stats.model.TestResult;
 import com.gateflow.victor.stats.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
@@ -50,16 +52,18 @@ public class StatisticsService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
-        // First try pre-computed report from offline stats jobs
-        ExperimentReport report = reportRepository.findLatestReport(experiment.getExpId());
+        // Always compute from ClickHouse in real-time (columnar GROUP BY, ~ms)
+        LocalDate startDate = experiment.getStartTime() != null
+            ? experiment.getStartTime().toLocalDate()
+            : LocalDate.now().minusDays(14);
+        LocalDate endDate = LocalDate.now();
+        ExperimentReport report = buildReport(experiment, startDate, endDate);
 
-        if (report == null) {
-            // Fall back to on-the-fly computation
-            LocalDate startDate = experiment.getStartTime() != null
-                ? experiment.getStartTime().toLocalDate()
-                : LocalDate.now().minusDays(14);
-            LocalDate endDate = LocalDate.now();
-            report = buildReport(experiment, startDate, endDate);
+        // Supplement with CUPED-adjusted values if scheduler has computed them
+        Map<String, ReportRepository.CupedValueDto> cupedValues =
+            reportRepository.findLatestCupedValues(experiment.getExpId());
+        if (!cupedValues.isEmpty()) {
+            applyCupedToReport(report, cupedValues);
         }
 
         List<Variant> variants = experimentService.getExperimentVariants(experimentId);
@@ -355,6 +359,69 @@ public class StatisticsService {
         );
     }
 
+    /**
+     * Apply CUPED-adjusted values from MySQL to a real-time report.
+     * Replaces raw means/variances in variant summaries with CUPED-adjusted values,
+     * and recomputes lift/p-value/CI using the adjusted statistics.
+     */
+    private void applyCupedToReport(
+            ExperimentReport report,
+            Map<String, ReportRepository.CupedValueDto> cupedValues
+    ) {
+        if (report.getVariantSummaries() == null) return;
+
+        // Inject CUPED-adjusted mean/variance into each variant summary
+        for (Map.Entry<String, ReportRepository.CupedValueDto> entry : cupedValues.entrySet()) {
+            ExperimentReport.VariantSummary summary = report.getVariantSummaries().get(entry.getKey());
+            if (summary != null) {
+                summary.setCupedAdjustedMean(entry.getValue().getCupedAdjustedMean());
+                summary.setCupedAdjustedVariance(entry.getValue().getCupedAdjustedVariance());
+            }
+        }
+
+        // Recompute primary metric using CUPED-adjusted values
+        ExperimentReport.VariantSummary ctrl = null;
+        ExperimentReport.VariantSummary treat = null;
+        for (ExperimentReport.VariantSummary vs : report.getVariantSummaries().values()) {
+            if (vs.getCupedAdjustedMean() == null) continue;
+            if (vs.isControl() && ctrl == null) {
+                ctrl = vs;
+            } else if (!vs.isControl() && treat == null) {
+                treat = vs;
+            }
+        }
+
+        if (ctrl == null || treat == null) return;
+
+        double ctrlMean = ctrl.getCupedAdjustedMean();
+        double treatMean = treat.getCupedAdjustedMean();
+        double ctrlVar = ctrl.getCupedAdjustedVariance();
+        double treatVar = treat.getCupedAdjustedVariance();
+
+        double diff = treatMean - ctrlMean;
+        double lift = ctrlMean != 0 ? diff / ctrlMean : 0;
+        double se = Math.sqrt(ctrlVar / ctrl.getTotalUsers() + treatVar / treat.getTotalUsers());
+        double z = se > 0 ? diff / se : 0;
+
+        double absCiLower = diff - 1.96 * se;
+        double absCiUpper = diff + 1.96 * se;
+        double liftLower = ctrlMean != 0 ? absCiLower / ctrlMean : 0;
+        double liftUpper = ctrlMean != 0 ? absCiUpper / ctrlMean : 0;
+
+        org.apache.commons.math3.distribution.NormalDistribution normal =
+            new org.apache.commons.math3.distribution.NormalDistribution();
+        double pValue = 2 * (1 - normal.cumulativeProbability(Math.abs(z)));
+
+        if (report.getPrimaryMetric() != null) {
+            report.getPrimaryMetric().setLift(LiftEstimate.of(lift, liftLower, liftUpper));
+            report.getPrimaryMetric().setConfidenceInterval(ConfidenceInterval.of(absCiLower, absCiUpper, 0.95));
+            report.getPrimaryMetric().setPValue(pValue);
+            report.getPrimaryMetric().setSignificant(pValue < 0.05);
+        }
+
+        report.setCupedApplied(true);
+    }
+
     private ExperimentMetricsResponse buildMetricsResponse(
         ExperimentReport report,
         String controlVariant,
@@ -366,7 +433,11 @@ public class StatisticsService {
         }
 
         var controlSummary = report.getVariantSummaries().get(controlVariant);
-        double controlRate = controlSummary != null ? controlSummary.getConversionRate() : 0;
+        double controlRate = controlSummary != null
+            ? (report.isCupedApplied() && controlSummary.getCupedAdjustedMean() != null
+                ? controlSummary.getCupedAdjustedMean()
+                : controlSummary.getConversionRate())
+            : 0;
 
         ExperimentMetricsResponse.MetricResult primaryResult = ExperimentMetricsResponse.MetricResult.builder()
             .id("conversion_rate")

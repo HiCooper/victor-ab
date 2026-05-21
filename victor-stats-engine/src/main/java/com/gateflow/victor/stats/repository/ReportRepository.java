@@ -248,7 +248,7 @@ public class ReportRepository {
             """;
 
         Map<String, CupedValueDto> results = new LinkedHashMap<>();
-        jdbc.query(sql, (rs, rowNum) -> {
+        jdbc.query(sql, rs -> {
             results.put(rs.getString("variant"),
                 new CupedValueDto(
                     rs.getString("variant"),

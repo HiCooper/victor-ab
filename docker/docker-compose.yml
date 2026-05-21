@@ -1,41 +1,59 @@
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
+  mysql:
+    image: mysql:8.0
+    container_name: victor-mysql
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      MYSQL_ROOT_PASSWORD: victor123
+      MYSQL_DATABASE: victor_experiment
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
     volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
+      - victor-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  kafka:
-    image: confluentinc/cp-kafka:7.4.0
+  redis:
+    image: redis:7-alpine
+    container_name: victor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - victor-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  victor-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: victor-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
     depends_on:
-      - zookeeper
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    volumes:
-      - kafka-data:/var/lib/kafka/data
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:24.1
-    ports:
-      - "8123:8123"
-      - "9000:9000"
-    environment:
-      CLICKHOUSE_DB: victor
-      CLICKHOUSE_USER: victor
-      CLICKHOUSE_PASSWORD: victor123
-    volumes:
-      - clickhouse-data:/var/lib/clickhouse
-      - ./init-db:/docker-entrypoint-initdb.d
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  zookeeper-data:
-  kafka-data:
-  clickhouse-data:
+  victor-mysql-data:
+  victor-redis-data:
