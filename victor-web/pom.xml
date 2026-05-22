@@ -27,10 +27,10 @@
             <artifactId>victor-service</artifactId>
         </dependency>
 
-        <!-- Victor Infrastructure -->
+        <!-- Victor DAO -->
         <dependency>
             <groupId>com.gateflow</groupId>
-            <artifactId>victor-infrastructure</artifactId>
+            <artifactId>victor-dao</artifactId>
         </dependency>
 
         <!-- Victor Pipeline -->

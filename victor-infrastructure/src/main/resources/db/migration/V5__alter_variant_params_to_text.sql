@@ -1,1 +1,0 @@
-ALTER TABLE victor_variant MODIFY COLUMN params TEXT NOT NULL COMMENT '版本参数';

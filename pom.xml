@@ -17,7 +17,7 @@
         <module>victor-common</module>
         <module>victor-domain</module>
         <module>victor-bucketing</module>
-        <module>victor-infrastructure</module>
+        <module>victor-dao</module>
         <module>victor-stats-engine</module>
         <module>victor-service</module>
         <module>victor-sdk</module>
@@ -100,7 +100,7 @@
             </dependency>
             <dependency>
                 <groupId>com.gateflow</groupId>
-                <artifactId>victor-infrastructure</artifactId>
+                <artifactId>victor-dao</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

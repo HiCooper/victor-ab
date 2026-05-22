@@ -27,7 +27,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
     username: ${VICTOR_DB_USER:root}
-    password: ${VICTOR_DB_PASSWORD:}
+    password: ${VICTOR_DB_PASSWORD:root}
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initial-size: 5
