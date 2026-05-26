@@ -7,6 +7,7 @@ import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.service.bandit.BanditService;
 import com.gateflow.victor.service.variant.VariantService;
+import com.gateflow.victor.stats.repository.MetricsRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ public class BanditController {
 
     private final BanditService banditService;
     private final VariantService variantService;
+    private final MetricsRepository metricsRepository;
 
     /**
      * 获取流量优化建议
@@ -43,12 +46,25 @@ public class BanditController {
             return ResponseEntity.badRequest().build();
         }
 
-        // TODO: Replace Math.random() with real metrics data from MetricsService
-        // The Bandit algorithm requires actual conversion/click data per variant.
-        // Current random data is only a placeholder for API demonstration.
+        // Query real conversion data from ClickHouse per variant
+        String businessExpId = variants.get(0).getExpId();
         Map<Long, int[]> data = new HashMap<>();
+        Map<String, MetricsRepository.VariantStats> variantStats =
+            metricsRepository.queryExperimentStats(
+                businessExpId, LocalDate.now().minusDays(7), LocalDate.now());
+
         for (Variant v : variants) {
-            data.put(v.getId(), new int[]{1000, (int) (Math.random() * 100)});
+            // Match MySQL variant key (bucketId) to ClickHouse variant name
+            String variantKey = v.getBucketId() != null ? v.getBucketId() : v.getName();
+            MetricsRepository.VariantStats stats = variantStats.get(variantKey);
+            if (stats != null && stats.getTotalUsers() > 0) {
+                data.put(v.getId(), new int[]{
+                    (int) stats.getTotalUsers(),
+                    (int) stats.getTotalConversions()
+                });
+            } else {
+                data.put(v.getId(), new int[]{0, 0});
+            }
         }
 
         BanditResponse response = banditService.optimize(request, variants, data);

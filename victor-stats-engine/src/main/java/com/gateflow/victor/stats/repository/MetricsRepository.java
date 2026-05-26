@@ -1,14 +1,13 @@
 package com.gateflow.victor.stats.repository;
 
-import com.gateflow.victor.stats.config.StatsClickHouseConfig;
 import com.gateflow.victor.stats.model.SampleStatistics;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,12 +21,15 @@ import java.util.Map;
  */
 @Slf4j
 @Repository
-@RequiredArgsConstructor
 public class MetricsRepository {
-    
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    
-    private final StatsClickHouseConfig config;
+
+    private final DataSource dataSource;
+
+    public MetricsRepository(@Qualifier("clickhouseDataSource") DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
     
     /**
      * 查询实验变体的累计指标
@@ -59,7 +61,7 @@ public class MetricsRepository {
               AND metric_date <= ?
             """;
         
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
             ps.setString(1, expId);
@@ -123,7 +125,7 @@ public class MetricsRepository {
             GROUP BY variant, layer
             """;
         
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
             ps.setString(1, expId);
@@ -181,7 +183,7 @@ public class MetricsRepository {
             ORDER BY metric_date
             """;
         
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
             ps.setString(1, expId);
@@ -233,7 +235,7 @@ public class MetricsRepository {
             GROUP BY variants[1], layers[1]
             """;
 
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, expId);
@@ -287,7 +289,7 @@ public class MetricsRepository {
             LIMIT ? OFFSET ?
             """;
 
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, expId);
@@ -368,7 +370,7 @@ public class MetricsRepository {
 
         Map<String, UserMetric> userMap = new LinkedHashMap<>();
 
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(expSql)) {
 
             ps.setString(1, expId);
@@ -409,7 +411,7 @@ public class MetricsRepository {
             GROUP BY user_id
             """;
 
-        try (Connection conn = config.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(preSql)) {
 
             for (int i = 0; i < userIds.size(); i++) {

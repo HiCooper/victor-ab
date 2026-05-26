@@ -80,6 +80,22 @@ public class RbacService {
     }
 
     /**
+     * 获取用户的角色名称列表
+     */
+    public List<String> getRoleNamesByUserId(Long userId) {
+        List<UserRole> userRoles = userRoleMapper.selectByUserId(userId);
+        if (userRoles.isEmpty()) {
+            return List.of();
+        }
+        List<Long> roleIds = userRoles.stream()
+                .map(UserRole::getRoleId)
+                .collect(Collectors.toList());
+        return roleMapper.selectByIds(roleIds).stream()
+                .map(Role::getName)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 获取默认角色列表（用于初始化）
      */
     public List<Role> getDefaultRoles() {

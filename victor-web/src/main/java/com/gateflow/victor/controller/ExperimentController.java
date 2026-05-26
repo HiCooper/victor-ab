@@ -67,6 +67,7 @@ public class ExperimentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "查询实验详情", description = "根据ID查询实验信息")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<Experiment> getExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id) {
         Experiment experiment = experimentService.getExperiment(id);
@@ -78,6 +79,7 @@ public class ExperimentController {
 
     @GetMapping("/key/{expKey}")
     @Operation(summary = "根据业务标识查询实验", description = "根据expId查询实验信息")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<Experiment> getExperimentByKey(
             @Parameter(description = "实验业务标识") @PathVariable String expKey) {
         Experiment experiment = experimentService.getExperimentByKey(expKey);
@@ -89,6 +91,7 @@ public class ExperimentController {
 
     @GetMapping
     @Operation(summary = "查询实验列表", description = "查询所有实验或按条件筛选")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<List<Experiment>> listExperiments(
             @Parameter(description = "层ID") @RequestParam(required = false) Long layerId,
             @Parameter(description = "状态") @RequestParam(required = false) String status) {
@@ -98,6 +101,7 @@ public class ExperimentController {
 
     @GetMapping("/pending")
     @Operation(summary = "查询待审批实验列表", description = "查询所有待审批的实验")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<List<Experiment>> listPendingExperiments() {
         List<Experiment> experiments = experimentService.listPendingExperiments();
         return ResponseEntity.ok(experiments);
@@ -105,6 +109,7 @@ public class ExperimentController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询实验列表", description = "分页查询实验，支持按层ID和状态筛选")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<Page<Experiment>> listExperimentsPaged(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int current,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
@@ -256,6 +261,7 @@ public class ExperimentController {
 
     @GetMapping("/{id}/actions")
     @Operation(summary = "获取可用操作", description = "获取当前实验状态可执行的操作列表")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<List<String>> getAvailableActions(
             @Parameter(description = "实验ID") @PathVariable Long id) {
         Experiment experiment = experimentService.getExperiment(id);
@@ -278,6 +284,7 @@ public class ExperimentController {
 
     @GetMapping("/{id}/variants")
     @Operation(summary = "查询实验版本", description = "查询实验的所有版本")
+    @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<List<Variant>> getExperimentVariants(
             @Parameter(description = "实验ID") @PathVariable Long id) {
         List<Variant> variants = experimentService.getExperimentVariants(id);

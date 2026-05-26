@@ -89,6 +89,12 @@ public class Experiment {
     private Boolean autoRampEnabled;
 
     /**
+     * 灰度推进配置 (JSON): {"stages":{"STAGE_1":2,"STAGE_5":4,"STAGE_10":12,"STAGE_50":24}}
+     */
+    @TableField("ramp_config")
+    private String rampConfig;
+
+    /**
      * 创建人
      */
     @TableField("created_by")

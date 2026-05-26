@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -23,13 +25,21 @@ public class RbacController {
 
     private final RbacService rbacService;
 
+    private Long getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long) {
+            return (Long) auth.getPrincipal();
+        }
+        return 1L; // fallback for dev
+    }
+
     /**
      * 获取当前用户权限
      */
     @GetMapping("/permissions")
     @Operation(summary = "获取当前用户权限", description = "返回当前用户的所有权限及角色")
-    public ResponseEntity<Map<String, Object>> getPermissions(
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "1") Long userId) {
+    public ResponseEntity<Map<String, Object>> getPermissions() {
+        Long userId = getCurrentUserId();
         Set<Permission> permissions = rbacService.getPermissionsByUserId(userId);
         Map<String, Object> response = new HashMap<>();
         response.put("userId", userId);
@@ -44,8 +54,8 @@ public class RbacController {
     @GetMapping("/check")
     @Operation(summary = "检查权限", description = "检查用户是否拥有指定权限")
     public ResponseEntity<Map<String, Boolean>> checkPermission(
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "1") Long userId,
             @RequestParam String permission) {
+        Long userId = getCurrentUserId();
         try {
             Permission perm = Permission.valueOf(permission);
             boolean hasPermission = rbacService.hasPermission(userId, perm);

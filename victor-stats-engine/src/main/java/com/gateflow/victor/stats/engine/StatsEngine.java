@@ -51,13 +51,15 @@ public class StatsEngine {
 
     /**
      * 分析实验 - 端到端实验报告生成
-     * 
+     *
      * @param expId 实验ID
      * @param layer 层名称
      * @param startDate 分析开始日期
      * @param endDate 分析结束日期
      * @param controlVariantName 对照组变体名称
      * @param treatmentVariants 治疗组变体名称列表
+     * @param expectedProportions 期望分流比例
+     * @param guardrailMetricNames 护栏指标名称列表（从实验配置读取，null 则默认使用 avgRevenue）
      * @return 完整的实验报告
      */
     public ExperimentReport analyzeExperiment(
@@ -67,38 +69,43 @@ public class StatsEngine {
             LocalDate endDate,
             String controlVariantName,
             List<String> treatmentVariants,
-            Map<String, Double> expectedProportions
+            Map<String, Double> expectedProportions,
+            List<String> guardrailMetricNames
     ) {
-        log.info("Starting experiment analysis: expId={}, layer={}, period={} to {}", 
+        log.info("Starting experiment analysis: expId={}, layer={}, period={} to {}",
             expId, layer, startDate, endDate);
-        
+
         long startTime = System.currentTimeMillis();
-        
+
         // Step 1: 查询所有变体的统计数据
-        Map<String, MetricsRepository.VariantStats> variantStats = 
+        Map<String, MetricsRepository.VariantStats> variantStats =
             metricsRepository.queryExperimentStats(expId, startDate, endDate);
-        
+
         if (variantStats.isEmpty()) {
             return buildEmptyReport(expId, layer, startDate, endDate);
         }
-        
+
         // Step 2: SRM 检验 - 验证分流比例
         ExperimentReport.SrmCheckResult srmResult = runSRMCheck(variantStats, controlVariantName, treatmentVariants, expectedProportions);
-        
+
         // Step 3: 获取对照组统计
         MetricsRepository.VariantStats controlStats = variantStats.get(controlVariantName);
         if (controlStats == null) {
             return buildEmptyReport(expId, layer, startDate, endDate);
         }
-        
+
+        // Step 3.5: CUPED 方差缩减（使用实验前数据）
+        Map<String, SampleStatistics> cupedAdjusted = applyCUPED(
+            expId, controlVariantName, treatmentVariants, startDate, endDate);
+
         // Step 4: 主指标检验 - Z-Test（CUPED 增强）
-        TestResult primaryResult = runPrimaryMetricTest(controlStats, variantStats, treatmentVariants);
-        
+        TestResult primaryResult = runPrimaryMetricTest(controlStats, variantStats, treatmentVariants, cupedAdjusted);
+
         // Step 5: 辅助指标检验 - BH 校正
         List<TestResult> secondaryResults = runSecondaryMetricsTest(controlStats, variantStats, treatmentVariants);
-        
+
         // Step 6: 护栏指标序贯检验 - mSPRT
-        List<SequentialTestResult> guardrailResults = runGuardrailTests(controlStats, variantStats);
+        List<SequentialTestResult> guardrailResults = runGuardrailTests(controlStats, variantStats, guardrailMetricNames);
         
         // Step 7: 生成决策建议
         Recommendation recommendation = generateRecommendation(
@@ -169,18 +176,18 @@ public class StatsEngine {
             }
         }
         
-        double pValue = SrmTest.chiSquareTest(observed, expected);
-        boolean passed = pValue >= 0.01; // SRM 阈值 1%
-        
+        SrmTest.ChiSquareResult srmResult = SrmTest.chiSquareTestFull(observed, expected);
+        boolean passed = srmResult.pValue() >= 0.01; // SRM 阈值 1%
+
         Map<String, Double> expectedRatios = new HashMap<>();
         for (int i = 0; i < allVariants.size(); i++) {
             expectedRatios.put(allVariants.get(i), expected[i]);
         }
-        
+
         return ExperimentReport.SrmCheckResult.builder()
             .passed(passed)
-            .pValue(pValue)
-            .chiSquareStatistic(0) // SrmTest 只返回 p-value
+            .pValue(srmResult.pValue())
+            .chiSquareStatistic(srmResult.chiSquare())
             .observedCounts(observedCounts)
             .expectedRatios(expectedRatios)
             .message(passed ? "SRM检验通过，分流比例正常" : "SRM检验失败，分流比例存在异常")
@@ -188,30 +195,94 @@ public class StatsEngine {
     }
     
     /**
-     * 主指标检验
+     * CUPED 方差缩减 — 使用实验前数据降低方差，提高检验灵敏度。
+     * 返回 variant → adjusted SampleStatistics 映射，失败时返回 null。
+     */
+    private Map<String, SampleStatistics> applyCUPED(
+            String expId,
+            String controlVariantName,
+            List<String> treatmentVariants,
+            LocalDate expStart,
+            LocalDate expEnd
+    ) {
+        long expDays = expStart.until(expEnd).getDays();
+        if (expDays < 1) expDays = 7;
+        LocalDate preEnd = expStart.minusDays(1);
+        LocalDate preStart = preEnd.minusDays(expDays);
+
+        List<String> allVariants = new ArrayList<>();
+        allVariants.add(controlVariantName);
+        allVariants.addAll(treatmentVariants);
+
+        // Collect all user-level data and compute overall pre-experiment mean
+        List<Double> allPreValues = new ArrayList<>();
+        Map<String, List<MetricsRepository.UserMetric>> userDataByVariant = new LinkedHashMap<>();
+
+        for (String variant : allVariants) {
+            List<MetricsRepository.UserMetric> userData =
+                metricsRepository.queryUserLevelData(expId, variant, expStart, expEnd, preStart, preEnd);
+            if (userData.isEmpty()) {
+                log.debug("CUPED: no user-level data for variant={}, falling back to aggregate", variant);
+                return null;
+            }
+            userDataByVariant.put(variant, userData);
+            userData.forEach(m -> allPreValues.add(m.getPreExperimentValue()));
+        }
+
+        if (allPreValues.isEmpty()) return null;
+
+        double overallMeanX = allPreValues.stream().mapToDouble(d -> d).average().orElse(0);
+        log.debug("CUPED: overall pre-experiment mean={}, n={}", overallMeanX, allPreValues.size());
+
+        Map<String, SampleStatistics> adjusted = new LinkedHashMap<>();
+        for (String variant : allVariants) {
+            List<MetricsRepository.UserMetric> userData = userDataByVariant.get(variant);
+            List<Double> y = userData.stream().map(m -> m.getExperimentValue()).toList();
+            List<Double> x = userData.stream().map(m -> m.getPreExperimentValue()).toList();
+
+            SampleStatistics cupedStats = cuped.adjust(y, x, overallMeanX);
+            adjusted.put(variant, cupedStats);
+        }
+
+        return adjusted;
+    }
+
+    /**
+     * 主指标检验 — 优先使用 CUPED 调整后的统计量
      */
     private TestResult runPrimaryMetricTest(
             MetricsRepository.VariantStats controlStats,
             Map<String, MetricsRepository.VariantStats> variantStats,
-            List<String> treatmentVariants
+            List<String> treatmentVariants,
+            Map<String, SampleStatistics> cupedAdjusted
     ) {
         if (treatmentVariants.isEmpty()) {
             return null;
         }
-        
-        // 对第一个治疗组进行检验
+
         String treatmentVariant = treatmentVariants.get(0);
         MetricsRepository.VariantStats treatmentStats = variantStats.get(treatmentVariant);
-        
+
         if (treatmentStats == null) {
             return null;
         }
-        
+
+        // Use CUPED-adjusted statistics when available for higher precision
+        if (cupedAdjusted != null && cupedAdjusted.containsKey("control")
+            && cupedAdjusted.containsKey(treatmentVariant)) {
+            SampleStatistics cCuped = cupedAdjusted.get("control");
+            SampleStatistics tCuped = cupedAdjusted.get(treatmentVariant);
+            log.debug("Using CUPED-adjusted stats: cMean={}, tMean={}, cVar={}, tVar={}",
+                cCuped.getMean(), tCuped.getMean(), cCuped.getVariance(), tCuped.getVariance());
+            return zTest.executeWithStats(cCuped, tCuped);
+        }
+
+        // Fall back to aggregate proportion test
         long cSuccess = controlStats.getTotalConversions();
         long cTotal = controlStats.getTotalUsers();
         long tSuccess = treatmentStats.getTotalConversions();
         long tTotal = treatmentStats.getTotalUsers();
-        
+
         return zTest.executeProportion(cSuccess, cTotal, tSuccess, tTotal);
     }
     
@@ -245,41 +316,65 @@ public class StatsEngine {
     
     /**
      * 护栏指标检验
-     * TODO: Guardrail metrics should be read from experiment config (guardrail_metrics JSON)
-     *       instead of hardcoding avgRevenue. The variance formula below is a placeholder —
-     *       proper per-user revenue variance should be computed from ClickHouse.
+     *
+     * @param guardrailMetricNames 护栏指标名称列表（从实验 guardrail_metrics JSON 配置读取）。
+     *                             支持: "avgRevenue", "conversionRate"。
+     *                             为 null 或空时默认使用 avgRevenue。
      */
     private List<SequentialTestResult> runGuardrailTests(
             MetricsRepository.VariantStats controlStats,
-            Map<String, MetricsRepository.VariantStats> variantStats
+            Map<String, MetricsRepository.VariantStats> variantStats,
+            List<String> guardrailMetricNames
     ) {
+        List<String> metrics = (guardrailMetricNames != null && !guardrailMetricNames.isEmpty())
+            ? guardrailMetricNames
+            : List.of("avgRevenue");
+
         List<SequentialTestResult> results = new ArrayList<>();
 
-        for (Map.Entry<String, MetricsRepository.VariantStats> entry : variantStats.entrySet()) {
-            if (entry.getKey().equals("control")) continue;
+        for (String metricName : metrics) {
+            for (Map.Entry<String, MetricsRepository.VariantStats> entry : variantStats.entrySet()) {
+                if (entry.getKey().equals("control")) continue;
 
-            MetricsRepository.VariantStats treatmentStats = entry.getValue();
+                MetricsRepository.VariantStats treatmentStats = entry.getValue();
 
-            // Revenue variance: use squared mean as rough proxy for continuous data.
-            // The binomial p*(1-p) formula is not valid for revenue (continuous, can exceed 1.0).
-            double ctrlVar = Math.max(controlStats.getAvgRevenue() * controlStats.getAvgRevenue(), 0.01);
-            double treatVar = Math.max(treatmentStats.getAvgRevenue() * treatmentStats.getAvgRevenue(), 0.01);
+                double ctrlMean, treatMean, ctrlVar, treatVar;
 
-            SampleStatistics control = SampleStatistics.builder()
-                .n(controlStats.getTotalUsers())
-                .mean(controlStats.getAvgRevenue())
-                .variance(ctrlVar)
-                .build();
+                switch (metricName) {
+                    case "conversionRate":
+                        ctrlMean = controlStats.getConversionRate();
+                        treatMean = treatmentStats.getConversionRate();
+                        // Binomial variance p*(1-p)
+                        ctrlVar = Math.max(ctrlMean * (1 - ctrlMean), 0.0001);
+                        treatVar = Math.max(treatMean * (1 - treatMean), 0.0001);
+                        break;
+                    case "avgRevenue":
+                    default:
+                        ctrlMean = controlStats.getAvgRevenue();
+                        treatMean = treatmentStats.getAvgRevenue();
+                        // Revenue variance: use squared mean as rough proxy for continuous data.
+                        // TODO: compute proper per-user revenue variance from ClickHouse.
+                        ctrlVar = Math.max(ctrlMean * ctrlMean, 0.01);
+                        treatVar = Math.max(treatMean * treatMean, 0.01);
+                        break;
+                }
 
-            SampleStatistics treatment = SampleStatistics.builder()
-                .n(treatmentStats.getTotalUsers())
-                .mean(treatmentStats.getAvgRevenue())
-                .variance(treatVar)
-                .build();
+                SampleStatistics control = SampleStatistics.builder()
+                    .n(controlStats.getTotalUsers())
+                    .mean(ctrlMean)
+                    .variance(ctrlVar)
+                    .build();
 
-            SequentialTestResult result = msprt.execute(control, treatment, (int) treatmentStats.getTotalUsers());
-            result.setTestName("guardrail_" + entry.getKey());
-            results.add(result);
+                SampleStatistics treatment = SampleStatistics.builder()
+                    .n(treatmentStats.getTotalUsers())
+                    .mean(treatMean)
+                    .variance(treatVar)
+                    .build();
+
+                SequentialTestResult result = msprt.execute(control, treatment, (int) treatmentStats.getTotalUsers());
+                result.setTestName("guardrail_" + metricName + "_" + entry.getKey());
+                results.add(result);
+            }
         }
 
         return results;

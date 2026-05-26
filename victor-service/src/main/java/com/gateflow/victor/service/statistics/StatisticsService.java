@@ -1,5 +1,7 @@
 package com.gateflow.victor.service.statistics;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.dto.*;
@@ -42,6 +44,7 @@ public class StatisticsService {
     private final StatsEngine statsEngine;
     private final ReportRepository reportRepository;
     private final ZTest zTest;
+    private final ObjectMapper objectMapper;
 
     /**
      * 获取实验指标结果
@@ -348,6 +351,8 @@ public class StatisticsService {
             expectedProportions.put(v.getBucketId(), bucketSize / 10000.0);
         }
 
+        List<String> guardrailMetricNames = parseGuardrailMetrics(experiment.getGuardrailMetrics());
+
         return statsEngine.analyzeExperiment(
             experiment.getExpId(),
             layerName,
@@ -355,7 +360,8 @@ public class StatisticsService {
             endDate,
             controlVariant,
             treatmentVariants,
-            expectedProportions
+            expectedProportions,
+            guardrailMetricNames
         );
     }
 
@@ -502,5 +508,26 @@ public class StatisticsService {
             .secondary(List.of())
             .guardrail(List.of())
             .build();
+    }
+
+    private List<String> parseGuardrailMetrics(String guardrailMetricsJson) {
+        if (guardrailMetricsJson == null || guardrailMetricsJson.isBlank()) {
+            return null;
+        }
+        try {
+            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {});
+            List<String> names = new ArrayList<>();
+            for (Object item : raw) {
+                if (item instanceof String s) {
+                    names.add(s);
+                } else if (item instanceof Map<?, ?> m && m.containsKey("name")) {
+                    names.add(m.get("name").toString());
+                }
+            }
+            return names.isEmpty() ? null : names;
+        } catch (Exception e) {
+            log.warn("Failed to parse guardrail_metrics JSON: {}", guardrailMetricsJson, e);
+            return null;
+        }
     }
 }

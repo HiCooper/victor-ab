@@ -5,11 +5,11 @@ import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
-import com.gateflow.victor.stats.config.StatsClickHouseConfig;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,13 +21,20 @@ import java.util.Map;
  * 人群拆分分析服务 - 分析实验效果在不同用户群体中的差异
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class SubgroupAnalysisService {
 
-    private final StatsClickHouseConfig clickHouseConfig;
+    private final DataSource dataSource;
     private final ExperimentMapper experimentMapper;
     private final VariantMapper variantMapper;
+
+    public SubgroupAnalysisService(@Qualifier("clickhouseDataSource") DataSource dataSource,
+                                   ExperimentMapper experimentMapper,
+                                   VariantMapper variantMapper) {
+        this.dataSource = dataSource;
+        this.experimentMapper = experimentMapper;
+        this.variantMapper = variantMapper;
+    }
 
     /**
      * 按平台拆分分析
@@ -124,7 +131,7 @@ public class SubgroupAnalysisService {
             ORDER BY subgroup, variant
             """;
 
-        try (Connection conn = clickHouseConfig.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, dimension);

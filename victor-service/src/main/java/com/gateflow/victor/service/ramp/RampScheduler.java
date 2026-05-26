@@ -1,5 +1,7 @@
 package com.gateflow.victor.service.ramp;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Variant;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +36,15 @@ public class RampScheduler {
     private final VariantMapper variantMapper;
     private final ExperimentService experimentService;
     private final StringRedisTemplate redis;
+    private final ObjectMapper objectMapper;
+
+    private static final Map<RampStage, Long> DEFAULT_STAGE_HOURS = new LinkedHashMap<>();
+    static {
+        DEFAULT_STAGE_HOURS.put(RampStage.STAGE_1, 2L);
+        DEFAULT_STAGE_HOURS.put(RampStage.STAGE_5, 4L);
+        DEFAULT_STAGE_HOURS.put(RampStage.STAGE_10, 12L);
+        DEFAULT_STAGE_HOURS.put(RampStage.STAGE_50, 24L);
+    }
 
     private int getMaxVariantBucketEnd(Experiment exp) {
         List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
@@ -200,15 +212,39 @@ public class RampScheduler {
         }
 
         long hoursInStage = Duration.between(exp.getStartTime(), LocalDateTime.now()).toHours();
-
-        Map<RampStage, Long> minHours = Map.of(
-            RampStage.STAGE_1, 2L,
-            RampStage.STAGE_5, 4L,
-            RampStage.STAGE_10, 12L,
-            RampStage.STAGE_50, 24L
-        );
+        Map<RampStage, Long> minHours = parseRampConfig(exp.getRampConfig());
 
         return hoursInStage >= minHours.getOrDefault(stage, 24L);
+    }
+
+    private Map<RampStage, Long> parseRampConfig(String rampConfigJson) {
+        if (rampConfigJson == null || rampConfigJson.isBlank()) {
+            return DEFAULT_STAGE_HOURS;
+        }
+        try {
+            Map<String, Object> config = objectMapper.readValue(rampConfigJson,
+                new TypeReference<Map<String, Object>>() {});
+            @SuppressWarnings("unchecked")
+            Map<String, Object> stages = (Map<String, Object>) config.get("stages");
+            if (stages == null) {
+                return DEFAULT_STAGE_HOURS;
+            }
+
+            Map<RampStage, Long> result = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : stages.entrySet()) {
+                try {
+                    RampStage stage = RampStage.valueOf(entry.getKey());
+                    long hours = ((Number) entry.getValue()).longValue();
+                    result.put(stage, hours);
+                } catch (IllegalArgumentException ignored) {
+                    // Unknown stage name in JSON, skip
+                }
+            }
+            return result.isEmpty() ? DEFAULT_STAGE_HOURS : result;
+        } catch (Exception e) {
+            log.warn("Failed to parse ramp_config for experiment: {}", e.getMessage());
+            return DEFAULT_STAGE_HOURS;
+        }
     }
 
     public Map<String, Object> getRampStatus(Long experimentId) {

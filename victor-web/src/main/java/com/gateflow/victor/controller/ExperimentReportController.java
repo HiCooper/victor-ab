@@ -33,6 +33,7 @@ public class ExperimentReportController {
      */
     @GetMapping("/experiments/{expId}")
     @Operation(summary = "获取实验报告", description = "根据实验ID获取统计报告")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<Map<String, Object>> getExperimentReport(@PathVariable String expId) {
         log.info("Getting report for experiment: {}", expId);
         try {
@@ -49,6 +50,7 @@ public class ExperimentReportController {
      */
     @GetMapping("/experiments")
     @Operation(summary = "获取所有实验报告", description = "获取全部实验的报告列表")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<List<Map<String, Object>>> getAllReports() {
         log.info("Getting all experiment reports");
         List<Map<String, Object>> reports = reportService.getAllReports();
@@ -92,6 +94,7 @@ public class ExperimentReportController {
      */
     @GetMapping("/jobs")
     @Operation(summary = "获取报告任务列表", description = "查询报告生成任务的状态")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<List<Map<String, Object>>> getReportJobs(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type) {
@@ -105,6 +108,7 @@ public class ExperimentReportController {
      */
     @GetMapping("/jobs/{jobId}")
     @Operation(summary = "获取任务状态", description = "根据任务ID查询报告生成任务的状态")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable String jobId) {
         log.info("Getting job status: {}", jobId);
         try {

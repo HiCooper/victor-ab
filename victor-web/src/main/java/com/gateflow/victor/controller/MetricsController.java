@@ -1,5 +1,7 @@
 package com.gateflow.victor.controller;
 
+import com.gateflow.victor.config.RequirePermission;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.statistics.MetricsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +23,8 @@ public class MetricsController {
 
     private final MetricsService metricsService;
 
-    /**
-     * Get real-time metrics for an experiment
-     */
     @GetMapping("/realtime")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<List<Map<String, Object>>> getRealtimeMetrics(
             @RequestParam String expId,
             @RequestParam(required = false, defaultValue = "60") Integer window) {
@@ -33,10 +33,8 @@ public class MetricsController {
         return ResponseEntity.ok(metrics);
     }
 
-    /**
-     * Get daily metrics for an experiment
-     */
     @GetMapping("/daily")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<List<Map<String, Object>>> getDailyMetrics(
             @RequestParam String expId,
             @RequestParam(required = false) String startDate,
@@ -46,20 +44,16 @@ public class MetricsController {
         return ResponseEntity.ok(metrics);
     }
 
-    /**
-     * Get dashboard statistics
-     */
     @GetMapping("/dashboard")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<Map<String, Object>> getDashboardStats() {
         log.info("Getting dashboard statistics");
         Map<String, Object> stats = metricsService.getDashboardStats();
         return ResponseEntity.ok(stats);
     }
 
-    /**
-     * Get event details for an experiment
-     */
     @GetMapping("/events")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<List<Map<String, Object>>> getEventDetails(
             @RequestParam String expId,
             @RequestParam(required = false, defaultValue = "100") Integer limit,
