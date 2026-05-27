@@ -59,6 +59,9 @@ spring:
   # Flyway配置 - 仅管理MySQL schema，排除ClickHouse
   flyway:
     enabled: true
+    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    user: ${VICTOR_DB_USER:root}
+    password: ${VICTOR_DB_PASSWORD:root}
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true

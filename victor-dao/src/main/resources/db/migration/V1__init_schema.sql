@@ -1,6 +1,6 @@
 -- ============================================
 -- Victor AB Experiment System - Complete Schema
--- Consolidated from V1-V9 migrations
+-- Merged from V1-V5 migrations
 -- ============================================
 
 -- ============================================
@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS victor_experiment (
     secondary_metrics JSON COMMENT '次指标列表',
     guardrail_metrics JSON COMMENT '护栏指标列表',
     auto_ramp_enabled TINYINT(1) DEFAULT 0 COMMENT '是否启用自动灰度推进',
+    ramp_config JSON DEFAULT NULL COMMENT '灰度推进配置: {"stages":{"STAGE_1":2,"STAGE_5":4,...}}',
     start_time DATETIME COMMENT '开始时间',
     end_time DATETIME COMMENT '结束时间',
     created_by VARCHAR(64) COMMENT '创建人',
@@ -177,7 +178,19 @@ CREATE TABLE IF NOT EXISTS victor_cuped_values (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='CUPED方差缩减值表';
 
 -- ============================================
--- 10. RBAC 角色表
+-- 10. 用户表 (JWT认证)
+-- ============================================
+CREATE TABLE IF NOT EXISTS victor_user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(64) NOT NULL UNIQUE,
+    password_hash VARCHAR(256) NOT NULL,
+    email VARCHAR(128),
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- ============================================
+-- 11. RBAC 角色表
 -- ============================================
 CREATE TABLE IF NOT EXISTS rbac_role (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -190,7 +203,7 @@ CREATE TABLE IF NOT EXISTS rbac_role (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RBAC角色表';
 
 -- ============================================
--- 11. RBAC 用户-角色关联表
+-- 12. RBAC 用户-角色关联表
 -- ============================================
 CREATE TABLE IF NOT EXISTS rbac_user_role (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -203,7 +216,7 @@ CREATE TABLE IF NOT EXISTS rbac_user_role (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RBAC用户-角色关联表';
 
 -- ============================================
--- 12. RBAC 角色-权限关联表
+-- 13. RBAC 角色-权限关联表
 -- ============================================
 CREATE TABLE IF NOT EXISTS rbac_role_permission (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -213,6 +226,23 @@ CREATE TABLE IF NOT EXISTS rbac_role_permission (
     UNIQUE KEY uk_role_permission (role_id, permission),
     INDEX idx_role_id (role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RBAC角色-权限关联表';
+
+-- ============================================
+-- 14. 报告任务持久化表
+-- ============================================
+CREATE TABLE IF NOT EXISTS victor_report_job (
+    id VARCHAR(64) PRIMARY KEY,
+    type VARCHAR(32) NOT NULL,
+    experiment_id VARCHAR(64) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    progress INT DEFAULT 0,
+    message VARCHAR(512),
+    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_experiment_id (experiment_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报告任务持久化表';
 
 -- ============================================
 -- 初始化数据
@@ -229,7 +259,8 @@ INSERT IGNORE INTO victor_layer (layer_id, domain_id, name, salt, sort_order) VA
 INSERT IGNORE INTO rbac_role (id, name, description) VALUES
 (1, 'ADMIN', '系统管理员，拥有全部权限'),
 (2, 'OPERATOR', '实验运营，可创建/编辑/审批/查看实验和分析'),
-(3, 'VIEWER', '只读用户，仅可查看实验和分析');
+(3, 'VIEWER', '只读用户，仅可查看实验和分析'),
+(4, 'SDK_CLIENT', 'SDK client for bucketing/config/event APIs');
 
 -- ADMIN 权限 (全部)
 INSERT IGNORE INTO rbac_role_permission (role_id, permission) VALUES
@@ -260,3 +291,13 @@ INSERT IGNORE INTO rbac_role_permission (role_id, permission) VALUES
 (3, 'VIEW_EXPERIMENT'),
 (3, 'VIEW_TRAFFIC'),
 (3, 'VIEW_ANALYSIS');
+
+-- 默认管理员用户 (password: admin123, BCrypt hashed)
+INSERT IGNORE INTO victor_user (username, password_hash, email, enabled) VALUES
+('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@gateflow.local', TRUE);
+
+-- 管理员用户关联 ADMIN 角色
+INSERT IGNORE INTO rbac_user_role (user_id, role_id)
+SELECT u.id, r.id
+FROM victor_user u, rbac_role r
+WHERE u.username = 'admin' AND r.name = 'ADMIN';
