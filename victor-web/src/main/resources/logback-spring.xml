@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="SENTINEL_ERROR_LOG_PATH"
+                    source="sentinel.error-log-path"
+                    defaultValue="/var/log/victor/error.log"/>
+
+    <!-- Sentinel 旁路错误日志: 纯文本, 仅 ERROR 级别 -->
+    <appender name="SENTINEL_ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${SENTINEL_ERROR_LOG_PATH}</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %logger - %m%n%wEx</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${SENTINEL_ERROR_LOG_PATH}.%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="SENTINEL_ERROR_FILE"/>
+    </root>
+</configuration>
