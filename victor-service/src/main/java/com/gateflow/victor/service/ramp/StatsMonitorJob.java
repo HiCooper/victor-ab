@@ -41,7 +41,7 @@ public class StatsMonitorJob {
 
         List<Experiment> rampingExperiments = experimentMapper.selectList(
             new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
-                .eq(Experiment::getStatus, ExperimentStatus.RAMP.getCode())
+                .eq(Experiment::getStatus, ExperimentStatus.RUNNING.getCode())
                 .eq(Experiment::getAutoRampEnabled, true)
         );
 

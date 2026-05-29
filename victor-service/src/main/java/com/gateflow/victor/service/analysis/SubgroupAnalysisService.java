@@ -5,6 +5,7 @@ import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Variant;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.stats.config.ClickHouseDataSourceConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,10 @@ public class SubgroupAnalysisService {
     private final ExperimentMapper experimentMapper;
     private final VariantMapper variantMapper;
 
-    public SubgroupAnalysisService(@Qualifier("clickhouseDataSource") DataSource dataSource,
+    public SubgroupAnalysisService(@Qualifier("clickhouseDataSource") ClickHouseDataSourceConfig.ClickHouseDataSourceFactory chFactory,
                                    ExperimentMapper experimentMapper,
                                    VariantMapper variantMapper) {
-        this.dataSource = dataSource;
+        this.dataSource = chFactory.getDataSource();
         this.experimentMapper = experimentMapper;
         this.variantMapper = variantMapper;
     }

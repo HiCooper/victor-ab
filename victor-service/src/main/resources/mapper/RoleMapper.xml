@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gateflow.victor.infra.mapper.RoleMapper">
+
+    <select id="selectByIds" resultType="com.gateflow.victor.domain.entity.Role">
+        SELECT * FROM rbac_role WHERE id IN
+        <foreach collection="list" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND deleted = 0
+    </select>
+
+    <select id="selectAll" resultType="com.gateflow.victor.domain.entity.Role">
+        SELECT * FROM rbac_role WHERE deleted = 0
+    </select>
+
+</mapper>

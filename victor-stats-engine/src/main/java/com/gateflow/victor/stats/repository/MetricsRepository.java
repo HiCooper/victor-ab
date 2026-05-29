@@ -1,5 +1,6 @@
 package com.gateflow.victor.stats.repository;
 
+import com.gateflow.victor.stats.config.ClickHouseDataSourceConfig;
 import com.gateflow.victor.stats.model.SampleStatistics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,8 +28,8 @@ public class MetricsRepository {
 
     private final DataSource dataSource;
 
-    public MetricsRepository(@Qualifier("clickhouseDataSource") DataSource dataSource) {
-        this.dataSource = dataSource;
+    public MetricsRepository(@Qualifier("clickhouseDataSource") ClickHouseDataSourceConfig.ClickHouseDataSourceFactory chFactory) {
+        this.dataSource = chFactory.getDataSource();
     }
     
     /**

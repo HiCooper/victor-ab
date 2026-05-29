@@ -14,49 +14,14 @@ public enum ExperimentStatus {
     DRAFT("draft", "草稿"),
 
     /**
-     * 待审批 - 等待审批（新增）
+     * 待审批 - 等待审批
      */
     PENDING_APPROVAL("pending_approval", "待审批"),
 
     /**
-     * 已审批 - 审批通过，可以启动
-     */
-    APPROVED("approved", "已审批"),
-
-    /**
-     * 已拒绝 - 审批未通过
-     */
-    REJECTED("rejected", "已拒绝"),
-
-    /**
-     * 待审核 - 等待审批 (兼容旧代码)
-     */
-    REVIEW("review", "待审核"),
-
-    /**
-     * 渐进上线 - 逐步放量
-     */
-    RAMP("ramp", "渐进上线"),
-
-    /**
-     * 运行中 - 实验正在进行
+     * 运行中 - 实验正在进行，分桶生效
      */
     RUNNING("running", "运行中"),
-
-    /**
-     * 已暂停 - 实验暂停
-     */
-    PAUSED("paused", "已暂停"),
-
-    /**
-     * 分析中 - 实验结束，数据分析阶段
-     */
-    ANALYZING("analyzing", "分析中"),
-
-    /**
-     * 决策阶段 - 分析完成，等待决策
-     */
-    DECISION("decision", "决策阶段"),
 
     /**
      * 已停止 - 实验结束
@@ -89,16 +54,16 @@ public enum ExperimentStatus {
     }
 
     /**
-     * 判断是否可以分桶 (运行中或渐进上线状态)
+     * 判断是否可以分桶 (运行中状态)
      */
     public boolean isBucketable() {
-        return this == RUNNING || this == RAMP;
+        return this == RUNNING;
     }
 
     /**
      * 判断是否可以编辑
      */
     public boolean isEditable() {
-        return this == DRAFT || this == REVIEW || this == PAUSED;
+        return this == DRAFT;
     }
 }

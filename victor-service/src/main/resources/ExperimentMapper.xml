@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gateflow.victor.infra.mapper.ExperimentMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.gateflow.victor.domain.entity.Experiment">
+        <id column="id" property="id"/>
+        <result column="exp_id" property="expId"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="layer_id" property="layerId"/>
+        <result column="status" property="status"/>
+        <result column="targeting_rules" property="targetingRules"/>
+        <result column="primary_metric" property="primaryMetric"/>
+        <result column="secondary_metrics" property="secondaryMetrics"/>
+        <result column="guardrail_metrics" property="guardrailMetrics"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="auto_ramp_enabled" property="autoRampEnabled"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 基础列 -->
+    <sql id="Base_Column_List">
+        id, exp_id, name, description, layer_id, status,
+        targeting_rules, primary_metric,
+        secondary_metrics, guardrail_metrics, auto_ramp_enabled,
+        start_time, end_time, created_by, created_at, updated_at
+    </sql>
+
+    <!-- 查询运行中的实验列表 -->
+    <select id="selectRunningExperiments" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM victor_experiment
+        WHERE status IN ('running')
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询指定层下的所有实验 -->
+    <select id="selectByLayerId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM victor_experiment
+        WHERE layer_id = #{layerId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据业务ID查询实验 -->
+    <select id="selectByExpId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM victor_experiment
+        WHERE exp_id = #{expId}
+        LIMIT 1
+    </select>
+
+    <!-- 根据主键ID查询实验 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM victor_experiment
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+</mapper>

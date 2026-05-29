@@ -15,16 +15,10 @@
     <description>Java客户端SDK - 供其他Java服务集成</description>
 
     <dependencies>
-        <!-- Victor Common (MurmurHash3等基础工具) -->
+        <!-- Victor Common (含分桶算法，SDK本地计算需要) -->
         <dependency>
             <groupId>com.gateflow</groupId>
             <artifactId>victor-common</artifactId>
-        </dependency>
-
-        <!-- Victor Bucketing (分桶算法，SDK本地计算需要) -->
-        <dependency>
-            <groupId>com.gateflow</groupId>
-            <artifactId>victor-bucketing</artifactId>
         </dependency>
 
         <!-- Caffeine Cache -->

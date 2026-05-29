@@ -133,7 +133,7 @@ public class ExperimentService {
         // 3. 转换VariantRequest为Variant实体
         List<Variant> newVariants = processedVariants.stream().map(req -> {
             Variant variant = new Variant();
-            variant.setBucketId(BucketIdGenerator.generate());
+            variant.setBucketId(req.getVariantKey());
             variant.setName(req.getName());
             variant.setBucketStart(req.getBucketStart());
             variant.setBucketEnd(req.getBucketEnd());
@@ -193,9 +193,6 @@ public class ExperimentService {
 
     /**
      * 启动实验
-     *
-     * @param expId 实验ID
-     * @return 更新后的实验
      */
     @Transactional(rollbackFor = Exception.class)
     public Experiment startExperiment(Long expId) {
@@ -204,54 +201,50 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
-        // 只有草稿状态或暂停状态可以启动/恢复
-        String status = experiment.getStatus();        
-        if (!ExperimentStatus.DRAFT.getCode().equals(status) &&
-            !ExperimentStatus.PAUSED.getCode().equals(status)) {
-            throw new VictorException(ErrorCode.EXP_ONLY_DRAFT_CAN_START);
-        }
+        ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
+        lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
 
-        // 验证活跃版本是否存在
         List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
         if (variants.isEmpty()) {
             throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
         }
 
         experiment.setStatus(ExperimentStatus.RUNNING.getCode());
+        experiment.setStartTime(LocalDateTime.now());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        log.info("Started experiment {} with {} active variants", expId, variants.size());
+        lifecycleService.logTransition(expId, experiment.getExpId(),
+            from, ExperimentStatus.RUNNING, "system", "启动实验");
 
         return experiment;
     }
 
     /**
-     * 提交实验审核
+     * 提交审批
      */
     @Transactional(rollbackFor = Exception.class)
-    public Experiment submitForReview(Long expId, String operator) {
+    public Experiment submitForApproval(Long expId, String operator) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
-        lifecycleService.validateTransition(from, ExperimentStatus.REVIEW);
+        lifecycleService.validateTransition(from, ExperimentStatus.PENDING_APPROVAL);
 
-        
-        experiment.setStatus(ExperimentStatus.REVIEW.getCode());
+        experiment.setStatus(ExperimentStatus.PENDING_APPROVAL.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.REVIEW, operator, "提交审核");
+        lifecycleService.logTransition(expId, experiment.getExpId(),
+            from, ExperimentStatus.PENDING_APPROVAL, operator, "提交审批");
 
         return experiment;
     }
 
     /**
-     * 审批通过实验
+     * 审批通过 — 进入运行中
      */
     @Transactional(rollbackFor = Exception.class)
     public Experiment approveExperiment(Long expId, String operator, String comment) {
@@ -261,21 +254,21 @@ public class ExperimentService {
         }
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
-        lifecycleService.validateTransition(from, ExperimentStatus.RAMP);
+        lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
 
-        
-        experiment.setStatus(ExperimentStatus.RAMP.getCode());
+        experiment.setStatus(ExperimentStatus.RUNNING.getCode());
+        experiment.setStartTime(LocalDateTime.now());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.RAMP, operator, "审批通过: " + comment);
+        lifecycleService.logTransition(expId, experiment.getExpId(),
+            from, ExperimentStatus.RUNNING, operator, "审批通过: " + comment);
 
         return experiment;
     }
 
     /**
-     * 驳回实验
+     * 驳回 — 回到草稿
      */
     @Transactional(rollbackFor = Exception.class)
     public Experiment rejectExperiment(Long expId, String operator, String reason) {
@@ -287,100 +280,18 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.DRAFT);
 
-        
         experiment.setStatus(ExperimentStatus.DRAFT.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
+        lifecycleService.logTransition(expId, experiment.getExpId(),
             from, ExperimentStatus.DRAFT, operator, "驳回: " + reason);
 
         return experiment;
     }
 
     /**
-     * 渐进放量（灰度升级）
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public Experiment rampUpExperiment(Long expId, Integer newBucketEnd, String operator) {
-        Experiment experiment = experimentMapper.selectById(expId);
-        if (experiment == null) {
-            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
-        }
-
-        // 获取当前活跃版本
-        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
-        if (variants.isEmpty()) {
-            throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
-        }
-
-        // 更新所有变体的 bucketEnd 实现放量
-        if (newBucketEnd != null) {
-            if (newBucketEnd > 9999) {
-                throw new VictorException(ErrorCode.BKT_INVALID_END, String.valueOf(newBucketEnd));
-            }
-            for (Variant variant : variants) {
-                if (variant.getBucketStart() != null && variant.getBucketEnd() != null) {
-                    variant.setBucketEnd(Math.min(newBucketEnd, variant.getBucketStart() + (variant.getBucketEnd() - variant.getBucketStart())));
-                    variantMapper.updateById(variant);
-                }
-            }
-        }
-
-        ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
-        
-        // 如果是从草稿直接到RAMP（审批通过后）
-        if (from == ExperimentStatus.DRAFT) {
-            lifecycleService.validateTransition(from, ExperimentStatus.RAMP);
-        }
-
-        experiment.setStatus(ExperimentStatus.RAMP.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
-
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.RAMP, operator, "渐进放量至: " + newBucketEnd);
-
-        return experiment;
-    }
-
-    /**
-     * 恢复实验
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public Experiment resumeExperiment(Long expId, String operator) {
-        Experiment experiment = experimentMapper.selectById(expId);
-        if (experiment == null) {
-            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
-        }
-
-        ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
-        lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
-
-        
-        experiment.setStatus(ExperimentStatus.RUNNING.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
-
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.RUNNING, operator, "恢复实验");
-
-        return experiment;
-    }
-
-    /**
-     * 暂停实验（别名）
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public Experiment pauseExperiment(Long expId) {
-        return stopExperiment(expId);
-    }
-
-    /**
      * 停止实验
-     *
-     * @param expId 实验ID
-     * @return 更新后的实验
      */
     @Transactional(rollbackFor = Exception.class)
     public Experiment stopExperiment(Long expId) {
@@ -389,60 +300,16 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
-        experiment.setStatus(ExperimentStatus.PAUSED.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
-
-        return experiment;
-    }
-
-    /**
-     * 结束实验进入分析
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public Experiment analyzeExperiment(Long expId, String operator) {
-        Experiment experiment = experimentMapper.selectById(expId);
-        if (experiment == null) {
-            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
-        }
-
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
-        lifecycleService.validateTransition(from, ExperimentStatus.ANALYZING);
+        lifecycleService.validateTransition(from, ExperimentStatus.STOPPED);
 
-        
-        experiment.setStatus(ExperimentStatus.ANALYZING.getCode());
+        experiment.setStatus(ExperimentStatus.STOPPED.getCode());
+        experiment.setEndTime(LocalDateTime.now());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.ANALYZING, operator, "结束实验进入分析");
-
-        return experiment;
-    }
-
-    /**
-     * 生成决策建议
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public Experiment makeDecision(Long expId, String decision, String operator) {
-        Experiment experiment = experimentMapper.selectById(expId);
-        if (experiment == null) {
-            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
-        }
-
-        ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
-        
-        if (!ExperimentStatus.ANALYZING.getCode().equals(experiment.getStatus())) {
-            throw new VictorException(ErrorCode.EXP_DECISION_MUST_ANALYZING);
-        }
-
-        
-        experiment.setStatus(ExperimentStatus.DECISION.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
-
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.DECISION, operator, "决策: " + decision);
+        lifecycleService.logTransition(expId, experiment.getExpId(),
+            from, ExperimentStatus.STOPPED, "system", "停止实验");
 
         return experiment;
     }
@@ -460,13 +327,12 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.ARCHIVE);
 
-        
         experiment.setStatus(ExperimentStatus.ARCHIVE.getCode());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(), 
-            from, ExperimentStatus.ARCHIVE, operator, "归档决策: " + decision);
+        lifecycleService.logTransition(expId, experiment.getExpId(),
+            from, ExperimentStatus.ARCHIVE, operator, "归档: " + decision);
 
         return experiment;
     }
@@ -536,9 +402,8 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
 
-        // 只有草稿或已停止状态可以删除
-        if (ExperimentStatus.RUNNING.getCode().equals(experiment.getStatus()) ||
-            ExperimentStatus.RAMP.getCode().equals(experiment.getStatus())) {
+        // 只有非运行中状态可以删除
+        if (ExperimentStatus.RUNNING.getCode().equals(experiment.getStatus())) {
             throw new VictorException(ErrorCode.EXP_CANNOT_DELETE_RUNNING);
         }
 

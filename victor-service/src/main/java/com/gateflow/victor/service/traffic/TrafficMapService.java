@@ -182,7 +182,7 @@ public class TrafficMapService {
         List<Experiment> activeExperiments = experiments.stream()
             .filter(e -> {
                 ExperimentStatus s = ExperimentStatus.fromCode(e.getStatus());
-                return s == ExperimentStatus.RUNNING || s == ExperimentStatus.RAMP || s == ExperimentStatus.PAUSED;
+                return s == ExperimentStatus.RUNNING;
             })
             .filter(e -> deriveExperimentBucketRange(e) != null)
             .collect(Collectors.toList());

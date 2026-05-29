@@ -180,26 +180,26 @@ class VictorClientTest {
                 createTestExperimentConfig(expId, "layer_ui", "test_salt", 0, 9999, variants);
 
         // 使用BucketEngine直接计算验证一致性
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig.getExpId(),
                         expConfig.getLayerId(),
                         expConfig.getSalt(),
                         expConfig.getBucketStart(),
                         expConfig.getBucketEnd(),
                         variants.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
         // 计算多次，结果应一致
-        com.gateflow.victor.bucketing.BucketResult result1 = 
-                com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec);
-        com.gateflow.victor.bucketing.BucketResult result2 = 
-                com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec);
-        com.gateflow.victor.bucketing.BucketResult result3 = 
-                com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec);
+        com.gateflow.victor.common.bucketing.BucketResult result1 = 
+                com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
+        com.gateflow.victor.common.bucketing.BucketResult result2 = 
+                com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
+        com.gateflow.victor.common.bucketing.BucketResult result3 = 
+                com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
 
         assertEquals(result1.getVariant(), result2.getVariant());
         assertEquals(result2.getVariant(), result3.getVariant());
@@ -217,15 +217,15 @@ class VictorClientTest {
         SdkConfigResponse.ExperimentConfig expConfig = 
                 createTestExperimentConfig("exp_dist_test", "layer_test", "dist_salt", 0, 9999, variants);
 
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig.getExpId(),
                         expConfig.getLayerId(),
                         expConfig.getSalt(),
                         expConfig.getBucketStart(),
                         expConfig.getBucketEnd(),
                         variants.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
@@ -237,8 +237,8 @@ class VictorClientTest {
 
         for (int i = 0; i < totalUsers; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.bucketing.BucketResult result = 
-                    com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec);
+            com.gateflow.victor.common.bucketing.BucketResult result = 
+                    com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
                 if ("control".equals(result.getVariant())) {
                     controlCount++;
@@ -272,15 +272,15 @@ class VictorClientTest {
         SdkConfigResponse.ExperimentConfig expConfig = 
                 createTestExperimentConfig("exp_10pct", "layer_test", "salt_10pct", 0, 999, variants);
 
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig.getExpId(),
                         expConfig.getLayerId(),
                         expConfig.getSalt(),
                         expConfig.getBucketStart(),
                         expConfig.getBucketEnd(),
                         variants.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
@@ -290,8 +290,8 @@ class VictorClientTest {
 
         for (int i = 0; i < totalUsers; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.bucketing.BucketResult result = 
-                    com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec);
+            com.gateflow.victor.common.bucketing.BucketResult result = 
+                    com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
                 hitCount++;
             }
@@ -327,28 +327,28 @@ class VictorClientTest {
         SdkConfigResponse.ExperimentConfig expConfig2 = 
                 createTestExperimentConfig("exp_2", layerId, salt, 5000, 9999, variants2);
 
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec1 = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig1.getExpId(),
                         expConfig1.getLayerId(),
                         expConfig1.getSalt(),
                         expConfig1.getBucketStart(),
                         expConfig1.getBucketEnd(),
                         variants1.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec2 = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec2 = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig2.getExpId(),
                         expConfig2.getLayerId(),
                         expConfig2.getSalt(),
                         expConfig2.getBucketStart(),
                         expConfig2.getBucketEnd(),
                         variants2.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
@@ -356,10 +356,10 @@ class VictorClientTest {
         // 验证同一用户要么命中实验1，要么命中实验2，不会同时命中
         for (int i = 0; i < 100; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.bucketing.BucketResult result1 = 
-                    com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec1);
-            com.gateflow.victor.bucketing.BucketResult result2 = 
-                    com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec2);
+            com.gateflow.victor.common.bucketing.BucketResult result1 = 
+                    com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec1);
+            com.gateflow.victor.common.bucketing.BucketResult result2 = 
+                    com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec2);
 
             // 两个实验不能同时命中（同一层，不同桶范围）
             assertFalse(result1.isHit() && result2.isHit(),
@@ -386,28 +386,28 @@ class VictorClientTest {
         SdkConfigResponse.ExperimentConfig expConfig2 = 
                 createTestExperimentConfig("exp_layer2", "layer_2", "salt_2", 0, 9999, variants2);
 
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec1 = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig1.getExpId(),
                         expConfig1.getLayerId(),
                         expConfig1.getSalt(),
                         expConfig1.getBucketStart(),
                         expConfig1.getBucketEnd(),
                         variants1.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
-        com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec spec2 = 
-                new com.gateflow.victor.bucketing.BucketEngine.ExperimentSpec(
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec2 = 
+                new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig2.getExpId(),
                         expConfig2.getLayerId(),
                         expConfig2.getSalt(),
                         expConfig2.getBucketStart(),
                         expConfig2.getBucketEnd(),
                         variants2.stream()
-                                .map(v -> new com.gateflow.victor.bucketing.BucketEngine.VariantSpec(
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
                                         v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
@@ -416,10 +416,10 @@ class VictorClientTest {
         int bothHitCount = 0;
         for (int i = 0; i < 100; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.bucketing.BucketResult result1 = 
-                    com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec1);
-            com.gateflow.victor.bucketing.BucketResult result2 = 
-                    com.gateflow.victor.bucketing.BucketEngine.computeBucketResult(userId, spec2);
+            com.gateflow.victor.common.bucketing.BucketResult result1 = 
+                    com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec1);
+            com.gateflow.victor.common.bucketing.BucketResult result2 = 
+                    com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec2);
 
             // 两个实验都是100%流量，应该都命中
             assertTrue(result1.isHit());
@@ -460,9 +460,9 @@ class VictorClientTest {
         String salt = "deterministic_salt";
 
         // 计算100次，桶号应完全一致
-        int bucket1 = com.gateflow.victor.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
-        int bucket2 = com.gateflow.victor.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
-        int bucket3 = com.gateflow.victor.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
+        int bucket1 = com.gateflow.victor.common.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
+        int bucket2 = com.gateflow.victor.common.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
+        int bucket3 = com.gateflow.victor.common.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
 
         assertEquals(bucket1, bucket2);
         assertEquals(bucket2, bucket3);
@@ -478,7 +478,7 @@ class VictorClientTest {
         Set<Integer> buckets = new HashSet<>();
         for (int i = 0; i < 1000; i++) {
             String userId = "scatter_user_" + i;
-            int bucket = com.gateflow.victor.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
+            int bucket = com.gateflow.victor.common.bucketing.BucketEngine.computeBucket(userId, layerId, salt);
             buckets.add(bucket);
         }
 

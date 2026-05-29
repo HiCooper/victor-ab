@@ -16,13 +16,10 @@
     <modules>
         <module>victor-common</module>
         <module>victor-domain</module>
-        <module>victor-bucketing</module>
-        <module>victor-dao</module>
         <module>victor-stats-engine</module>
         <module>victor-service</module>
         <module>victor-sdk</module>
-        <module>victor-web</module>
-        <module>victor-pipeline</module>
+        <module>victor-starter</module>
     </modules>
 
     <!-- 版本管理 -->
@@ -96,27 +93,12 @@
             </dependency>
             <dependency>
                 <groupId>com.gateflow</groupId>
-                <artifactId>victor-bucketing</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.gateflow</groupId>
-                <artifactId>victor-dao</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.gateflow</groupId>
                 <artifactId>victor-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.gateflow</groupId>
                 <artifactId>victor-sdk</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.gateflow</groupId>
-                <artifactId>victor-pipeline</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

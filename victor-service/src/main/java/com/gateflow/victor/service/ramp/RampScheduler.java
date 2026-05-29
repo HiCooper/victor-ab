@@ -115,7 +115,7 @@ public class RampScheduler {
 
         List<Experiment> rampingExperiments = experimentMapper.selectList(
             new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
-                .eq(Experiment::getStatus, ExperimentStatus.RAMP.getCode())
+                .eq(Experiment::getStatus, ExperimentStatus.RUNNING.getCode())
                 .eq(Experiment::getAutoRampEnabled, true)
         );
 
@@ -145,7 +145,7 @@ public class RampScheduler {
             log.info("Experiment {} advanced from {} to {}",
                 exp.getExpId(), currentStage.getLabel(), nextStage.getLabel());
         } else if (checkResult.isCritical()) {
-            experimentService.pauseExperiment(exp.getId());
+            experimentService.stopExperiment(exp.getId());
             log.warn("Experiment {} paused due to critical gate failure: {}",
                 exp.getExpId(), checkResult.getMessage());
         }
@@ -252,8 +252,8 @@ public class RampScheduler {
         if (exp == null) {
             throw new IllegalArgumentException("Experiment not found");
         }
-        if (!ExperimentStatus.RAMP.getCode().equals(exp.getStatus())) {
-            throw new IllegalArgumentException("Experiment is not in ramp status");
+        if (!ExperimentStatus.RUNNING.getCode().equals(exp.getStatus())) {
+            throw new IllegalArgumentException("Experiment is not running");
         }
 
         RampStage currentStage = RampStage.fromBucketEnd(getMaxVariantBucketEnd(exp));
@@ -271,7 +271,7 @@ public class RampScheduler {
 
     public void manuallyAdvanceRamp(Long experimentId) {
         Experiment exp = experimentMapper.selectById(experimentId);
-        if (exp == null || !ExperimentStatus.RAMP.getCode().equals(exp.getStatus())) {
+        if (exp == null || !ExperimentStatus.RUNNING.getCode().equals(exp.getStatus())) {
             throw new IllegalArgumentException("Invalid experiment or status");
         }
 

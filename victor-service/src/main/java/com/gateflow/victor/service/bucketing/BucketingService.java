@@ -1,7 +1,7 @@
 package com.gateflow.victor.service.bucketing;
 
-import com.gateflow.victor.bucketing.BucketEngine;
-import com.gateflow.victor.bucketing.BucketResult;
+import com.gateflow.victor.common.bucketing.BucketEngine;
+import com.gateflow.victor.common.bucketing.BucketResult;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.domain.entity.Variant;
@@ -54,7 +54,7 @@ public class BucketingService {
         // 先检查白名单
         String whitelistBucketId = whitelistService.getBucketIdForWhitelistedUser(experiment.getExpId(), userId);
         if (whitelistBucketId != null) {
-            return BucketResult.hit(userId, experimentKey, -1, whitelistBucketId, layer.getLayerId());
+            return BucketResult.hit(userId, experimentKey, -1, whitelistBucketId, layer.getLayerId(), null);
         }
 
         // 构建实验规格
@@ -114,7 +114,8 @@ public class BucketingService {
                 .map(v -> new BucketEngine.VariantSpec(
                         v.getBucketId(),
                         v.getBucketStart(),
-                        v.getBucketEnd()
+                        v.getBucketEnd(),
+                        v.getParams()
                 ))
                 .toList();
 

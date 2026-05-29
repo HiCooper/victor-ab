@@ -97,13 +97,13 @@ public class MetricsService {
         long totalExperiments = experimentMapper.selectCount(null);
 
         LambdaQueryWrapper<Experiment> activeWrapper = new LambdaQueryWrapper<>();
-        activeWrapper.in(Experiment::getStatus, List.of("running", "ramp"));
+        activeWrapper.in(Experiment::getStatus, List.of("running"));
         long activeExperiments = experimentMapper.selectCount(activeWrapper);
 
         // Experiments completed this week (status = stopped/archive, updated in last 7 days)
         LocalDate weekAgo = LocalDate.now().minusDays(7);
         LambdaQueryWrapper<Experiment> completedWrapper = new LambdaQueryWrapper<>();
-        completedWrapper.in(Experiment::getStatus, List.of("stopped", "archive", "analyzing", "decision"))
+        completedWrapper.in(Experiment::getStatus, List.of("stopped", "archive"))
             .ge(Experiment::getUpdatedAt, weekAgo.atStartOfDay());
         long completedThisWeek = experimentMapper.selectCount(completedWrapper);
 

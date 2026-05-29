@@ -1,8 +1,8 @@
 package com.gateflow.victor.sdk;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gateflow.victor.bucketing.BucketEngine;
-import com.gateflow.victor.bucketing.BucketResult;
+import com.gateflow.victor.common.bucketing.BucketEngine;
+import com.gateflow.victor.common.bucketing.BucketResult;
 import com.gateflow.victor.sdk.model.SdkConfigResponse;
 import com.gateflow.victor.sdk.model.SdkExperimentTag;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -346,7 +346,8 @@ public class VictorClient {
                 variants.add(new BucketEngine.VariantSpec(
                         vc.getVariantKey(),
                         vc.getBucketStart(),
-                        vc.getBucketEnd()
+                        vc.getBucketEnd(),
+                        null
                 ));
             }
         }

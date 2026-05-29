@@ -2,7 +2,7 @@ package com.gateflow.victor.service.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gateflow.victor.bucketing.BucketEngine;
+import com.gateflow.victor.common.bucketing.BucketEngine;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.dto.ConfigResponse;
 import com.gateflow.victor.domain.entity.*;

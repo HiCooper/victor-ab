@@ -37,7 +37,7 @@ public class ExperimentRepository {
                    l.layer_id AS layer_key, l.salt
             FROM victor_experiment e
             JOIN victor_layer l ON e.layer_id = l.id
-            WHERE e.status IN ('running', 'ramp')
+            WHERE e.status IN ('running')
             """;
         return jdbc.query(sql, this::mapExperimentSummary);
     }
