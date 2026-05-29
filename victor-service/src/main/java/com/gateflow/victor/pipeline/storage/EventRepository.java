@@ -24,10 +24,10 @@ public class EventRepository {
 
     private static final String INSERT_SQL = """
         INSERT INTO victor.events (
-            event_date, event_id, event_type, user_id, timestamp,
+            event_date, event_id, user_id, timestamp,
             platform, device_id, session_id, exp_ids, variants, layers,
             properties, received_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now64(3))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now64(3))
         """;
 
     private final DataSource dataSource;
@@ -102,27 +102,26 @@ public class EventRepository {
 
         ps.setDate(1, Date.valueOf(timestamp.toLocalDate()));
         ps.setString(2, event.getEventId());
-        ps.setString(3, event.getEventType());
-        ps.setString(4, event.getUserId());
-        ps.setTimestamp(5, Timestamp.valueOf(timestamp));
-        ps.setString(6, event.getPlatform());
-        ps.setString(7, event.getDeviceId());
-        ps.setString(8, event.getSessionId());
+        ps.setString(3, event.getUserId());
+        ps.setTimestamp(4, Timestamp.valueOf(timestamp));
+        ps.setString(5, event.getPlatform());
+        ps.setString(6, event.getDeviceId());
+        ps.setString(7, event.getSessionId());
 
         if (event.getExperimentTags() != null && !event.getExperimentTags().isEmpty()) {
-            ps.setArray(9, conn.createArrayOf("String",
+            ps.setArray(8, conn.createArrayOf("String",
                 event.getExperimentTags().stream().map(t -> t.getExpId()).toArray()));
-            ps.setArray(10, conn.createArrayOf("String",
+            ps.setArray(9, conn.createArrayOf("String",
                 event.getExperimentTags().stream().map(t -> t.getVariant()).toArray()));
-            ps.setArray(11, conn.createArrayOf("String",
+            ps.setArray(10, conn.createArrayOf("String",
                 event.getExperimentTags().stream().map(t -> t.getLayer()).toArray()));
         } else {
+            ps.setArray(8, conn.createArrayOf("String", new String[0]));
             ps.setArray(9, conn.createArrayOf("String", new String[0]));
             ps.setArray(10, conn.createArrayOf("String", new String[0]));
-            ps.setArray(11, conn.createArrayOf("String", new String[0]));
         }
 
-        ps.setString(12, event.getProperties() != null ?
+        ps.setString(11, event.getProperties() != null ?
             objectMapper.writeValueAsString(event.getProperties()) : "{}");
     }
 }

@@ -3,7 +3,6 @@ CREATE DATABASE IF NOT EXISTS victor;
 CREATE TABLE IF NOT EXISTS victor.events (
     event_date Date DEFAULT toDate(timestamp),
     event_id String,
-    event_type String,
     user_id String,
     timestamp DateTime64(3),
     platform String,
@@ -17,5 +16,5 @@ CREATE TABLE IF NOT EXISTS victor.events (
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMMDD(event_date)
-ORDER BY (event_date, event_type, user_id, timestamp)
+ORDER BY (event_date, user_id, timestamp)
 SETTINGS index_granularity = 8192;

@@ -36,6 +36,7 @@ public class ClickHouseDataSourceConfig {
         p.setProperty("password", props.getPassword());
         p.setProperty("socket_timeout", "30000");
         p.setProperty("connection_timeout", "10000");
+        p.setProperty("http_connection_provider", "HTTP_URL_CONNECTION");
         ClickHouseDataSource ds = new ClickHouseDataSource(props.getUrl(), p);
         log.info("ClickHouse DataSource initialized: {}", props.getUrl());
         return new ClickHouseDataSourceFactory(ds);

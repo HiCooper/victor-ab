@@ -189,7 +189,7 @@ public class VictorClient {
         BucketResult result = BucketEngine.computeBucketResult(userId, spec);
 
         if (result.isHit()) {
-            trackExposure(userId, experimentKey, result.getVariant(), expConfig.getLayerId());
+            trackAssignment(userId, experimentKey, result.getVariant(), expConfig.getLayerId());
             return result.getVariant();
         }
         return null;
@@ -213,7 +213,7 @@ public class VictorClient {
             BucketResult result = BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
                 results.put(entry.getKey(), result.getVariant());
-                trackExposure(userId, entry.getKey(), result.getVariant(), entry.getValue().getLayerId());
+                trackAssignment(userId, entry.getKey(), result.getVariant(), entry.getValue().getLayerId());
             }
         }
 
@@ -221,37 +221,20 @@ public class VictorClient {
     }
 
     /**
-     * 记录曝光事件到异步队列
+     * 记录分流分配结果到异步队列
      */
-    private void trackExposure(String userId, String experimentKey, String variant, String layerId) {
+    private void trackAssignment(String userId, String experimentKey, String variant, String layerId) {
         if (!config.isEventTrackingEnabled()) {
             return;
         }
-        SdkEvent event = SdkEvent.exposure(userId, experimentKey, variant, layerId);
+        SdkEvent event = SdkEvent.assignment(userId, experimentKey, variant, layerId);
         if (!eventQueue.offer(event)) {
-            LOGGER.warning("Event queue full, dropping exposure event: " + experimentKey);
+            LOGGER.warning("Event queue full, dropping assignment: " + experimentKey);
         }
     }
 
     /**
-     * 上报自定义事件
-     *
-     * @param userId    用户ID
-     * @param eventType 事件类型
-     * @param properties 事件属性
-     */
-    public void reportEvent(String userId, String eventType, Map<String, Object> properties) {
-        if (!config.isEventTrackingEnabled()) {
-            return;
-        }
-        SdkEvent event = SdkEvent.custom(userId, eventType, properties);
-        if (!eventQueue.offer(event)) {
-            LOGGER.warning("Event queue full, dropping event: " + eventType);
-        }
-    }
-
-    /**
-     * 批量上报事件到服务端
+     * 批量上报分流事件到服务端
      */
     private void flushEvents() {
         if (eventQueue.isEmpty()) {
@@ -272,8 +255,6 @@ public class VictorClient {
                 Map<String, Object> eventMap = new LinkedHashMap<>();
                 eventMap.put("eventId", e.getEventId());
                 eventMap.put("userId", e.getUserId());
-                eventMap.put("event", e.getEvent());
-                eventMap.put("eventType", e.getEventType());
                 eventMap.put("experimentKey", e.getExperimentKey());
                 eventMap.put("variant", e.getVariant());
                 eventMap.put("timestamp", e.getTimestamp());

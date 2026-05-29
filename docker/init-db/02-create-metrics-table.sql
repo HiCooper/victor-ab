@@ -1,32 +1,17 @@
 -- ============================================
--- Real-time Metrics Aggregation Tables
--- Phase 1: ClickHouse Metrics Schema
+-- Experiment Assignment Metrics (per minute)
+-- AB 系统只存储分流分配结果，不含行为转化指标
+-- 行为事件（conversion/click/page_view）由 tracker-service 独立采集
 -- ============================================
 
--- --------------------------------------------------------
--- Table 1: Experiment Metrics (per minute aggregation)
--- Stores aggregated metrics per experiment/variant/minute
--- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS victor.experiment_metrics (
     metric_date Date DEFAULT toDate(minute_bucket),
     minute_bucket DateTime,
     exp_id String,
     variant String,
     layer String,
-    
-    -- Event counts
     total_events UInt64 DEFAULT 0,
     unique_users UInt64 DEFAULT 0,
-    
-    -- Conversion metrics (for conversion events)
-    conversions UInt64 DEFAULT 0,
-    conversion_users UInt64 DEFAULT 0,
-    
-    -- Revenue metrics
-    total_revenue Float64 DEFAULT 0,
-    avg_revenue Float64 DEFAULT 0,
-    
-    -- Update timestamp
     updated_at DateTime64(3) DEFAULT now64(3)
 )
 ENGINE = SummingMergeTree()
@@ -35,9 +20,29 @@ ORDER BY (metric_date, exp_id, variant, layer, minute_bucket)
 SETTINGS index_granularity = 8192;
 
 -- --------------------------------------------------------
--- Table 2: User Statistics (per experiment/variant)
--- Tracks per-user participation and conversions
+-- Materialized View: Assignment Event Aggregation
 -- --------------------------------------------------------
+CREATE MATERIALIZED VIEW IF NOT EXISTS victor.mv_experiment_metrics
+TO victor.experiment_metrics
+AS SELECT
+    toStartOfMinute(timestamp) AS minute_bucket,
+    exp_id,
+    variant,
+    layer,
+    count() AS total_events,
+    uniqExact(user_id) AS unique_users,
+    now64(3) AS updated_at
+FROM victor.events
+ARRAY JOIN
+    exp_ids AS exp_id,
+    variants AS variant,
+    layers AS layer
+WHERE length(exp_ids) > 0
+GROUP BY
+    minute_bucket,
+    exp_id,
+    variant,
+    layer;
 CREATE TABLE IF NOT EXISTS victor.user_experiment_stats (
     stat_date Date DEFAULT toDate(created_at),
     exp_id String,
@@ -152,7 +157,7 @@ AS SELECT
     layer,
     count() AS conversions,
     uniqExact(user_id) AS conversion_users,
-    sum(toFloat64(JSONExtractString(properties, 'revenue'))) AS total_revenue,
+    sum(toFloat64OrZero(JSONExtractString(properties, 'revenue'))) AS total_revenue,
     now64(3) AS updated_at
 FROM victor.events
 ARRAY JOIN

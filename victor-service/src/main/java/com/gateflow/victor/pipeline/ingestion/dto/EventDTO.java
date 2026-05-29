@@ -16,10 +16,7 @@ import java.util.Map;
 public class EventDTO {
     @NotBlank(message = "eventId不能为空")
     private String eventId;
-    
-    @NotBlank(message = "eventType不能为空")
-    private String eventType;
-    
+
     @NotBlank(message = "userId不能为空")
     private String userId;
     

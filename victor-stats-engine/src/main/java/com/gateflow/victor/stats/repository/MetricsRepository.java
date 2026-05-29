@@ -226,9 +226,7 @@ public class MetricsRepository {
                 variant,
                 layer,
                 sum(total_events)         AS total_events,
-                sum(unique_users)         AS total_users,
-                sum(conversions)          AS total_conversions,
-                sum(total_revenue)        AS total_revenue
+                sum(unique_users)         AS total_users
             FROM victor.experiment_metrics FINAL
             WHERE exp_id = ?
               AND minute_bucket >= now() - INTERVAL ? MINUTE
@@ -247,13 +245,7 @@ public class MetricsRepository {
                     stats.setVariant(rs.getString("variant"));
                     stats.setLayer(rs.getString("layer"));
                     stats.setTotalUsers(rs.getLong("total_users"));
-                    stats.setTotalConversions(rs.getLong("total_conversions"));
                     stats.setTotalEvents(rs.getLong("total_events"));
-                    stats.setTotalRevenue(rs.getDouble("total_revenue"));
-
-                    if (stats.getTotalUsers() > 0) {
-                        stats.setConversionRate((double) stats.getTotalConversions() / stats.getTotalUsers());
-                    }
 
                     results.put(stats.getVariant(), stats);
                 }
@@ -275,9 +267,7 @@ public class MetricsRepository {
             SELECT
                 minute_bucket,
                 variant,
-                sum(unique_users)  AS users,
-                sum(conversions)   AS conversions,
-                sum(total_revenue) AS revenue
+                sum(unique_users)  AS users
             FROM victor.experiment_metrics FINAL
             WHERE exp_id = ?
               AND minute_bucket >= now() - INTERVAL ? HOUR
@@ -297,11 +287,6 @@ public class MetricsRepository {
                     row.put("minute_bucket", rs.getTimestamp("minute_bucket").toLocalDateTime().toString());
                     row.put("variant", rs.getString("variant"));
                     row.put("users", rs.getLong("users"));
-                    row.put("conversions", rs.getLong("conversions"));
-                    row.put("revenue", rs.getDouble("revenue"));
-                    long users = rs.getLong("users");
-                    double rate = users > 0 ? (double) rs.getLong("conversions") / users : 0;
-                    row.put("conversionRate", Math.round(rate * 10000.0) / 10000.0);
                     rows.add(row);
                 }
             }
