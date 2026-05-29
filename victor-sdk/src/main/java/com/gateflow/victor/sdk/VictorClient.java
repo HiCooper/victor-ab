@@ -4,11 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.bucketing.BucketEngine;
 import com.gateflow.victor.common.bucketing.BucketResult;
 import com.gateflow.victor.sdk.model.SdkConfigResponse;
+import com.gateflow.victor.sdk.model.SdkEvent;
 import com.gateflow.victor.sdk.model.SdkExperimentTag;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import java.io.IOException;
@@ -17,9 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -51,6 +52,10 @@ public class VictorClient {
     private volatile SdkConfigResponse fallbackConfig; // 离线容灾配置
     private volatile boolean initialized = false;
 
+    // 事件上报
+    private final BlockingQueue<SdkEvent> eventQueue;
+    private final ScheduledExecutorService eventFlusher;
+
     private VictorClient(VictorConfig config) {
         this.config = config;
         this.httpClient = new OkHttpClient.Builder()
@@ -66,6 +71,14 @@ public class VictorClient {
                 .build();
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        // 事件队列和异步上报
+        this.eventQueue = new LinkedBlockingQueue<>(config.getEventQueueCapacity());
+        this.eventFlusher = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "victor-event-flusher");
+            t.setDaemon(true);
+            return t;
+        });
 
         // 初始化离线缓存文件路径
         String cacheDir = config.getCacheDir() != null ? config.getCacheDir() : System.getProperty("user.home") + "/.victor";
@@ -98,6 +111,17 @@ public class VictorClient {
                 config.getPollingInterval(),
                 TimeUnit.SECONDS
         );
+
+        // 4. 启动事件异步上报
+        if (config.isEventTrackingEnabled()) {
+            eventFlusher.scheduleAtFixedRate(
+                    this::flushEvents,
+                    config.getEventFlushIntervalSeconds(),
+                    config.getEventFlushIntervalSeconds(),
+                    TimeUnit.SECONDS
+            );
+            LOGGER.info("Event tracking enabled, flush interval: " + config.getEventFlushIntervalSeconds() + "s");
+        }
 
         initialized = true;
         LOGGER.info("VictorClient initialized with version: " + currentVersion);
@@ -164,7 +188,11 @@ public class VictorClient {
         BucketEngine.ExperimentSpec spec = buildExperimentSpec(expConfig);
         BucketResult result = BucketEngine.computeBucketResult(userId, spec);
 
-        return result.isHit() ? result.getVariant() : null;
+        if (result.isHit()) {
+            trackExposure(userId, experimentKey, result.getVariant(), expConfig.getLayerId());
+            return result.getVariant();
+        }
+        return null;
     }
 
     /**
@@ -185,10 +213,97 @@ public class VictorClient {
             BucketResult result = BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
                 results.put(entry.getKey(), result.getVariant());
+                trackExposure(userId, entry.getKey(), result.getVariant(), entry.getValue().getLayerId());
             }
         }
 
         return results;
+    }
+
+    /**
+     * 记录曝光事件到异步队列
+     */
+    private void trackExposure(String userId, String experimentKey, String variant, String layerId) {
+        if (!config.isEventTrackingEnabled()) {
+            return;
+        }
+        SdkEvent event = SdkEvent.exposure(userId, experimentKey, variant, layerId);
+        if (!eventQueue.offer(event)) {
+            LOGGER.warning("Event queue full, dropping exposure event: " + experimentKey);
+        }
+    }
+
+    /**
+     * 上报自定义事件
+     *
+     * @param userId    用户ID
+     * @param eventType 事件类型
+     * @param properties 事件属性
+     */
+    public void reportEvent(String userId, String eventType, Map<String, Object> properties) {
+        if (!config.isEventTrackingEnabled()) {
+            return;
+        }
+        SdkEvent event = SdkEvent.custom(userId, eventType, properties);
+        if (!eventQueue.offer(event)) {
+            LOGGER.warning("Event queue full, dropping event: " + eventType);
+        }
+    }
+
+    /**
+     * 批量上报事件到服务端
+     */
+    private void flushEvents() {
+        if (eventQueue.isEmpty()) {
+            return;
+        }
+
+        List<SdkEvent> batch = new ArrayList<>();
+        eventQueue.drainTo(batch, config.getEventBatchSize());
+
+        if (batch.isEmpty()) {
+            return;
+        }
+
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            List<Map<String, Object>> eventList = new ArrayList<>();
+            for (SdkEvent e : batch) {
+                Map<String, Object> eventMap = new LinkedHashMap<>();
+                eventMap.put("eventId", e.getEventId());
+                eventMap.put("userId", e.getUserId());
+                eventMap.put("event", e.getEvent());
+                eventMap.put("eventType", e.getEventType());
+                eventMap.put("experimentKey", e.getExperimentKey());
+                eventMap.put("variant", e.getVariant());
+                eventMap.put("timestamp", e.getTimestamp());
+                if (e.getProperties() != null) {
+                    eventMap.put("properties", e.getProperties());
+                }
+                eventList.add(eventMap);
+            }
+            payload.put("events", eventList);
+
+            String json = objectMapper.writeValueAsString(payload);
+            RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
+
+            String url = config.getServerUrl() + "/api/v1/events";
+            Request.Builder builder = new Request.Builder()
+                    .url(url)
+                    .header("Content-Type", "application/json")
+                    .post(body);
+            if (config.getApiKey() != null) {
+                builder.header("X-API-Key", config.getApiKey());
+            }
+
+            Response response = httpClient.newCall(builder.build()).execute();
+            if (!response.isSuccessful()) {
+                LOGGER.warning("Failed to flush events: HTTP " + response.code());
+            }
+            response.close();
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to flush events: " + e.getMessage());
+        }
     }
 
     /**
@@ -366,14 +481,25 @@ public class VictorClient {
      * 关闭SDK
      */
     public void shutdown() {
+        // 1. 停定时任务
         scheduler.shutdown();
+        eventFlusher.shutdown();
+
+        // 2. 最后一次刷事件
+        if (config.isEventTrackingEnabled()) {
+            flushEvents();
+        }
+
+        // 3. 关 HTTP
         httpClient.dispatcher().executorService().shutdown();
         httpClient.connectionPool().evictAll();
-        
-        // 关闭前持久化最新配置
+
+        // 4. 持久化配置
         if (fallbackConfig != null) {
             persistConfig(fallbackConfig);
         }
+
+        LOGGER.info("VictorClient shutdown complete");
     }
 
     /**

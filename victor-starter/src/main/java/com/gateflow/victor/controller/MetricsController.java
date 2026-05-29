@@ -33,6 +33,16 @@ public class MetricsController {
         return ResponseEntity.ok(metrics);
     }
 
+    @GetMapping("/realtime/trend")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
+    public ResponseEntity<List<Map<String, Object>>> getRealtimeTrend(
+            @RequestParam String expId,
+            @RequestParam(defaultValue = "24") int hours) {
+        log.info("Getting realtime trend for experiment: {}, hours: {}", expId, hours);
+        List<Map<String, Object>> trend = metricsService.getRealtimeTrend(expId, hours);
+        return ResponseEntity.ok(trend);
+    }
+
     @GetMapping("/daily")
     @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<List<Map<String, Object>>> getDailyMetrics(

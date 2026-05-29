@@ -134,8 +134,8 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.gateflow.victor: DEBUG
-    org.springframework.web: INFO
+    com.gateflow.victor: INFO
+    org.springframework.web: WARN
   pattern:
     level: "%5p [${spring.application.name:}]"
 

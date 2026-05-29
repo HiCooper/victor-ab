@@ -58,16 +58,28 @@ public class VictorConfig {
     private int retryCount = 3;
 
     /**
-     * 是否启用事件上报
+     * 是否启用事件上报（false 时不入队，零开销）
      */
     @Builder.Default
     private boolean eventTrackingEnabled = true;
 
     /**
-     * 事件批量上报阈值
+     * 事件批量上报阈值（达到此数量时立即刷新）
      */
     @Builder.Default
     private int eventBatchSize = 100;
+
+    /**
+     * 事件刷新间隔（秒），定时将队列中事件批量上报
+     */
+    @Builder.Default
+    private int eventFlushIntervalSeconds = 5;
+
+    /**
+     * 事件队列最大容量（超出时丢弃最旧事件）
+     */
+    @Builder.Default
+    private int eventQueueCapacity = 10000;
 
     /**
      * 离线缓存目录 (默认: ~/.victor)

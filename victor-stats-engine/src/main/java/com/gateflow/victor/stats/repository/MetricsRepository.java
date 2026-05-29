@@ -216,24 +216,23 @@ public class MetricsRepository {
     }
     
     /**
-     * 查询实时指标（最近 N 分钟）
+     * 查询实时指标（最近 N 分钟），从预聚合表读取。
      */
     public Map<String, VariantStats> queryRealtimeStats(String expId, int minutes) {
         Map<String, VariantStats> results = new HashMap<>();
 
-        // 使用INTERVAL语法，避免时区问题
         String sql = """
             SELECT
-                variants[1] AS variant,
-                layers[1] AS layer,
-                count() AS total_events,
-                uniqExact(user_id) AS total_users,
-                countIf(event_type = 'conversion') AS total_conversions,
-                0 AS total_revenue
-            FROM victor.events
-            WHERE has(exp_ids, ?)
-              AND timestamp >= now() - INTERVAL ? MINUTE
-            GROUP BY variants[1], layers[1]
+                variant,
+                layer,
+                sum(total_events)         AS total_events,
+                sum(unique_users)         AS total_users,
+                sum(conversions)          AS total_conversions,
+                sum(total_revenue)        AS total_revenue
+            FROM victor.experiment_metrics FINAL
+            WHERE exp_id = ?
+              AND minute_bucket >= now() - INTERVAL ? MINUTE
+            GROUP BY variant, layer
             """;
 
         try (Connection conn = dataSource.getConnection();
@@ -264,6 +263,53 @@ public class MetricsRepository {
         }
 
         return results;
+    }
+
+    /**
+     * 查询实时趋势（分钟级时间序列），从预聚合表读取。
+     */
+    public List<Map<String, Object>> queryRealtimeTrend(String expId, int hours) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        String sql = """
+            SELECT
+                minute_bucket,
+                variant,
+                sum(unique_users)  AS users,
+                sum(conversions)   AS conversions,
+                sum(total_revenue) AS revenue
+            FROM victor.experiment_metrics FINAL
+            WHERE exp_id = ?
+              AND minute_bucket >= now() - INTERVAL ? HOUR
+            GROUP BY minute_bucket, variant
+            ORDER BY minute_bucket
+            """;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, expId);
+            ps.setInt(2, hours);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("minute_bucket", rs.getTimestamp("minute_bucket").toLocalDateTime().toString());
+                    row.put("variant", rs.getString("variant"));
+                    row.put("users", rs.getLong("users"));
+                    row.put("conversions", rs.getLong("conversions"));
+                    row.put("revenue", rs.getDouble("revenue"));
+                    long users = rs.getLong("users");
+                    double rate = users > 0 ? (double) rs.getLong("conversions") / users : 0;
+                    row.put("conversionRate", Math.round(rate * 10000.0) / 10000.0);
+                    rows.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query realtime trend for expId={}", expId, e);
+        }
+
+        return rows;
     }
 
     /**

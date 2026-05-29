@@ -50,6 +50,14 @@ public class MetricsService {
     }
 
     /**
+     * Get real-time trend (minute-level time series) for an experiment.
+     */
+    public List<Map<String, Object>> getRealtimeTrend(String expId, int hours) {
+        log.info("Getting realtime trend for experiment: {}, hours: {}", expId, hours);
+        return metricsRepository.queryRealtimeTrend(expId, hours);
+    }
+
+    /**
      * Get daily metrics for an experiment from ClickHouse
      */
     public List<Map<String, Object>> getDailyMetrics(String expId, String startDateStr, String endDateStr) {

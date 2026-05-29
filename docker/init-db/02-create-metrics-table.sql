@@ -110,17 +110,15 @@ SETTINGS index_granularity = 8192;
 -- --------------------------------------------------------
 -- Materialized View: Real-time Event Aggregation
 -- Automatically aggregates events into experiment_metrics
+-- Uses ARRAY JOIN to expand multi-experiment events into individual rows
 -- --------------------------------------------------------
 CREATE MATERIALIZED VIEW IF NOT EXISTS victor.mv_experiment_metrics
-ENGINE = SummingMergeTree()
-PARTITION BY toYYYYMMDD(minute_bucket)
-ORDER BY (minute_bucket, exp_id, variant, layer)
-SETTINGS index_granularity = 8192
+TO victor.experiment_metrics
 AS SELECT
     toStartOfMinute(timestamp) AS minute_bucket,
-    exp_ids[1] AS exp_id,
-    variants[1] AS variant,
-    layers[1] AS layer,
+    exp_id,
+    variant,
+    layer,
     count() AS total_events,
     uniqExact(user_id) AS unique_users,
     0 AS conversions,
@@ -129,39 +127,45 @@ AS SELECT
     0.0 AS avg_revenue,
     now64(3) AS updated_at
 FROM victor.events
+ARRAY JOIN
+    exp_ids AS exp_id,
+    variants AS variant,
+    layers AS layer
 WHERE length(exp_ids) > 0
-GROUP BY 
+GROUP BY
     minute_bucket,
-    exp_ids[1],
-    variants[1],
-    layers[1];
+    exp_id,
+    variant,
+    layer;
 
 -- --------------------------------------------------------
 -- Materialized View: Conversion Events Aggregation
 -- Tracks conversion events separately
+-- Uses ARRAY JOIN to expand multi-experiment events into individual rows
 -- --------------------------------------------------------
 CREATE MATERIALIZED VIEW IF NOT EXISTS victor.mv_conversion_metrics
-ENGINE = SummingMergeTree()
-PARTITION BY toYYYYMMDD(minute_bucket)
-ORDER BY (minute_bucket, exp_id, variant, layer)
-SETTINGS index_granularity = 8192
+TO victor.experiment_metrics
 AS SELECT
     toStartOfMinute(timestamp) AS minute_bucket,
-    exp_ids[1] AS exp_id,
-    variants[1] AS variant,
-    layers[1] AS layer,
+    exp_id,
+    variant,
+    layer,
     count() AS conversions,
     uniqExact(user_id) AS conversion_users,
     sum(toFloat64(JSONExtractString(properties, 'revenue'))) AS total_revenue,
     now64(3) AS updated_at
 FROM victor.events
+ARRAY JOIN
+    exp_ids AS exp_id,
+    variants AS variant,
+    layers AS layer
 WHERE length(exp_ids) > 0
   AND event_type = 'conversion'
-GROUP BY 
+GROUP BY
     minute_bucket,
-    exp_ids[1],
-    variants[1],
-    layers[1];
+    exp_id,
+    variant,
+    layer;
 
 -- --------------------------------------------------------
 -- View: Combined Real-time Metrics
