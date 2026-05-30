@@ -11,6 +11,7 @@ import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
@@ -37,6 +38,7 @@ public class ExperimentService {
     private final BucketMapper bucketMapper;
     private final ExperimentLifecycleService lifecycleService;
     private final BucketVersionService versionService;
+    private final ObjectMapper objectMapper;
 
     /**
      * 创建实验
@@ -54,10 +56,10 @@ public class ExperimentService {
         }
 
         // 计算分桶桶边界（如果前端未提供）
-        List<Bucket> processedBuckets = calculateBucketBucketBoundaries(buckets);
+        List<Bucket> processedBuckets = calculateBucketRanges(buckets);
 
         // 验证版本桶范围
-        validateBucketBucketRanges(processedBuckets);
+        validateBucketRanges(processedBuckets);
 
         // 生成实验ID（格式：年最后一位+月日+随机数，共7位）
         String expId = ExperimentIdGenerator.generate();
@@ -544,7 +546,7 @@ public class ExperimentService {
      * 计算分桶桶边界（当分桶未提供 bucketStart/bucketEnd 时）
      * 默认使用完整的 0-9999 桶范围
      */
-    private List<Bucket> calculateBucketBucketBoundaries(List<Bucket> buckets) {
+    private List<Bucket> calculateBucketRanges(List<Bucket> buckets) {
         if (buckets == null || buckets.isEmpty()) {
             return buckets;
         }
@@ -597,11 +599,12 @@ public class ExperimentService {
         if (bucket.getParams() != null) {
             try {
                 com.fasterxml.jackson.databind.JsonNode params =
-                        new com.fasterxml.jackson.databind.ObjectMapper().readTree(bucket.getParams());
+                        objectMapper.readTree(bucket.getParams());
                 if (params.has("trafficPercentage")) {
                     return params.get("trafficPercentage").asInt();
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.warn("Failed to parse bucket params JSON for bucket {}: {}", bucket.getBucketId(), e.getMessage());
             }
         }
         return 0;
@@ -610,7 +613,7 @@ public class ExperimentService {
     /**
      * 验证版本桶范围
      */
-    private void validateBucketBucketRanges(List<Bucket> buckets) {
+    private void validateBucketRanges(List<Bucket> buckets) {
         if (buckets == null || buckets.isEmpty()) {
             return;
         }

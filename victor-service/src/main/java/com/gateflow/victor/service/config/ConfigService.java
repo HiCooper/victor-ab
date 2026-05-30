@@ -113,54 +113,12 @@ public class ConfigService {
      * @return 配置响应
      */
     public ConfigResponse getIncrementalConfig(String fromVersion, String platform) {
-        // 查询版本变更记录
-        List<ConfigVersion> changes = configVersionMapper.selectChangesAfterVersion(fromVersion);
-
-        if (changes.isEmpty()) {
-            // 无变更，返回空响应
-            ConfigResponse response = new ConfigResponse();
-            response.setVersion(fromVersion);
-            response.setChangeType("INCREMENTAL");
-            response.setExperiments(Collections.emptyList());
-            return response;
-        }
-
-        // 获取最新版本
-        ConfigVersion latest = changes.get(changes.size() - 1);
-
-        // 解析变更的实验
-        Set<String> changedExpIds = parseChangedExperiments(latest);
-
-        // 查询变更的实验
-        List<Experiment> experiments = new ArrayList<>();
-        for (String expId : changedExpIds) {
-            Experiment exp = experimentMapper.selectByExpId(expId);
-            if (exp != null && isBucketable(exp.getStatus())) {
-                experiments.add(exp);
-            }
-        }
-
-        // 构建配置
-        Map<Long, Layer> layerMap = new HashMap<>();
-        Map<String, List<Bucket>> bucketMap = new HashMap<>();
-
-        for (Experiment exp : experiments) {
-            Layer layer = layerMapper.selectById(exp.getLayerId());
-            if (layer != null) {
-                layerMap.put(exp.getLayerId(), layer);
-            }
-            bucketMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
-        }
-
-        List<ConfigResponse.ExperimentConfig> expConfigs = experiments.stream()
-                .map(exp -> buildExperimentConfig(exp, layerMap, bucketMap))
-                .toList();
-
-        ConfigResponse response = new ConfigResponse();
-        response.setVersion(latest.getVersion());
-        response.setChangeType("INCREMENTAL");
-        response.setExperiments(expConfigs);
-
+        // Incremental mode is deprecated — always return a full config pull.
+        // The AB config payload is small enough that incremental diff adds complexity
+        // without meaningful bandwidth savings.
+        log.debug("Incremental config requested (fromVersion={}), falling back to full pull", fromVersion);
+        ConfigResponse response = getFullConfig(platform);
+        response.setChangeType("FULL");
         return response;
     }
 
@@ -211,20 +169,6 @@ public class ConfigService {
         } catch (JsonProcessingException e) {
             log.warn("Failed to parse params JSON: {}", e.getMessage());
             return Collections.emptyMap();
-        }
-    }
-
-    /**
-     * 解析变更的实验ID
-     */
-    private Set<String> parseChangedExperiments(ConfigVersion configVersion) {
-        if (configVersion.getChangedExperiments() == null) {
-            return Collections.emptySet();
-        }
-        try {
-            return objectMapper.readValue(configVersion.getChangedExperiments(), Set.class);
-        } catch (JsonProcessingException e) {
-            return Collections.emptySet();
         }
     }
 

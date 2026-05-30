@@ -42,12 +42,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         // Actuator health is public
                         .requestMatchers("/actuator/health").permitAll()
-                        // SDK-facing endpoints require API key or JWT (checked in filter)
+                        // SDK-facing endpoints — no auth (rate-limited by interceptor)
                         .requestMatchers("/api/v1/bucketing/**", "/api/v1/config/**", "/api/v1/events/**").permitAll()
                         // Swagger UI is public in dev
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        // All other API endpoints require authentication
-                        .requestMatchers("/api/v1/**").authenticated()
+                        // Admin API — requires JWT authentication + RBAC permission
+                        .requestMatchers("/api/v1/admin/**", "/api/v1/rbac/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

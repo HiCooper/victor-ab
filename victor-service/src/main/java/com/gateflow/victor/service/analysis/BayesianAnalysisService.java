@@ -64,12 +64,12 @@ public class BayesianAnalysisService {
     }
 
     /**
-     * 从Beta分布采样 (使用Box-Muller变换)
+     * 从Beta分布采样 — 通过 commons-math3 GammaDistribution 生成。
+     * Beta(α,β) = Gamma(α,1) / (Gamma(α,1) + Gamma(β,1))
      */
     private double[] sampleBeta(double alpha, double beta, int n) {
         double[] samples = new double[n];
         for (int i = 0; i < n; i++) {
-            // Beta分布 = Gamma(alpha,1) / (Gamma(alpha,1) + Gamma(beta,1))
             double x = gammaSample(alpha, 1.0);
             double y = gammaSample(beta, 1.0);
             samples[i] = x / (x + y);
@@ -77,39 +77,8 @@ public class BayesianAnalysisService {
         return samples;
     }
 
-    /**
-     * Gamma分布采样 (使用Marsaglia和Tang的近似)
-     */
     private double gammaSample(double shape, double scale) {
-        if (shape < 1) {
-            return gammaSample(1 + shape, scale) * Math.pow(random.nextDouble(), 1.0 / shape);
-        }
-        double d = shape - 1.0 / 3.0;
-        double c = 1.0 / Math.sqrt(9.0 * d);
-        while (true) {
-            double x, v;
-            do {
-                x = normalSample();
-                v = 1.0 + c * x;
-            } while (v <= 0);
-            v = v * v * v;
-            double u = random.nextDouble();
-            if (u < 1.0 - 0.0331 * (x * x) * (x * x)) {
-                return d * v * scale;
-            }
-            if (Math.log(u) < 0.5 * x * x + d * (1.0 - v + Math.log(v))) {
-                return d * v * scale;
-            }
-        }
-    }
-
-    /**
-     * 标准正态分布采样
-     */
-    private double normalSample() {
-        double u1 = random.nextDouble();
-        double u2 = random.nextDouble();
-        return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+        return new org.apache.commons.math3.distribution.GammaDistribution(shape, scale).sample();
     }
 
     /**

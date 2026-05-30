@@ -4,18 +4,34 @@ import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.exception.VictorException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class ExperimentLifecycleServiceTest {
+
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOps;
 
     private ExperimentLifecycleService lifecycleService;
 
     @BeforeEach
     void setUp() {
-        lifecycleService = new ExperimentLifecycleService();
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        lifecycleService = new ExperimentLifecycleService(redisTemplate);
     }
 
     @Test
@@ -116,5 +132,19 @@ class ExperimentLifecycleServiceTest {
                 lifecycleService.logTransition(1L, "exp_test_001",
                         ExperimentStatus.DRAFT, ExperimentStatus.PENDING_APPROVAL,
                         "test_user", "测试提交审批"));
+    }
+
+    @Test
+    void shouldAcquireLock() {
+        when(valueOps.setIfAbsent(eq("lock:exp:exp_001"), eq("1"), any(Duration.class)))
+                .thenReturn(true);
+        assertTrue(lifecycleService.tryLockExperiment("exp_001"));
+    }
+
+    @Test
+    void shouldFailToAcquireLockWhenHeld() {
+        when(valueOps.setIfAbsent(eq("lock:exp:exp_002"), eq("1"), any(Duration.class)))
+                .thenReturn(false);
+        assertFalse(lifecycleService.tryLockExperiment("exp_002"));
     }
 }

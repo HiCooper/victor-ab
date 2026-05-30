@@ -110,15 +110,8 @@ CREATE TABLE IF NOT EXISTS victor_experiment
 (
     'draft',
     'pending_approval',
-    'approved',
-    'rejected',
-    'review',
-    'ramp',
     'running',
-    'paused',
     'stopped',
-    'analyzing',
-    'decision',
     'archive'
 ) DEFAULT 'draft' NOT NULL COMMENT '实验状态',
     targeting_rules JSON COMMENT '定向规则',
@@ -181,10 +174,10 @@ CREATE TABLE IF NOT EXISTS victor_bucket
 (
     32
 ) NOT NULL DEFAULT '00000000000000' COMMENT '版本号: 时间戳格式 20260506143000',
-    bucket_key VARCHAR
+    bucket_id VARCHAR
 (
     64
-) NOT NULL COMMENT '版本标识',
+) NOT NULL COMMENT '分桶标识',
     name VARCHAR
 (
     128
@@ -198,7 +191,7 @@ CREATE TABLE IF NOT EXISTS victor_bucket
 (
     exp_id,
     version,
-    bucket_key
+    bucket_id
 ),
     INDEX idx_exp_id
 (

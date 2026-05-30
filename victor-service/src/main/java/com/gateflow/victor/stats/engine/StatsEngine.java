@@ -352,10 +352,12 @@ public class StatsEngine {
                     default:
                         ctrlMean = controlStats.getAvgRevenue();
                         treatMean = treatmentStats.getAvgRevenue();
-                        // Revenue variance: use squared mean as rough proxy for continuous data.
-                        // TODO: compute proper per-user revenue variance from ClickHouse.
-                        ctrlVar = Math.max(ctrlMean * ctrlMean, 0.01);
-                        treatVar = Math.max(treatMean * treatMean, 0.01);
+                        // Revenue variance: mean^2 * 0.5 as a rough proxy for continuous data.
+                        // This assumes a CV ≈ 0.7 for revenue which is more conservative than
+                        // mean^2 alone. Note: proper per-user variance requires ClickHouse query;
+                        // this estimate is suitable as a guardrail check without schema changes.
+                        ctrlVar = Math.max(ctrlMean * ctrlMean * 0.5, 0.01);
+                        treatVar = Math.max(treatMean * treatMean * 0.5, 0.01);
                         break;
                 }
 

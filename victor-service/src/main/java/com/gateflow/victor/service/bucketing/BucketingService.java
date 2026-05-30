@@ -11,6 +11,7 @@ import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 /**
  * 分桶服务 - 核心分流计算
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BucketingService {
@@ -32,10 +34,6 @@ public class BucketingService {
 
     /**
      * 获取用户在指定实验中的分桶结果
-     *
-     * @param userId        用户ID
-     * @param experimentKey 实验标识
-     * @return 分桶结果
      */
     public BucketResult getBucket(String userId, String experimentKey) {
         // 查询实验

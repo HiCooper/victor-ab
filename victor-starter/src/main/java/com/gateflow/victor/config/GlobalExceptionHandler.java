@@ -57,6 +57,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(UnsupportedOperationException.class)
+    public ResponseEntity<ErrorResponse> handleNotImplemented(UnsupportedOperationException ex) {
+        log.warn("Feature not implemented: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .code("NOT_IMPLEMENTED")
+                .message(ex.getMessage() != null ? ex.getMessage() : "该功能尚未实现")
+                .data(null)
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(response);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Invalid argument: {}", ex.getMessage());

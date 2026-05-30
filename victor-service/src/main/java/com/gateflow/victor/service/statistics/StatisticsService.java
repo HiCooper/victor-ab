@@ -303,18 +303,8 @@ public class StatisticsService {
     }
 
     public ConfidenceTrendResponse getConfidenceTrend(Long experimentId, Integer days) {
-        int d = days != null ? days : 30;
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusDays(d - 1);
-
-        List<ConfidenceTrendResponse.DataPoint> dataPoints = new ArrayList<>();
-        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            dataPoints.add(ConfidenceTrendResponse.DataPoint.builder()
-                    .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                    .confidence(0)
-                    .build());
-        }
-        return ConfidenceTrendResponse.builder().data(dataPoints).build();
+        throw new UnsupportedOperationException(
+                "置信度趋势功能开发中，暂不可用。实验 " + experimentId + " 请使用 /timeseries 和 /metrics 端点获取数据。");
     }
 
     // ========== 私有方法 ==========
@@ -507,24 +497,6 @@ public class StatisticsService {
     }
 
     private List<String> parseGuardrailMetrics(String guardrailMetricsJson) {
-        if (guardrailMetricsJson == null || guardrailMetricsJson.isBlank()) {
-            return null;
-        }
-        try {
-            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {
-            });
-            List<String> names = new ArrayList<>();
-            for (Object item : raw) {
-                if (item instanceof String s) {
-                    names.add(s);
-                } else if (item instanceof Map<?, ?> m && m.containsKey("name")) {
-                    names.add(m.get("name").toString());
-                }
-            }
-            return names.isEmpty() ? null : names;
-        } catch (Exception e) {
-            log.warn("Failed to parse guardrail_metrics JSON: {}", guardrailMetricsJson, e);
-            return null;
-        }
+        return com.gateflow.victor.service.util.GuardrailParser.parse(guardrailMetricsJson);
     }
 }

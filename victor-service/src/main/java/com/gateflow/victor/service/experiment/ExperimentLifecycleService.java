@@ -3,9 +3,12 @@ package com.gateflow.victor.service.experiment;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.exception.VictorException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +20,12 @@ import java.util.Set;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ExperimentLifecycleService {
+
+    private static final Duration LOCK_TTL = Duration.ofSeconds(30);
+
+    private final StringRedisTemplate redisTemplate;
 
     private static final Map<ExperimentStatus, Set<ExperimentStatus>> ALLOWED_TRANSITIONS = new HashMap<>();
 
@@ -85,5 +93,26 @@ public class ExperimentLifecycleService {
      */
     public boolean canPerformAction(ExperimentStatus status, String action) {
         return getAvailableActions(status).contains(action);
+    }
+
+    /**
+     * 尝试获取实验分布式锁，防止多实例并发操作同一实验。
+     *
+     * @param expId 实验业务ID
+     * @return true=获取成功，false=锁被其他实例持有
+     */
+    public boolean tryLockExperiment(String expId) {
+        String key = "lock:exp:" + expId;
+        Boolean acquired = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", LOCK_TTL);
+        return Boolean.TRUE.equals(acquired);
+    }
+
+    /**
+     * 释放实验锁（仅在锁仍由当前实例持有时释放）。
+     */
+    public void unlockExperiment(String expId) {
+        String key = "lock:exp:" + expId;
+        redisTemplate.delete(key);
     }
 }

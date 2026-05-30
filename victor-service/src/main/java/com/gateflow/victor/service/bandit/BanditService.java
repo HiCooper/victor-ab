@@ -220,38 +220,16 @@ public class BanditService {
     }
 
     /**
-     * 从Beta分布采样
+     * 从Beta分布采样 — Gamma(α,1)/(Gamma(α,1)+Gamma(β,1))
      */
     private double sampleBeta(double alpha, double beta, Random random) {
-        double x = gammaSample(alpha, 1.0, random);
-        double y = gammaSample(beta, 1.0, random);
+        double x = gammaSample(alpha, 1.0);
+        double y = gammaSample(beta, 1.0);
         return x / (x + y);
     }
 
-    /**
-     * Gamma分布采样
-     */
-    private double gammaSample(double shape, double scale, Random random) {
-        if (shape < 1) {
-            return gammaSample(1 + shape, scale, random) * Math.pow(random.nextDouble(), 1.0 / shape);
-        }
-        double d = shape - 1.0 / 3.0;
-        double c = 1.0 / Math.sqrt(9.0 * d);
-        while (true) {
-            double x, v;
-            do {
-                x = random.nextGaussian();
-                v = 1.0 + c * x;
-            } while (v <= 0);
-            v = v * v * v;
-            double u = random.nextDouble();
-            if (u < 1.0 - 0.0331 * (x * x) * (x * x)) {
-                return d * v * scale;
-            }
-            if (Math.log(u) < 0.5 * x * x + d * (1.0 - v + Math.log(v))) {
-                return d * v * scale;
-            }
-        }
+    private double gammaSample(double shape, double scale) {
+        return new org.apache.commons.math3.distribution.GammaDistribution(shape, scale).sample();
     }
 
     /**

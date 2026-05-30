@@ -375,30 +375,8 @@ public class ExperimentReportService {
         return map;
     }
 
-    /**
-     * Parse guardrail_metrics JSON from experiment config.
-     * Supports both ["metric1","metric2"] and [{"name":"metric1"},{"name":"metric2"}] formats.
-     */
     private List<String> parseGuardrailMetrics(String guardrailMetricsJson) {
-        if (guardrailMetricsJson == null || guardrailMetricsJson.isBlank()) {
-            return null; // StatsEngine will use default
-        }
-        try {
-            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {
-            });
-            List<String> names = new ArrayList<>();
-            for (Object item : raw) {
-                if (item instanceof String s) {
-                    names.add(s);
-                } else if (item instanceof Map<?, ?> m && m.containsKey("name")) {
-                    names.add(m.get("name").toString());
-                }
-            }
-            return names.isEmpty() ? null : names;
-        } catch (Exception e) {
-            log.warn("Failed to parse guardrail_metrics JSON: {}", guardrailMetricsJson, e);
-            return null;
-        }
+        return com.gateflow.victor.service.util.GuardrailParser.parse(guardrailMetricsJson);
     }
 
     private Map<String, Object> convertTestResult(TestResult result, String metricName) {
