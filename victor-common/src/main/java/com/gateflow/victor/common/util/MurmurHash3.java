@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * MurmurHash3 实现 - 用于分桶计算
- * 
+ * <p>
  * MurmurHash3 是一种非加密型哈希函数，具有以下特点：
  * - 高性能：适合大规模数据处理
  * - 低碰撞率：分布均匀，适合分桶场景

@@ -3,7 +3,9 @@
 <mapper namespace="com.gateflow.victor.infra.mapper.UserRoleMapper">
 
     <select id="selectByUserId" resultType="com.gateflow.victor.domain.entity.UserRole">
-        SELECT * FROM rbac_user_role WHERE user_id = #{userId}
+        SELECT *
+        FROM rbac_user_role
+        WHERE user_id = #{userId}
     </select>
 
 </mapper>

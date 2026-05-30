@@ -55,10 +55,10 @@ public class AuthController {
         log.info("User {} logged in with roles: {}", user.getUsername(), roles);
 
         return ResponseEntity.ok(Map.of(
-            "token", token,
-            "userId", user.getId(),
-            "username", user.getUsername(),
-            "roles", roles
+                "token", token,
+                "userId", user.getId(),
+                "username", user.getUsername(),
+                "roles", roles
         ));
     }
 
@@ -70,8 +70,8 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
         return ResponseEntity.ok(Map.of(
-            "userId", auth.getPrincipal(),
-            "roles", auth.getAuthorities().stream().map(Object::toString).toList()
+                "userId", auth.getPrincipal(),
+                "roles", auth.getAuthorities().stream().map(Object::toString).toList()
         ));
     }
 

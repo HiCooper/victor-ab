@@ -37,8 +37,8 @@ public class RampController {
             @Parameter(description = "实验ID") @PathVariable Long expId) {
         rampScheduler.manuallyAdvanceRamp(expId);
         return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "灰度已推进"
+                "success", true,
+                "message", "灰度已推进"
         ));
     }
 }

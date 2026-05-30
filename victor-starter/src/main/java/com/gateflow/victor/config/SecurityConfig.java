@@ -34,23 +34,23 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Auth endpoints are public
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                // Actuator health is public
-                .requestMatchers("/actuator/health").permitAll()
-                // SDK-facing endpoints require API key or JWT (checked in filter)
-                .requestMatchers("/api/v1/bucketing/**", "/api/v1/config/**", "/api/v1/events/**").permitAll()
-                // Swagger UI is public in dev
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                // All other API endpoints require authentication
-                .requestMatchers("/api/v1/**").authenticated()
-                .anyRequest().permitAll()
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Auth endpoints are public
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Actuator health is public
+                        .requestMatchers("/actuator/health").permitAll()
+                        // SDK-facing endpoints require API key or JWT (checked in filter)
+                        .requestMatchers("/api/v1/bucketing/**", "/api/v1/config/**", "/api/v1/events/**").permitAll()
+                        // Swagger UI is public in dev
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                        // All other API endpoints require authentication
+                        .requestMatchers("/api/v1/**").authenticated()
+                        .anyRequest().permitAll()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,19 +1,22 @@
 package com.gateflow.victor.service.statistics;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.dto.ExperimentMetricsResponse;
-import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.LayerMapper;
+import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.gateflow.victor.stats.algorithm.ZTest;
 import com.gateflow.victor.stats.engine.StatsEngine;
-import com.gateflow.victor.stats.model.*;
+import com.gateflow.victor.stats.model.ConfidenceInterval;
+import com.gateflow.victor.stats.model.ExperimentReport;
+import com.gateflow.victor.stats.model.LiftEstimate;
+import com.gateflow.victor.stats.model.TestResult;
 import com.gateflow.victor.stats.repository.MetricsRepository;
 import com.gateflow.victor.stats.repository.ReportRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,30 +31,34 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class StatisticsServiceTest {
 
-    @Mock private ExperimentService experimentService;
-    @Mock private BucketMapper bucketMapper;
-    @Mock private LayerMapper layerMapper;
-    @Mock private StatsEngine statsEngine;
-    @Mock private ReportRepository reportRepository;
-    @Mock private MetricsRepository metricsRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    private StatisticsService service;
-
     private static final Long EXP_ID = 1L;
     private static final String BUSINESS_EXP_ID = "exp_test_001";
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Mock
+    private ExperimentService experimentService;
+    @Mock
+    private BucketMapper bucketMapper;
+    @Mock
+    private LayerMapper layerMapper;
+    @Mock
+    private StatsEngine statsEngine;
+    @Mock
+    private ReportRepository reportRepository;
+    @Mock
+    private MetricsRepository metricsRepository;
+    private StatisticsService service;
 
     @BeforeEach
     void setUp() {
         ZTest zTest = new ZTest();
         service = new StatisticsService(
-            experimentService, bucketMapper, layerMapper,
-            statsEngine, reportRepository, zTest, objectMapper
+                experimentService, bucketMapper, layerMapper,
+                statsEngine, reportRepository, zTest, objectMapper
         );
     }
 
@@ -61,7 +68,7 @@ class StatisticsServiceTest {
         when(experimentService.getExperiment(EXP_ID)).thenReturn(null);
 
         VictorException ex = assertThrows(VictorException.class,
-            () -> service.getMetricResults(EXP_ID));
+                () -> service.getMetricResults(EXP_ID));
         assertEquals(ErrorCode.EXP_NOT_FOUND.getCode(), ex.getErrorCode());
     }
 
@@ -86,8 +93,8 @@ class StatisticsServiceTest {
     void shouldReturnPrimaryMetricWithLift() {
         Experiment exp = buildExperiment();
         List<Bucket> buckets = List.of(
-            buildBucket("control", 0, 4999, "control"),
-            buildBucket("treatment", 5000, 9999, "treatment")
+                buildBucket("control", 0, 4999, "control"),
+                buildBucket("treatment", 5000, 9999, "treatment")
         );
 
         when(experimentService.getExperiment(EXP_ID)).thenReturn(exp);
@@ -97,7 +104,7 @@ class StatisticsServiceTest {
 
         ExperimentReport report = buildReport();
         when(statsEngine.analyzeExperiment(any(), any(), any(), any(), any(), any(), anyMap(), isNull()))
-            .thenReturn(report);
+                .thenReturn(report);
 
         ExperimentMetricsResponse result = service.getMetricResults(EXP_ID);
 
@@ -111,8 +118,8 @@ class StatisticsServiceTest {
     void shouldReturnNonSignificantWhenNoEffect() {
         Experiment exp = buildExperiment();
         List<Bucket> buckets = List.of(
-            buildBucket("control", 0, 4999, "control"),
-            buildBucket("treatment", 5000, 9999, "treatment")
+                buildBucket("control", 0, 4999, "control"),
+                buildBucket("treatment", 5000, 9999, "treatment")
         );
 
         when(experimentService.getExperiment(EXP_ID)).thenReturn(exp);
@@ -122,7 +129,7 @@ class StatisticsServiceTest {
 
         ExperimentReport report = buildNonSignificantReport();
         when(statsEngine.analyzeExperiment(any(), any(), any(), any(), any(), any(), anyMap(), isNull()))
-            .thenReturn(report);
+                .thenReturn(report);
 
         ExperimentMetricsResponse result = service.getMetricResults(EXP_ID);
 
@@ -156,61 +163,61 @@ class StatisticsServiceTest {
 
     private ExperimentReport buildReport() {
         return ExperimentReport.builder()
-            .expId(BUSINESS_EXP_ID)
-            .layer("web")
-            .startDate(LocalDate.of(2026, 5, 19))
-            .endDate(LocalDate.of(2026, 5, 26))
-            .srmCheck(ExperimentReport.SrmCheckResult.builder()
-                .passed(true).pValue(0.5).message("SRM通过").build())
-            .primaryMetric(TestResult.builder()
-                .testName("z_test").statistic(2.5).pValue(0.012).significant(true)
-                .lift(LiftEstimate.of(0.26, 0.05, 0.47))
-                .confidenceInterval(ConfidenceInterval.of(0.01, 0.04, 0.95))
-                .build())
-            .secondaryMetrics(List.of())
-            .guardrailMetrics(List.of())
-            .bucketSummaries(Map.of(
-                "control", ExperimentReport.BucketSummary.builder()
-                    .bucket("control").totalUsers(5000).totalConversions(115)
-                    .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
-                "treatment", ExperimentReport.BucketSummary.builder()
-                    .bucket("treatment").totalUsers(5000).totalConversions(145)
-                    .conversionRate(0.029).avgRevenuePerUser(2.5).isControl(false).build()
-            ))
-            .dailyTrends(Map.of())
-            .recommendation(com.gateflow.victor.stats.model.Recommendation.LAUNCH)
-            .recommendationReason("主指标统计显著且方向正向")
-            .generatedAt(42)
-            .build();
+                .expId(BUSINESS_EXP_ID)
+                .layer("web")
+                .startDate(LocalDate.of(2026, 5, 19))
+                .endDate(LocalDate.of(2026, 5, 26))
+                .srmCheck(ExperimentReport.SrmCheckResult.builder()
+                        .passed(true).pValue(0.5).message("SRM通过").build())
+                .primaryMetric(TestResult.builder()
+                        .testName("z_test").statistic(2.5).pValue(0.012).significant(true)
+                        .lift(LiftEstimate.of(0.26, 0.05, 0.47))
+                        .confidenceInterval(ConfidenceInterval.of(0.01, 0.04, 0.95))
+                        .build())
+                .secondaryMetrics(List.of())
+                .guardrailMetrics(List.of())
+                .bucketSummaries(Map.of(
+                        "control", ExperimentReport.BucketSummary.builder()
+                                .bucket("control").totalUsers(5000).totalConversions(115)
+                                .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
+                        "treatment", ExperimentReport.BucketSummary.builder()
+                                .bucket("treatment").totalUsers(5000).totalConversions(145)
+                                .conversionRate(0.029).avgRevenuePerUser(2.5).isControl(false).build()
+                ))
+                .dailyTrends(Map.of())
+                .recommendation(com.gateflow.victor.stats.model.Recommendation.LAUNCH)
+                .recommendationReason("主指标统计显著且方向正向")
+                .generatedAt(42)
+                .build();
     }
 
     private ExperimentReport buildNonSignificantReport() {
         return ExperimentReport.builder()
-            .expId(BUSINESS_EXP_ID)
-            .layer("web")
-            .startDate(LocalDate.of(2026, 5, 19))
-            .endDate(LocalDate.of(2026, 5, 26))
-            .srmCheck(ExperimentReport.SrmCheckResult.builder()
-                .passed(true).pValue(0.5).message("SRM通过").build())
-            .primaryMetric(TestResult.builder()
-                .testName("z_test").statistic(0.8).pValue(0.42).significant(false)
-                .lift(LiftEstimate.of(0.02, -0.10, 0.14))
-                .confidenceInterval(ConfidenceInterval.of(-0.002, 0.003, 0.95))
-                .build())
-            .secondaryMetrics(List.of())
-            .guardrailMetrics(List.of())
-            .bucketSummaries(Map.of(
-                "control", ExperimentReport.BucketSummary.builder()
-                    .bucket("control").totalUsers(5000).totalConversions(115)
-                    .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
-                "treatment", ExperimentReport.BucketSummary.builder()
-                    .bucket("treatment").totalUsers(5000).totalConversions(118)
-                    .conversionRate(0.0236).avgRevenuePerUser(2.5).isControl(false).build()
-            ))
-            .dailyTrends(Map.of())
-            .recommendation(com.gateflow.victor.stats.model.Recommendation.CONTINUE_EXPERIMENT)
-            .recommendationReason("样本量不足")
-            .generatedAt(35)
-            .build();
+                .expId(BUSINESS_EXP_ID)
+                .layer("web")
+                .startDate(LocalDate.of(2026, 5, 19))
+                .endDate(LocalDate.of(2026, 5, 26))
+                .srmCheck(ExperimentReport.SrmCheckResult.builder()
+                        .passed(true).pValue(0.5).message("SRM通过").build())
+                .primaryMetric(TestResult.builder()
+                        .testName("z_test").statistic(0.8).pValue(0.42).significant(false)
+                        .lift(LiftEstimate.of(0.02, -0.10, 0.14))
+                        .confidenceInterval(ConfidenceInterval.of(-0.002, 0.003, 0.95))
+                        .build())
+                .secondaryMetrics(List.of())
+                .guardrailMetrics(List.of())
+                .bucketSummaries(Map.of(
+                        "control", ExperimentReport.BucketSummary.builder()
+                                .bucket("control").totalUsers(5000).totalConversions(115)
+                                .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
+                        "treatment", ExperimentReport.BucketSummary.builder()
+                                .bucket("treatment").totalUsers(5000).totalConversions(118)
+                                .conversionRate(0.0236).avgRevenuePerUser(2.5).isControl(false).build()
+                ))
+                .dailyTrends(Map.of())
+                .recommendation(com.gateflow.victor.stats.model.Recommendation.CONTINUE_EXPERIMENT)
+                .recommendationReason("样本量不足")
+                .generatedAt(35)
+                .build();
     }
 }

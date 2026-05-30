@@ -2,8 +2,6 @@ package com.gateflow.victor.domain.dto;
 
 import lombok.Data;
 
-import java.util.List;
-
 /**
  * 贝叶斯分析请求
  */

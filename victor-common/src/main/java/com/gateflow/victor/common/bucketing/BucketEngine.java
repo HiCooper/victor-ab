@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * 分桶引擎 - 核心分流计算
- * 
+ * <p>
  * 纯Java实现，无Spring依赖，可直接移植到SDK
  */
 public final class BucketEngine {
@@ -30,7 +30,7 @@ public final class BucketEngine {
         // 格式: userId#layerId#salt
         String hashInput = String.format(BucketConstants.HASH_INPUT_FORMAT, userId, layerId, salt);
         int hash = MurmurHash3.hash32(hashInput.getBytes(StandardCharsets.UTF_8));
-        
+
         // 取模得到桶号 (0 - TOTAL_BUCKETS-1)
         // 使用位掩码而非 Math.abs 以规避 Integer.MIN_VALUE 溢出问题
         return (hash & Integer.MAX_VALUE) % BucketConstants.TOTAL_BUCKETS;
@@ -39,7 +39,7 @@ public final class BucketEngine {
     /**
      * 根据桶号查找版本
      *
-     * @param bucket       桶号 (0-9999)
+     * @param bucket      桶号 (0-9999)
      * @param bucketSpecs 版本规格列表
      * @return 版本标识 (null表示未命中)
      */
@@ -60,8 +60,8 @@ public final class BucketEngine {
     /**
      * 判断用户是否命中实验
      *
-     * @param bucket       用户桶号
-     * @param experiment   实验规格
+     * @param bucket     用户桶号
+     * @param experiment 实验规格
      * @return true表示命中
      */
     public static boolean isInExperiment(int bucket, ExperimentSpec experiment) {
@@ -88,7 +88,7 @@ public final class BucketEngine {
         for (BucketSpec spec : experiment.getBuckets()) {
             if (bucket >= spec.getBucketStart() && bucket <= spec.getBucketEnd()) {
                 return BucketResult.hit(userId, experiment.getExpId(), bucket,
-                    spec.getBucketId(), experiment.getLayerId(), spec.getParams());
+                        spec.getBucketId(), experiment.getLayerId(), spec.getParams());
             }
         }
 
@@ -120,7 +120,7 @@ public final class BucketEngine {
         private final List<BucketSpec> buckets;
 
         public ExperimentSpec(String expId, String layerId, String salt,
-                             int bucketStart, int bucketEnd, List<BucketSpec> buckets) {
+                              int bucketStart, int bucketEnd, List<BucketSpec> buckets) {
             this.expId = expId;
             this.layerId = layerId;
             this.salt = salt;
@@ -129,12 +129,29 @@ public final class BucketEngine {
             this.buckets = buckets;
         }
 
-        public String getExpId() { return expId; }
-        public String getLayerId() { return layerId; }
-        public String getSalt() { return salt; }
-        public int getBucketStart() { return bucketStart; }
-        public int getBucketEnd() { return bucketEnd; }
-        public List<BucketSpec> getBuckets() { return buckets; }
+        public String getExpId() {
+            return expId;
+        }
+
+        public String getLayerId() {
+            return layerId;
+        }
+
+        public String getSalt() {
+            return salt;
+        }
+
+        public int getBucketStart() {
+            return bucketStart;
+        }
+
+        public int getBucketEnd() {
+            return bucketEnd;
+        }
+
+        public List<BucketSpec> getBuckets() {
+            return buckets;
+        }
     }
 
     /**
@@ -153,9 +170,20 @@ public final class BucketEngine {
             this.params = params;
         }
 
-        public String getBucketId() { return bucketId; }
-        public int getBucketStart() { return bucketStart; }
-        public int getBucketEnd() { return bucketEnd; }
-        public String getParams() { return params; }
+        public String getBucketId() {
+            return bucketId;
+        }
+
+        public int getBucketStart() {
+            return bucketStart;
+        }
+
+        public int getBucketEnd() {
+            return bucketEnd;
+        }
+
+        public String getParams() {
+            return params;
+        }
     }
 }

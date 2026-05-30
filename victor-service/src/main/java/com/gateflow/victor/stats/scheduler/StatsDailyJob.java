@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * StatsDailyJob — 每天凌晨 2:00 对运行中的实验做完整统计分析。
- *
+ * <p>
  * 跑全量管线（SRM → CUPED → Z-test → mSPRT → BH），
  * 结果写入 victor_experiment_report，按天快照。
  */
@@ -34,7 +34,7 @@ public class StatsDailyJob {
         log.info("Starting daily full analysis for date: {}", reportDate);
 
         List<ExperimentRepository.ExperimentSummary> experiments =
-            experimentRepository.findRunningExperiments();
+                experimentRepository.findRunningExperiments();
 
         int processed = 0;
         for (ExperimentRepository.ExperimentSummary exp : experiments) {
@@ -51,7 +51,7 @@ public class StatsDailyJob {
 
     private void analyzeExperiment(ExperimentRepository.ExperimentSummary exp, LocalDate reportDate) {
         ExperimentRepository.ExperimentDateRange dateRange =
-            experimentRepository.findDateRange(exp.getExpId());
+                experimentRepository.findDateRange(exp.getExpId());
         LocalDate startDate = dateRange.getStartDate();
         LocalDate endDate = reportDate;
 
@@ -62,26 +62,26 @@ public class StatsDailyJob {
         }
 
         log.info("Analyzing experiment {} ({} buckets, {} → {})",
-            exp.getExpId(), buckets.getAllBucketKeys().size(), startDate, endDate);
+                exp.getExpId(), buckets.getAllBucketKeys().size(), startDate, endDate);
 
         ExperimentReport report = statsEngine.analyzeExperiment(
-            exp.getExpId(),
-            exp.getLayerKey(),
-            startDate,
-            endDate,
-            buckets.getControlBucket(),
-            buckets.getTreatmentBuckets(),
-            buckets.getBucketProportions(),
-            Collections.emptyList()
+                exp.getExpId(),
+                exp.getLayerKey(),
+                startDate,
+                endDate,
+                buckets.getControlBucket(),
+                buckets.getTreatmentBuckets(),
+                buckets.getBucketProportions(),
+                Collections.emptyList()
         );
 
         reportRepository.saveReport(report, reportDate);
 
         log.info("Daily report saved for experiment {} on {}. " +
-                "SRM passed={}, primary p-value={}, recommendation={}",
-            exp.getExpId(), reportDate,
-            report.getSrmCheck() != null ? report.getSrmCheck().isPassed() : "N/A",
-            report.getPrimaryMetric() != null ? report.getPrimaryMetric().getPValue() : "N/A",
-            report.getRecommendation());
+                        "SRM passed={}, primary p-value={}, recommendation={}",
+                exp.getExpId(), reportDate,
+                report.getSrmCheck() != null ? report.getSrmCheck().isPassed() : "N/A",
+                report.getPrimaryMetric() != null ? report.getPrimaryMetric().getPValue() : "N/A",
+                report.getRecommendation());
     }
 }

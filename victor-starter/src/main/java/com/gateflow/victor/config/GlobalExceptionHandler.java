@@ -24,10 +24,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleVictorException(VictorException ex) {
         log.warn("Business error: code={}, message={}", ex.getErrorCode(), ex.getMessage());
         ErrorResponse response = ErrorResponse.builder()
-            .code(ex.getErrorCode())
-            .message(ex.getMessage())
-            .data(null)
-            .build();
+                .code(ex.getErrorCode())
+                .message(ex.getMessage())
+                .data(null)
+                .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
@@ -39,10 +39,10 @@ public class GlobalExceptionHandler {
         }
         log.warn("Validation failed: {}", fieldErrors);
         ErrorResponse response = ErrorResponse.builder()
-            .code("VALIDATION_ERROR")
-            .message("参数校验失败")
-            .data(fieldErrors)
-            .build();
+                .code("VALIDATION_ERROR")
+                .message("参数校验失败")
+                .data(fieldErrors)
+                .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
@@ -50,10 +50,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException ex) {
         log.warn("Missing required parameter: {}", ex.getParameterName());
         ErrorResponse response = ErrorResponse.builder()
-            .code("MISSING_PARAMETER")
-            .message("缺少必填参数: " + ex.getParameterName())
-            .data(null)
-            .build();
+                .code("MISSING_PARAMETER")
+                .message("缺少必填参数: " + ex.getParameterName())
+                .data(null)
+                .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
@@ -61,10 +61,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Invalid argument: {}", ex.getMessage());
         ErrorResponse response = ErrorResponse.builder()
-            .code("INVALID_ARGUMENT")
-            .message(ex.getMessage())
-            .data(null)
-            .build();
+                .code("INVALID_ARGUMENT")
+                .message(ex.getMessage())
+                .data(null)
+                .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
@@ -72,10 +72,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex) {
         log.error("Unexpected error", ex);
         ErrorResponse response = ErrorResponse.builder()
-            .code("INTERNAL_ERROR")
-            .message("服务器内部错误")
-            .data(null)
-            .build();
+                .code("INTERNAL_ERROR")
+                .message("服务器内部错误")
+                .data(null)
+                .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 

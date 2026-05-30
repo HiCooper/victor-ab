@@ -2,10 +2,12 @@ package com.gateflow.victor.service.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gateflow.victor.common.bucketing.BucketEngine;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.dto.ConfigResponse;
-import com.gateflow.victor.domain.entity.*;
+import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.domain.entity.ConfigVersion;
+import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.infra.mapper.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +15,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 配置服务 - SDK配置拉取
@@ -23,17 +24,15 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ConfigService {
 
+    private static final String REDIS_KEY_PREFIX = "victor:config:";
+    private static final String REDIS_KEY_LATEST = REDIS_KEY_PREFIX + "latest";
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
     private final BucketMapper bucketMapper;
     private final DomainMapper domainMapper;
     private final ConfigVersionMapper configVersionMapper;
-
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-
-    private static final String REDIS_KEY_PREFIX = "victor:config:";
-    private static final String REDIS_KEY_LATEST = REDIS_KEY_PREFIX + "latest";
 
     /**
      * 查询最新配置版本
@@ -257,7 +256,12 @@ public class ConfigService {
             this.timestamp = timestamp;
         }
 
-        public String getVersion() { return version; }
-        public long getTimestamp() { return timestamp; }
+        public String getVersion() {
+            return version;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
     }
 }

@@ -9,9 +9,9 @@ import java.util.List;
 
 /**
  * Power Analysis - 功效分析算法
- *
+ * <p>
  * 用于计算A/B实验所需的样本量和统计功效
- *
+ * <p>
  * 使用两比例z检验的公式：
  * n = (Zα/2 + Zβ)² * (p1(1-p1) + p2(1-p2)) / (p1-p2)²
  */
@@ -36,12 +36,13 @@ public class PowerAnalysis {
     private static final double Z_BETA_080 = 0.842;   // 80% 功效
     private static final double Z_BETA_090 = 1.282;   // 90% 功效
     private static final double Z_BETA_095 = 1.645;  // 95% 功效
+    private static final NormalDistribution STANDARD_NORMAL = new NormalDistribution(0, 1);
 
     /**
      * 计算两比例z检验所需的样本量
      *
-     * @param p1 基线转化率
-     * @param mde 最小可检测效应（相对值，如0.10表示10%相对提升）
+     * @param p1    基线转化率
+     * @param mde   最小可检测效应（相对值，如0.10表示10%相对提升）
      * @param power 统计功效 (默认0.80)
      * @param alpha 显著性水平 (默认0.05)
      * @return 每组所需样本量
@@ -86,9 +87,9 @@ public class PowerAnalysis {
     /**
      * 计算给定样本量下的统计功效
      *
-     * @param p1 基线转化率
-     * @param p2 期望转化率
-     * @param n 每组样本量
+     * @param p1    基线转化率
+     * @param p2    期望转化率
+     * @param n     每组样本量
      * @param alpha 显著性水平
      * @return 统计功效 (0-1)
      */
@@ -130,12 +131,12 @@ public class PowerAnalysis {
         // 计算预计实验天数（假设50%流量到实验组）
         long effectiveDaily = dailyTraffic / 2;
         long estimatedDays = effectiveDaily > 0
-            ? (long) Math.ceil((double) sampleSize / effectiveDaily)
-            : 0;
+                ? (long) Math.ceil((double) sampleSize / effectiveDaily)
+                : 0;
 
         // 计算MDE敏感度（不同样本量下的可检测效应）
         List<SensitivityPoint> sensitivity = calculateSensitivity(
-            baseConversionRate, sampleSize, alpha
+                baseConversionRate, sampleSize, alpha
         );
 
         PowerAnalysisResult result = new PowerAnalysisResult();
@@ -152,7 +153,7 @@ public class PowerAnalysis {
 
         // 置信区间宽度(相对)
         double ciWidth = 1.96 * Math.sqrt(
-            baseConversionRate * (1 - baseConversionRate) / sampleSize
+                baseConversionRate * (1 - baseConversionRate) / sampleSize
         ) / baseConversionRate;
         result.setConfidenceIntervalWidth(ciWidth * 2);
 
@@ -204,8 +205,6 @@ public class PowerAnalysis {
         if (power >= 0.90) return Z_BETA_090;
         return Z_BETA_080;
     }
-
-    private static final NormalDistribution STANDARD_NORMAL = new NormalDistribution(0, 1);
 
     /**
      * 标准正态分布累积分布函数

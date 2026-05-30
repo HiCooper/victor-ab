@@ -1,10 +1,10 @@
 package com.gateflow.victor.controller;
 
 import com.gateflow.victor.config.RequirePermission;
-import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.service.experiment.ExperimentService;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.experiment.BucketVersionService;
+import com.gateflow.victor.service.experiment.ExperimentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -67,12 +67,12 @@ public class ExperimentVersionController {
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "目标版本号") @PathVariable String version) {
         List<Bucket> buckets = versionService.rollbackToVersion(expId, version);
-        
+
         return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Successfully rolled back to version " + version,
-            "version", version,
-            "bucketCount", buckets.size()
+                "success", true,
+                "message", "Successfully rolled back to version " + version,
+                "version", version,
+                "bucketCount", buckets.size()
         ));
     }
 
@@ -93,12 +93,12 @@ public class ExperimentVersionController {
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "保留版本数量") @RequestParam(defaultValue = "10") int keep) {
         int deleted = versionService.cleanupOldVersions(expId, keep);
-        
+
         return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Cleaned up " + deleted + " old versions",
-            "deletedCount", deleted,
-            "keptCount", keep
+                "success", true,
+                "message", "Cleaned up " + deleted + " old versions",
+                "deletedCount", deleted,
+                "keptCount", keep
         ));
     }
 }

@@ -24,9 +24,9 @@ public class PowerAnalysisService {
      * 计算每组所需样本量
      *
      * @param baselineConversion 历史基准转化率 (0-1)
-     * @param mde 最小可检测效应量 (相对值, 如 0.05 表示 5% 相对提升)
-     * @param alpha 显著性水平
-     * @param power 统计功效
+     * @param mde                最小可检测效应量 (相对值, 如 0.05 表示 5% 相对提升)
+     * @param alpha              显著性水平
+     * @param power              统计功效
      * @return 每组所需样本量
      */
     public long calculateSampleSize(double baselineConversion, double mde, double alpha, double power) {
@@ -44,7 +44,7 @@ public class PowerAnalysisService {
         long sampleSizePerGroup = (long) Math.ceil(numerator / denominator);
 
         log.info("Power analysis: baseline={}, mde={}, alpha={}, power={}, sampleSizePerGroup={}",
-            baselineConversion, mde, alpha, power, sampleSizePerGroup);
+                baselineConversion, mde, alpha, power, sampleSizePerGroup);
 
         return sampleSizePerGroup;
     }
@@ -52,10 +52,10 @@ public class PowerAnalysisService {
     /**
      * 计算考虑流量分配后的总样本量
      *
-     * @param baselineConversion 基准转化率
-     * @param mde 最小可检测效应量
-     * @param alpha 显著性水平
-     * @param power 统计功效
+     * @param baselineConversion    基准转化率
+     * @param mde                   最小可检测效应量
+     * @param alpha                 显著性水平
+     * @param power                 统计功效
      * @param controlTrafficPercent 对照组流量占比 (10-90)
      * @return 实验所需总样本量
      */
@@ -74,8 +74,8 @@ public class PowerAnalysisService {
      * 计算当前样本量下的统计功效
      *
      * @param baselineConversion 基准转化率
-     * @param mde 效应量
-     * @param alpha 显著性水平
+     * @param mde                效应量
+     * @param alpha              显著性水平
      * @param sampleSizePerGroup 每组样本量
      * @return 统计功效 (0-1)
      */
@@ -101,9 +101,9 @@ public class PowerAnalysisService {
     /**
      * 预估实验完成时间
      *
-     * @param sampleSizePerGroup 每组所需样本量
+     * @param sampleSizePerGroup    每组所需样本量
      * @param controlTrafficPercent 对照组流量占比
-     * @param dailyUsers 日均UV
+     * @param dailyUsers            日均UV
      * @return 预估实验天数
      */
     public int estimateExperimentDuration(long sampleSizePerGroup, int controlTrafficPercent, long dailyUsers) {
@@ -130,18 +130,18 @@ public class PowerAnalysisService {
         int controlPercent = request.getControlTrafficPercent() != null ? request.getControlTrafficPercent() : 50;
 
         long sampleSizePerGroup = calculateSampleSize(
-            request.getBaselineConversion(),
-            request.getMde(),
-            alpha,
-            power
+                request.getBaselineConversion(),
+                request.getMde(),
+                alpha,
+                power
         );
 
         long totalSampleSize = calculateTotalSampleSize(
-            request.getBaselineConversion(),
-            request.getMde(),
-            alpha,
-            power,
-            controlPercent
+                request.getBaselineConversion(),
+                request.getMde(),
+                alpha,
+                power,
+                controlPercent
         );
 
         int estimatedDays = -1;
@@ -150,10 +150,10 @@ public class PowerAnalysisService {
         }
 
         double currentPower = calculateCurrentPower(
-            request.getBaselineConversion(),
-            request.getMde(),
-            alpha,
-            sampleSizePerGroup
+                request.getBaselineConversion(),
+                request.getMde(),
+                alpha,
+                sampleSizePerGroup
         );
 
         Map<String, Object> result = new HashMap<>();

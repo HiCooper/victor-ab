@@ -23,18 +23,17 @@ import java.util.*;
 @RequiredArgsConstructor
 public class StatsMonitorJob {
 
+    private static final int MONITOR_TTL_SECONDS = 600; // 10 min TTL
     private final ExperimentRepository experimentRepository;
     private final StatsEngine statsEngine;
     private final StringRedisTemplate redis;
-
-    private static final int MONITOR_TTL_SECONDS = 600; // 10 min TTL
 
     @Scheduled(fixedRate = 300_000)
     public void runMonitor() {
         log.debug("Starting monitor cycle...");
 
         List<ExperimentRepository.ExperimentSummary> experiments =
-            experimentRepository.findRunningExperiments();
+                experimentRepository.findRunningExperiments();
 
         for (ExperimentRepository.ExperimentSummary exp : experiments) {
             try {
@@ -53,7 +52,7 @@ public class StatsMonitorJob {
 
         // 1. Query aggregated stats from ClickHouse
         Map<String, MetricsRepository.BucketStats> bucketStats =
-            statsEngine.getMetricsRepository().queryExperimentStats(exp.getExpId(), startDate, endDate);
+                statsEngine.getMetricsRepository().queryExperimentStats(exp.getExpId(), startDate, endDate);
 
         if (bucketStats.isEmpty()) {
             return;

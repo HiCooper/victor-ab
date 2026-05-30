@@ -2,8 +2,6 @@ package com.gateflow.victor.domain.dto;
 
 import lombok.Data;
 
-import java.util.List;
-
 /**
  * 多臂老虎机请求
  */

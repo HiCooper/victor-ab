@@ -1,16 +1,19 @@
 package com.gateflow.victor.service.statistics;
 
-import com.gateflow.victor.stats.repository.MetricsRepository;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.domain.entity.Experiment;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.stats.repository.MetricsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Service for accessing experiment metrics
@@ -64,20 +67,20 @@ public class MetricsService {
         log.info("Getting daily metrics for experiment: {}, start: {}, end: {}", expId, startDateStr, endDateStr);
 
         LocalDate start = (startDateStr != null && !startDateStr.isEmpty())
-            ? LocalDate.parse(startDateStr)
-            : LocalDate.now().minusDays(7);
+                ? LocalDate.parse(startDateStr)
+                : LocalDate.now().minusDays(7);
         LocalDate end = (endDateStr != null && !endDateStr.isEmpty())
-            ? LocalDate.parse(endDateStr)
-            : LocalDate.now();
+                ? LocalDate.parse(endDateStr)
+                : LocalDate.now();
 
         // Discover buckets from experiment stats
         Map<String, MetricsRepository.BucketStats> bucketStats =
-            metricsRepository.queryExperimentStats(expId, start, end);
+                metricsRepository.queryExperimentStats(expId, start, end);
 
         List<Map<String, Object>> dailyMetrics = new ArrayList<>();
         for (String bucket : bucketStats.keySet()) {
             Map<LocalDate, MetricsRepository.DailyStats> trend =
-                metricsRepository.queryDailyTrend(expId, bucket, start, end);
+                    metricsRepository.queryDailyTrend(expId, bucket, start, end);
 
             for (Map.Entry<LocalDate, MetricsRepository.DailyStats> entry : trend.entrySet()) {
                 MetricsRepository.DailyStats ds = entry.getValue();
@@ -112,7 +115,7 @@ public class MetricsService {
         LocalDate weekAgo = LocalDate.now().minusDays(7);
         LambdaQueryWrapper<Experiment> completedWrapper = new LambdaQueryWrapper<>();
         completedWrapper.in(Experiment::getStatus, List.of("stopped", "archive"))
-            .ge(Experiment::getUpdatedAt, weekAgo.atStartOfDay());
+                .ge(Experiment::getUpdatedAt, weekAgo.atStartOfDay());
         long completedThisWeek = experimentMapper.selectCount(completedWrapper);
 
         Map<String, Object> stats = new LinkedHashMap<>();

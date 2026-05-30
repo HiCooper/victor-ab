@@ -10,5 +10,6 @@ import java.util.List;
 @Mapper
 public interface RoleMapper extends BaseMapper<Role> {
     List<Role> selectByIds(@Param("list") List<Long> ids);
+
     List<Role> selectAll();
 }

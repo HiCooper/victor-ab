@@ -28,7 +28,7 @@ public class VictorHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         Health.Builder builder = Health.up()
-            .withDetail("service", "victor-ab");
+                .withDetail("service", "victor-ab");
 
         checkDatabase(builder);
         checkRedis(builder);
@@ -43,8 +43,8 @@ public class VictorHealthIndicator implements HealthIndicator {
             builder.withDetail("database", "UP");
         } catch (Exception e) {
             builder.down()
-                .withDetail("database", "DOWN")
-                .withDetail("database_error", e.getMessage());
+                    .withDetail("database", "DOWN")
+                    .withDetail("database_error", e.getMessage());
         }
     }
 
@@ -54,8 +54,8 @@ public class VictorHealthIndicator implements HealthIndicator {
             builder.withDetail("redis", "PONG".equals(pong) ? "UP" : "DOWN");
         } catch (Exception e) {
             builder.down()
-                .withDetail("redis", "DOWN")
-                .withDetail("redis_error", e.getMessage());
+                    .withDetail("redis", "DOWN")
+                    .withDetail("redis_error", e.getMessage());
         }
     }
 }

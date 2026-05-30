@@ -49,7 +49,7 @@ public class BucketResult {
      * 创建命中结果（含参数）
      */
     public static BucketResult hit(String userId, String experimentKey, Integer bucket,
-                                    String bucketId, String layerId, String params) {
+                                   String bucketId, String layerId, String params) {
         BucketResult r = new BucketResult();
         r.userId = userId;
         r.experimentKey = experimentKey;

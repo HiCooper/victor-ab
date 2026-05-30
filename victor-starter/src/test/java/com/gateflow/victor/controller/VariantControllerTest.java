@@ -21,7 +21,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * BucketController 集成测试
@@ -65,8 +66,8 @@ class BucketControllerTest {
         when(bucketService.createBucket(any(Bucket.class))).thenReturn(testBucket);
 
         mockMvc.perform(post("/api/v1/buckets")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bucketId").value("control"))
                 .andExpect(jsonPath("$.name").value("对照组"));
@@ -82,8 +83,8 @@ class BucketControllerTest {
         request.setName("对照组"); // 缺少bucketKey
 
         mockMvc.perform(post("/api/v1/buckets")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
         verify(bucketService, never()).createBucket(any());
@@ -112,8 +113,8 @@ class BucketControllerTest {
         when(bucketService.createBuckets(anyList())).thenReturn(buckets);
 
         mockMvc.perform(post("/api/v1/buckets/batch")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requests)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requests)))
                 .andExpect(status().isOk());
 
         verify(bucketService).createBuckets(anyList());
@@ -183,8 +184,8 @@ class BucketControllerTest {
         when(bucketService.updateBucket(any(Bucket.class))).thenReturn(updated);
 
         mockMvc.perform(put("/api/v1/buckets/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("更新后的名称"));
 

@@ -1,12 +1,15 @@
 package com.gateflow.victor.service.experiment;
 
-import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.constant.ErrorCode;
+import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.exception.VictorException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 实验生命周期状态机服务
@@ -20,16 +23,16 @@ public class ExperimentLifecycleService {
 
     static {
         ALLOWED_TRANSITIONS.put(ExperimentStatus.DRAFT,
-            Set.of(ExperimentStatus.PENDING_APPROVAL, ExperimentStatus.RUNNING));
+                Set.of(ExperimentStatus.PENDING_APPROVAL, ExperimentStatus.RUNNING));
 
         ALLOWED_TRANSITIONS.put(ExperimentStatus.PENDING_APPROVAL,
-            Set.of(ExperimentStatus.RUNNING, ExperimentStatus.DRAFT));
+                Set.of(ExperimentStatus.RUNNING, ExperimentStatus.DRAFT));
 
         ALLOWED_TRANSITIONS.put(ExperimentStatus.RUNNING,
-            Set.of(ExperimentStatus.STOPPED));
+                Set.of(ExperimentStatus.STOPPED));
 
         ALLOWED_TRANSITIONS.put(ExperimentStatus.STOPPED,
-            Set.of(ExperimentStatus.ARCHIVE));
+                Set.of(ExperimentStatus.ARCHIVE));
 
         ALLOWED_TRANSITIONS.put(ExperimentStatus.ARCHIVE, Set.of());
     }
@@ -42,12 +45,12 @@ public class ExperimentLifecycleService {
 
         if (allowedTargets == null || !allowedTargets.contains(to)) {
             throw new VictorException(ErrorCode.LFC_INVALID_TRANSITION, String.format(
-                "Invalid state transition: %s -> %s. Allowed transitions: %s",
-                from.getDescription(),
-                to.getDescription(),
-                allowedTargets == null ? "none" : allowedTargets.stream()
-                    .map(ExperimentStatus::getDescription)
-                    .toList()
+                    "Invalid state transition: %s -> %s. Allowed transitions: %s",
+                    from.getDescription(),
+                    to.getDescription(),
+                    allowedTargets == null ? "none" : allowedTargets.stream()
+                            .map(ExperimentStatus::getDescription)
+                            .toList()
             ));
         }
     }
@@ -56,12 +59,12 @@ public class ExperimentLifecycleService {
      * 记录状态转换日志
      */
     public void logTransition(Long experimentId, String expId,
-                             ExperimentStatus from, ExperimentStatus to,
-                             String operator, String reason) {
+                              ExperimentStatus from, ExperimentStatus to,
+                              String operator, String reason) {
         log.info("Experiment [{}] {} transitioned: {} -> {} by {} (reason: {})",
-            experimentId, expId,
-            from.getDescription(), to.getDescription(),
-            operator, reason);
+                experimentId, expId,
+                from.getDescription(), to.getDescription(),
+                operator, reason);
     }
 
     /**

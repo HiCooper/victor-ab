@@ -16,19 +16,17 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ReportJobServiceTest {
 
-    @Mock
-    private ReportJobMapper reportJobMapper;
-
-    private ReportJobService service;
-
     private static final String JOB_ID = "job-uuid-123";
     private static final String EXP_ID = "exp_test_001";
+    @Mock
+    private ReportJobMapper reportJobMapper;
+    private ReportJobService service;
 
     @BeforeEach
     void setUp() {
@@ -126,7 +124,7 @@ class ReportJobServiceTest {
         completed.setId("job-2");
 
         when(reportJobMapper.selectList(any(LambdaQueryWrapper.class)))
-            .thenReturn(List.of(running));
+                .thenReturn(List.of(running));
 
         List<Map<String, Object>> results = service.getJobs("running", null);
 
@@ -144,7 +142,7 @@ class ReportJobServiceTest {
         job2.setId("job-2");
 
         when(reportJobMapper.selectList(any(LambdaQueryWrapper.class)))
-            .thenReturn(List.of(job1, job2));
+                .thenReturn(List.of(job1, job2));
 
         List<Map<String, Object>> results = service.getJobs(null, null);
 

@@ -1,10 +1,9 @@
 package com.gateflow.victor.domain.dto;
 
-import lombok.Data;
-
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 /**
  * 功效计算请求

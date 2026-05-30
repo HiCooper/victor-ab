@@ -18,10 +18,10 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * LayerController 集成测试
@@ -62,8 +62,8 @@ class LayerControllerTest {
         when(layerService.createLayer(any(Layer.class))).thenReturn(testLayer);
 
         mockMvc.perform(post("/api/v1/layers")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.layerId").value("layer_ui"))
                 .andExpect(jsonPath("$.name").value("UI层"));
@@ -78,8 +78,8 @@ class LayerControllerTest {
         request.setName("UI层"); // 缺少layerId
 
         mockMvc.perform(post("/api/v1/layers")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
         verify(layerService, never()).createLayer(any());
@@ -185,8 +185,8 @@ class LayerControllerTest {
         when(layerService.updateLayer(any(Layer.class))).thenReturn(updated);
 
         mockMvc.perform(put("/api/v1/layers/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("更新后的名称"));
 

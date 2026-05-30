@@ -16,7 +16,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class ClickHouseWriter {
-    
+
     private final EventRepository eventRepository;
 
     /**
@@ -35,7 +35,7 @@ public class ClickHouseWriter {
             fallbackToSingleInsert(events);
         }
     }
-    
+
     /**
      * 回退策略：逐条写入（当批量写入失败时）
      */
@@ -55,7 +55,7 @@ public class ClickHouseWriter {
 
         if (failed > 0) {
             throw new RuntimeException(
-                String.format("Batch write failed, fallback also incomplete: success=%d, failed=%d", success, failed));
+                    String.format("Batch write failed, fallback also incomplete: success=%d, failed=%d", success, failed));
         }
 
         log.warn("Fallback insert completed: all {} events written individually", success);

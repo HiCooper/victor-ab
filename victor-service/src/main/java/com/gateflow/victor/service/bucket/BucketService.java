@@ -1,11 +1,12 @@
 package com.gateflow.victor.service.bucket;
 
-import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
-import com.gateflow.victor.common.enums.ExperimentStatus;import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.common.enums.ExperimentStatus;
+import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -179,7 +180,7 @@ public class BucketService {
      */
     private void validateBucketRange(Bucket bucket, Experiment experiment) {
         if (bucket.getBucketStart() < 0 ||
-            bucket.getBucketEnd() > 9999) {
+                bucket.getBucketEnd() > 9999) {
             throw new VictorException(ErrorCode.VARIANT_BUCKET_OUT_OF_RANGE);
         }
         if (bucket.getBucketStart() > bucket.getBucketEnd()) {

@@ -18,7 +18,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class StatsEngine {
-    
+
     private final ZTest zTest;
     private final CUPED cuped;
     private final BHCorrection bhCorrection;
@@ -44,7 +44,7 @@ public class StatsEngine {
     public SequentialTestResult runmSPRT(SampleStatistics c, SampleStatistics t, int obs) {
         return msprt.execute(c, t, obs);
     }
-    
+
     public MetricsRepository getMetricsRepository() {
         return metricsRepository;
     }
@@ -52,13 +52,13 @@ public class StatsEngine {
     /**
      * 分析实验 - 端到端实验报告生成
      *
-     * @param expId 实验ID
-     * @param layer 层名称
-     * @param startDate 分析开始日期
-     * @param endDate 分析结束日期
-     * @param controlBucketName 对照组分桶名称
-     * @param treatmentBuckets 治疗组分桶名称列表
-     * @param expectedProportions 期望分流比例
+     * @param expId                实验ID
+     * @param layer                层名称
+     * @param startDate            分析开始日期
+     * @param endDate              分析结束日期
+     * @param controlBucketName    对照组分桶名称
+     * @param treatmentBuckets     治疗组分桶名称列表
+     * @param expectedProportions  期望分流比例
      * @param guardrailMetricNames 护栏指标名称列表（从实验配置读取，null 则默认使用 avgRevenue）
      * @return 完整的实验报告
      */
@@ -73,13 +73,13 @@ public class StatsEngine {
             List<String> guardrailMetricNames
     ) {
         log.info("Starting experiment analysis: expId={}, layer={}, period={} to {}",
-            expId, layer, startDate, endDate);
+                expId, layer, startDate, endDate);
 
         long startTime = System.currentTimeMillis();
 
         // Step 1: 查询所有分桶的统计数据
         Map<String, MetricsRepository.BucketStats> bucketStats =
-            metricsRepository.queryExperimentStats(expId, startDate, endDate);
+                metricsRepository.queryExperimentStats(expId, startDate, endDate);
 
         if (bucketStats.isEmpty()) {
             return buildEmptyReport(expId, layer, startDate, endDate);
@@ -96,7 +96,7 @@ public class StatsEngine {
 
         // Step 3.5: CUPED 方差缩减（使用实验前数据）
         Map<String, SampleStatistics> cupedAdjusted = applyCUPED(
-            expId, controlBucketName, treatmentBuckets, startDate, endDate);
+                expId, controlBucketName, treatmentBuckets, startDate, endDate);
 
         // Step 4: 主指标检验 - Z-Test（CUPED 增强）
         TestResult primaryResult = runPrimaryMetricTest(controlStats, bucketStats, treatmentBuckets, cupedAdjusted);
@@ -106,39 +106,39 @@ public class StatsEngine {
 
         // Step 6: 护栏指标序贯检验 - mSPRT
         List<SequentialTestResult> guardrailResults = runGuardrailTests(controlStats, bucketStats, guardrailMetricNames);
-        
+
         // Step 7: 生成决策建议
         Recommendation recommendation = generateRecommendation(
-            srmResult, primaryResult, secondaryResults, guardrailResults
+                srmResult, primaryResult, secondaryResults, guardrailResults
         );
-        
+
         // Step 8: 构建分桶摘要
         Map<String, ExperimentReport.BucketSummary> summaries = buildBucketSummaries(bucketStats, controlBucketName);
-        
+
         // Step 9: 每日趋势数据
         Map<String, List<ExperimentReport.DailyMetric>> dailyTrends = buildDailyTrends(
-            expId, controlBucketName, treatmentBuckets, startDate, endDate
+                expId, controlBucketName, treatmentBuckets, startDate, endDate
         );
-        
+
         long endTime = System.currentTimeMillis();
-        
+
         return ExperimentReport.builder()
-            .expId(expId)
-            .layer(layer)
-            .startDate(startDate)
-            .endDate(endDate)
-            .srmCheck(srmResult)
-            .primaryMetric(primaryResult)
-            .secondaryMetrics(secondaryResults)
-            .guardrailMetrics(guardrailResults)
-            .bucketSummaries(summaries)
-            .dailyTrends(dailyTrends)
-            .recommendation(recommendation)
-            .recommendationReason(buildRecommendationReason(recommendation, srmResult, primaryResult, guardrailResults))
-            .generatedAt(endTime - startTime)
-            .build();
+                .expId(expId)
+                .layer(layer)
+                .startDate(startDate)
+                .endDate(endDate)
+                .srmCheck(srmResult)
+                .primaryMetric(primaryResult)
+                .secondaryMetrics(secondaryResults)
+                .guardrailMetrics(guardrailResults)
+                .bucketSummaries(summaries)
+                .dailyTrends(dailyTrends)
+                .recommendation(recommendation)
+                .recommendationReason(buildRecommendationReason(recommendation, srmResult, primaryResult, guardrailResults))
+                .generatedAt(endTime - startTime)
+                .build();
     }
-    
+
     /**
      * SRM 检验
      */
@@ -151,11 +151,11 @@ public class StatsEngine {
         List<String> allBuckets = new ArrayList<>();
         allBuckets.add(controlBucket);
         allBuckets.addAll(treatmentBuckets);
-        
+
         long[] observed = new long[allBuckets.size()];
         double[] expected = new double[allBuckets.size()];
         Map<String, Long> observedCounts = new HashMap<>();
-        
+
         long totalUsers = 0;
         for (int i = 0; i < allBuckets.size(); i++) {
             MetricsRepository.BucketStats bucketStats = stats.get(allBuckets.get(i));
@@ -164,7 +164,7 @@ public class StatsEngine {
             observedCounts.put(allBuckets.get(i), users);
             totalUsers += users;
         }
-        
+
         // Use actual bucket proportions if available, fall back to equal split
         if (expectedProportions != null && !expectedProportions.isEmpty()) {
             for (int i = 0; i < allBuckets.size(); i++) {
@@ -175,7 +175,7 @@ public class StatsEngine {
                 expected[i] = 1.0 / expected.length;
             }
         }
-        
+
         SrmTest.ChiSquareResult srmResult = SrmTest.chiSquareTestFull(observed, expected);
         boolean passed = srmResult.pValue() >= 0.01; // SRM 阈值 1%
 
@@ -185,15 +185,15 @@ public class StatsEngine {
         }
 
         return ExperimentReport.SrmCheckResult.builder()
-            .passed(passed)
-            .pValue(srmResult.pValue())
-            .chiSquareStatistic(srmResult.chiSquare())
-            .observedCounts(observedCounts)
-            .expectedRatios(expectedRatios)
-            .message(passed ? "SRM检验通过，分流比例正常" : "SRM检验失败，分流比例存在异常")
-            .build();
+                .passed(passed)
+                .pValue(srmResult.pValue())
+                .chiSquareStatistic(srmResult.chiSquare())
+                .observedCounts(observedCounts)
+                .expectedRatios(expectedRatios)
+                .message(passed ? "SRM检验通过，分流比例正常" : "SRM检验失败，分流比例存在异常")
+                .build();
     }
-    
+
     /**
      * CUPED 方差缩减 — 使用实验前数据降低方差，提高检验灵敏度。
      * 返回 bucket → adjusted SampleStatistics 映射，失败时返回 null。
@@ -220,7 +220,7 @@ public class StatsEngine {
 
         for (String bucket : allBuckets) {
             List<MetricsRepository.UserMetric> userData =
-                metricsRepository.queryUserLevelData(expId, bucket, expStart, expEnd, preStart, preEnd);
+                    metricsRepository.queryUserLevelData(expId, bucket, expStart, expEnd, preStart, preEnd);
             if (userData.isEmpty()) {
                 log.debug("CUPED: no user-level data for bucket={}, falling back to aggregate", bucket);
                 return null;
@@ -269,11 +269,11 @@ public class StatsEngine {
 
         // Use CUPED-adjusted statistics when available for higher precision
         if (cupedAdjusted != null && cupedAdjusted.containsKey("control")
-            && cupedAdjusted.containsKey(treatmentBucket)) {
+                && cupedAdjusted.containsKey(treatmentBucket)) {
             SampleStatistics cCuped = cupedAdjusted.get("control");
             SampleStatistics tCuped = cupedAdjusted.get(treatmentBucket);
             log.debug("Using CUPED-adjusted stats: cMean={}, tMean={}, cVar={}, tVar={}",
-                cCuped.getMean(), tCuped.getMean(), cCuped.getVariance(), tCuped.getVariance());
+                    cCuped.getMean(), tCuped.getMean(), cCuped.getVariance(), tCuped.getVariance());
             return zTest.executeWithStats(cCuped, tCuped);
         }
 
@@ -285,7 +285,7 @@ public class StatsEngine {
 
         return zTest.executeProportion(cSuccess, cTotal, tSuccess, tTotal);
     }
-    
+
     /**
      * 辅助指标检验（多治疗组）
      */
@@ -295,25 +295,25 @@ public class StatsEngine {
             List<String> treatmentBuckets
     ) {
         List<TestResult> results = new ArrayList<>();
-        
+
         for (String treatmentBucket : treatmentBuckets) {
             MetricsRepository.BucketStats treatmentStats = bucketStats.get(treatmentBucket);
             if (treatmentStats == null) continue;
-            
+
             TestResult result = zTest.executeProportion(
-                controlStats.getTotalConversions(),
-                controlStats.getTotalUsers(),
-                treatmentStats.getTotalConversions(),
-                treatmentStats.getTotalUsers()
+                    controlStats.getTotalConversions(),
+                    controlStats.getTotalUsers(),
+                    treatmentStats.getTotalConversions(),
+                    treatmentStats.getTotalUsers()
             );
             result.setTestName("secondary_" + treatmentBucket);
             results.add(result);
         }
-        
+
         // BH 校正
         return bhCorrection.correct(results);
     }
-    
+
     /**
      * 护栏指标检验
      *
@@ -327,8 +327,8 @@ public class StatsEngine {
             List<String> guardrailMetricNames
     ) {
         List<String> metrics = (guardrailMetricNames != null && !guardrailMetricNames.isEmpty())
-            ? guardrailMetricNames
-            : List.of("avgRevenue");
+                ? guardrailMetricNames
+                : List.of("avgRevenue");
 
         List<SequentialTestResult> results = new ArrayList<>();
 
@@ -360,16 +360,16 @@ public class StatsEngine {
                 }
 
                 SampleStatistics control = SampleStatistics.builder()
-                    .n(controlStats.getTotalUsers())
-                    .mean(ctrlMean)
-                    .variance(ctrlVar)
-                    .build();
+                        .n(controlStats.getTotalUsers())
+                        .mean(ctrlMean)
+                        .variance(ctrlVar)
+                        .build();
 
                 SampleStatistics treatment = SampleStatistics.builder()
-                    .n(treatmentStats.getTotalUsers())
-                    .mean(treatMean)
-                    .variance(treatVar)
-                    .build();
+                        .n(treatmentStats.getTotalUsers())
+                        .mean(treatMean)
+                        .variance(treatVar)
+                        .build();
 
                 SequentialTestResult result = msprt.execute(control, treatment, (int) treatmentStats.getTotalUsers());
                 result.setTestName("guardrail_" + metricName + "_" + entry.getKey());
@@ -379,7 +379,7 @@ public class StatsEngine {
 
         return results;
     }
-    
+
     /**
      * 生成决策建议
      */
@@ -393,30 +393,30 @@ public class StatsEngine {
         if (!srmResult.isPassed()) {
             return Recommendation.DO_NOT_LAUNCH;
         }
-        
+
         // 规则2: 护栏指标恶化 → 不上线
         for (SequentialTestResult guardrail : guardrailResults) {
             if (guardrail.getStatus() == SequentialStatus.STOP_NEGATIVE) {
                 return Recommendation.DO_NOT_LAUNCH;
             }
         }
-        
+
         // 规则3: 主指标显著正向 → 上线
         if (primaryResult != null && primaryResult.isSignificant() && primaryResult.getLift() != null) {
             if (primaryResult.getLift().getValue() > 0) {
                 return Recommendation.LAUNCH;
             }
         }
-        
+
         // 规则4: 样本量不足 → 继续实验
         if (primaryResult == null) {
             return Recommendation.CONTINUE_EXPERIMENT;
         }
-        
+
         // 默认: 继续实验
         return Recommendation.CONTINUE_EXPERIMENT;
     }
-    
+
     /**
      * 构建决策原因
      */
@@ -445,7 +445,7 @@ public class StatsEngine {
                 return "数据不足，无法得出结论";
         }
     }
-    
+
     /**
      * 构建分桶摘要
      */
@@ -454,24 +454,24 @@ public class StatsEngine {
             String controlBucket
     ) {
         Map<String, ExperimentReport.BucketSummary> summaries = new HashMap<>();
-        
+
         for (Map.Entry<String, MetricsRepository.BucketStats> entry : stats.entrySet()) {
             MetricsRepository.BucketStats bucketStats = entry.getValue();
-            
+
             summaries.put(entry.getKey(), ExperimentReport.BucketSummary.builder()
-                .bucket(entry.getKey())
-                .totalUsers(bucketStats.getTotalUsers())
-                .totalConversions(bucketStats.getTotalConversions())
-                .conversionRate(bucketStats.getConversionRate())
-                .totalRevenue(bucketStats.getTotalRevenue())
-                .avgRevenuePerUser(bucketStats.getAvgRevenue())
-                .isControl(entry.getKey().equals(controlBucket))
-                .build());
+                    .bucket(entry.getKey())
+                    .totalUsers(bucketStats.getTotalUsers())
+                    .totalConversions(bucketStats.getTotalConversions())
+                    .conversionRate(bucketStats.getConversionRate())
+                    .totalRevenue(bucketStats.getTotalRevenue())
+                    .avgRevenuePerUser(bucketStats.getAvgRevenue())
+                    .isControl(entry.getKey().equals(controlBucket))
+                    .build());
         }
-        
+
         return summaries;
     }
-    
+
     /**
      * 构建每日趋势
      */
@@ -483,36 +483,36 @@ public class StatsEngine {
             LocalDate endDate
     ) {
         Map<String, List<ExperimentReport.DailyMetric>> trends = new HashMap<>();
-        
+
         // 查询各分桶每日趋势
         List<String> allBuckets = new ArrayList<>();
         allBuckets.add(controlBucket);
         allBuckets.addAll(treatmentBuckets);
-        
+
         for (String bucket : allBuckets) {
-            Map<LocalDate, MetricsRepository.DailyStats> dailyStats = 
-                metricsRepository.queryDailyTrend(expId, bucket, startDate, endDate);
-            
+            Map<LocalDate, MetricsRepository.DailyStats> dailyStats =
+                    metricsRepository.queryDailyTrend(expId, bucket, startDate, endDate);
+
             List<ExperimentReport.DailyMetric> dailyMetrics = new ArrayList<>();
             for (Map.Entry<LocalDate, MetricsRepository.DailyStats> entry : dailyStats.entrySet()) {
                 MetricsRepository.DailyStats stats = entry.getValue();
                 dailyMetrics.add(ExperimentReport.DailyMetric.builder()
-                    .date(entry.getKey())
-                    .users(stats.getTotalUsers())
-                    .conversions(stats.getTotalConversions())
-                    .conversionRate(stats.getConversionRate())
-                    .revenue(stats.getTotalRevenue())
-                    .build());
+                        .date(entry.getKey())
+                        .users(stats.getTotalUsers())
+                        .conversions(stats.getTotalConversions())
+                        .conversionRate(stats.getConversionRate())
+                        .revenue(stats.getTotalRevenue())
+                        .build());
             }
-            
+
             if (!dailyMetrics.isEmpty()) {
                 trends.put(bucket, dailyMetrics);
             }
         }
-        
+
         return trends;
     }
-    
+
     /**
      * 构建空报告
      */
@@ -523,17 +523,17 @@ public class StatsEngine {
             LocalDate endDate
     ) {
         return ExperimentReport.builder()
-            .expId(expId)
-            .layer(layer)
-            .startDate(startDate)
-            .endDate(endDate)
-            .srmCheck(ExperimentReport.SrmCheckResult.builder()
-                .passed(false)
-                .message("无数据")
-                .build())
-            .recommendation(Recommendation.INCONCLUSIVE)
-            .recommendationReason("实验数据不足，无法生成报告")
-            .generatedAt(0)
-            .build();
+                .expId(expId)
+                .layer(layer)
+                .startDate(startDate)
+                .endDate(endDate)
+                .srmCheck(ExperimentReport.SrmCheckResult.builder()
+                        .passed(false)
+                        .message("无数据")
+                        .build())
+                .recommendation(Recommendation.INCONCLUSIVE)
+                .recommendationReason("实验数据不足，无法生成报告")
+                .generatedAt(0)
+                .build();
     }
 }

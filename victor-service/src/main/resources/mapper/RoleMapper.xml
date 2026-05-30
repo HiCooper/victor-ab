@@ -11,7 +11,9 @@
     </select>
 
     <select id="selectAll" resultType="com.gateflow.victor.domain.entity.Role">
-        SELECT * FROM rbac_role WHERE deleted = 0
+        SELECT *
+        FROM rbac_role
+        WHERE deleted = 0
     </select>
 
 </mapper>

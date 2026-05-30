@@ -5,11 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.dto.*;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.gateflow.victor.stats.algorithm.SrmTest;
 import com.gateflow.victor.stats.algorithm.ZTest;
@@ -58,14 +58,14 @@ public class StatisticsService {
 
         // Always compute from ClickHouse in real-time (columnar GROUP BY, ~ms)
         LocalDate startDate = experiment.getStartTime() != null
-            ? experiment.getStartTime().toLocalDate()
-            : LocalDate.now().minusDays(14);
+                ? experiment.getStartTime().toLocalDate()
+                : LocalDate.now().minusDays(14);
         LocalDate endDate = LocalDate.now();
         ExperimentReport report = buildReport(experiment, startDate, endDate);
 
         // Supplement with CUPED-adjusted values if scheduler has computed them
         Map<String, ReportRepository.CupedValueDto> cupedValues =
-            reportRepository.findLatestCupedValues(experiment.getExpId());
+                reportRepository.findLatestCupedValues(experiment.getExpId());
         if (!cupedValues.isEmpty()) {
             applyCupedToReport(report, cupedValues);
         }
@@ -77,9 +77,9 @@ public class StatisticsService {
 
         String controlBucket = buckets.get(0).getBucketId();
         List<String> treatmentBuckets = buckets.stream()
-            .skip(1)
-            .map(Bucket::getBucketId)
-            .toList();
+                .skip(1)
+                .map(Bucket::getBucketId)
+                .toList();
 
         return buildMetricsResponse(report, controlBucket, treatmentBuckets);
     }
@@ -109,12 +109,12 @@ public class StatisticsService {
         String treatmentBucket = buckets.size() > 1 ? buckets.get(1).getBucketId() : null;
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> controlDaily =
-            statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
+                statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> treatmentDaily =
-            treatmentBucket != null
-                ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate)
-                : Map.of();
+                treatmentBucket != null
+                        ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate)
+                        : Map.of();
 
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             var cStats = controlDaily.get(date);
@@ -124,10 +124,10 @@ public class StatisticsService {
             double treatmentUsers = tStats != null ? tStats.getTotalUsers() : 0;
 
             dataPoints.add(TimeSeriesDataResponse.DataPoint.builder()
-                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                .control(controlUsers)
-                .treatment(treatmentUsers)
-                .build());
+                    .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    .control(controlUsers)
+                    .treatment(treatmentUsers)
+                    .build());
         }
 
         return TimeSeriesDataResponse.builder().data(dataPoints).build();
@@ -145,20 +145,20 @@ public class StatisticsService {
         List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
         if (buckets.isEmpty()) {
             return BucketStatisticsResponse.builder()
-                .buckets(List.of())
-                .srmPassed(false)
-                .srmMessage("实验无分桶数据")
-                .build();
+                    .buckets(List.of())
+                    .srmPassed(false)
+                    .srmMessage("实验无分桶数据")
+                    .build();
         }
 
         LocalDate startDate = experiment.getStartTime() != null
-            ? experiment.getStartTime().toLocalDate()
-            : LocalDate.now().minusDays(14);
+                ? experiment.getStartTime().toLocalDate()
+                : LocalDate.now().minusDays(14);
         LocalDate endDate = LocalDate.now();
 
         String expId = experiment.getExpId();
         Map<String, MetricsRepository.BucketStats> bucketStats =
-            statsEngine.getMetricsRepository().queryExperimentStats(expId, startDate, endDate);
+                statsEngine.getMetricsRepository().queryExperimentStats(expId, startDate, endDate);
 
         List<BucketStatisticsResponse.BucketStat> bucketStatList = new ArrayList<>();
         long[] observed = new long[bucketStats.size()];
@@ -169,14 +169,14 @@ public class StatisticsService {
         boolean srmPassed = srmPValue >= 0.01;
 
         String srmMessage = srmPassed
-            ? "SRM检验通过（p=" + String.format("%.3f", srmPValue) + "），分流比例均衡，样本分配无显著偏差。"
-            : "SRM检验未通过（p=" + String.format("%.3f", srmPValue) + "），分流比例可能存在偏差，请排查原因。";
+                ? "SRM检验通过（p=" + String.format("%.3f", srmPValue) + "），分流比例均衡，样本分配无显著偏差。"
+                : "SRM检验未通过（p=" + String.format("%.3f", srmPValue) + "），分流比例可能存在偏差，请排查原因。";
 
         return BucketStatisticsResponse.builder()
-            .buckets(bucketStatList)
-            .srmPassed(srmPassed)
-            .srmMessage(srmMessage)
-            .build();
+                .buckets(bucketStatList)
+                .srmPassed(srmPassed)
+                .srmMessage(srmMessage)
+                .build();
     }
 
     /**
@@ -191,15 +191,15 @@ public class StatisticsService {
         List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
         if (buckets.size() < 2) {
             return AATestResponse.builder()
-                .results(List.of())
-                .aaTestPassed(false)
-                .message("实验分桶数量不足，无法进行AA测试")
-                .build();
+                    .results(List.of())
+                    .aaTestPassed(false)
+                    .message("实验分桶数量不足，无法进行AA测试")
+                    .build();
         }
 
         LocalDate experimentStart = experiment.getStartTime() != null
-            ? experiment.getStartTime().toLocalDate()
-            : LocalDate.now().minusDays(7);
+                ? experiment.getStartTime().toLocalDate()
+                : LocalDate.now().minusDays(7);
         LocalDate aaStart = experimentStart.minusDays(7);
         LocalDate aaEnd = experimentStart.minusDays(1);
 
@@ -212,49 +212,49 @@ public class StatisticsService {
             String treatmentKey = buckets.get(i).getBucketId();
 
             var controlStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, aaStart, aaEnd)
-                .get(controlKey);
+                    .get(controlKey);
             var treatmentStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, aaStart, aaEnd)
-                .get(treatmentKey);
+                    .get(treatmentKey);
 
             if (controlStats == null || treatmentStats == null
-                || controlStats.getTotalUsers() == 0 || treatmentStats.getTotalUsers() == 0) {
+                    || controlStats.getTotalUsers() == 0 || treatmentStats.getTotalUsers() == 0) {
                 continue;
             }
 
             TestResult testResult = zTest.executeProportion(
-                controlStats.getTotalConversions(), controlStats.getTotalUsers(),
-                treatmentStats.getTotalConversions(), treatmentStats.getTotalUsers()
+                    controlStats.getTotalConversions(), controlStats.getTotalUsers(),
+                    treatmentStats.getTotalConversions(), treatmentStats.getTotalUsers()
             );
 
             results.add(AATestResponse.AATestResult.builder()
-                .metric("转化率")
-                .controlMean(controlStats.getConversionRate())
-                .bucketMean(treatmentStats.getConversionRate())
-                .pValue(testResult.getPValue())
-                .significant(testResult.isSignificant())
-                .build());
+                    .metric("转化率")
+                    .controlMean(controlStats.getConversionRate())
+                    .bucketMean(treatmentStats.getConversionRate())
+                    .pValue(testResult.getPValue())
+                    .significant(testResult.isSignificant())
+                    .build());
 
             if (controlStats.getTotalRevenue() > 0 || treatmentStats.getTotalRevenue() > 0) {
                 results.add(AATestResponse.AATestResult.builder()
-                    .metric("每用户收入")
-                    .controlMean(controlStats.getAvgRevenue())
-                    .bucketMean(treatmentStats.getAvgRevenue())
-                    .pValue(0.5)
-                    .significant(false)
-                    .build());
+                        .metric("每用户收入")
+                        .controlMean(controlStats.getAvgRevenue())
+                        .bucketMean(treatmentStats.getAvgRevenue())
+                        .pValue(0.5)
+                        .significant(false)
+                        .build());
             }
         }
 
         boolean aaPassed = results.stream().noneMatch(AATestResponse.AATestResult::isSignificant);
         String message = aaPassed
-            ? "AA测试通过，所有核心指标P值均大于0.05，实验前各组无显著差异。"
-            : "AA测试未通过，部分指标在实验前已存在显著差异，请谨慎解读实验结果。";
+                ? "AA测试通过，所有核心指标P值均大于0.05，实验前各组无显著差异。"
+                : "AA测试未通过，部分指标在实验前已存在显著差异，请谨慎解读实验结果。";
 
         return AATestResponse.builder()
-            .results(results)
-            .aaTestPassed(aaPassed)
-            .message(message)
-            .build();
+                .results(results)
+                .aaTestPassed(aaPassed)
+                .message(message)
+                .build();
     }
 
     /**
@@ -280,12 +280,12 @@ public class StatisticsService {
         String treatmentBucket = buckets.size() > 1 ? buckets.get(1).getBucketId() : null;
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> controlDaily =
-            statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
+                statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> treatmentDaily =
-            treatmentBucket != null
-                ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate)
-                : Map.of();
+                treatmentBucket != null
+                        ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate)
+                        : Map.of();
 
         List<TrafficDataResponse.DataPoint> dataPoints = new ArrayList<>();
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
@@ -293,10 +293,10 @@ public class StatisticsService {
             var tStats = treatmentDaily.get(date);
 
             dataPoints.add(TrafficDataResponse.DataPoint.builder()
-                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                .control(cStats != null ? cStats.getTotalUsers() : 0)
-                .treatment(tStats != null ? tStats.getTotalUsers() : 0)
-                .build());
+                    .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    .control(cStats != null ? cStats.getTotalUsers() : 0)
+                    .treatment(tStats != null ? tStats.getTotalUsers() : 0)
+                    .build());
         }
 
         return TrafficDataResponse.builder().data(dataPoints).build();
@@ -310,9 +310,9 @@ public class StatisticsService {
         List<ConfidenceTrendResponse.DataPoint> dataPoints = new ArrayList<>();
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             dataPoints.add(ConfidenceTrendResponse.DataPoint.builder()
-                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                .confidence(0)
-                .build());
+                    .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    .confidence(0)
+                    .build());
         }
         return ConfidenceTrendResponse.builder().data(dataPoints).build();
     }
@@ -326,20 +326,20 @@ public class StatisticsService {
         List<Bucket> buckets = experimentService.getExperimentBuckets(experiment.getId());
         if (buckets.isEmpty()) {
             return ExperimentReport.builder()
-                .expId(experiment.getExpId())
-                .layer(layerName)
-                .startDate(startDate)
-                .endDate(endDate)
-                .recommendation(com.gateflow.victor.stats.model.Recommendation.INCONCLUSIVE)
-                .recommendationReason("实验无分桶数据")
-                .build();
+                    .expId(experiment.getExpId())
+                    .layer(layerName)
+                    .startDate(startDate)
+                    .endDate(endDate)
+                    .recommendation(com.gateflow.victor.stats.model.Recommendation.INCONCLUSIVE)
+                    .recommendationReason("实验无分桶数据")
+                    .build();
         }
 
         String controlBucket = buckets.get(0).getBucketId();
         List<String> treatmentBuckets = buckets.stream()
-            .skip(1)
-            .map(Bucket::getBucketId)
-            .toList();
+                .skip(1)
+                .map(Bucket::getBucketId)
+                .toList();
 
         Map<String, Double> expectedProportions = new LinkedHashMap<>();
         for (Bucket v : buckets) {
@@ -350,14 +350,14 @@ public class StatisticsService {
         List<String> guardrailMetricNames = parseGuardrailMetrics(experiment.getGuardrailMetrics());
 
         return statsEngine.analyzeExperiment(
-            experiment.getExpId(),
-            layerName,
-            startDate,
-            endDate,
-            controlBucket,
-            treatmentBuckets,
-            expectedProportions,
-            guardrailMetricNames
+                experiment.getExpId(),
+                layerName,
+                startDate,
+                endDate,
+                controlBucket,
+                treatmentBuckets,
+                expectedProportions,
+                guardrailMetricNames
         );
     }
 
@@ -411,7 +411,7 @@ public class StatisticsService {
         double liftUpper = ctrlMean != 0 ? absCiUpper / ctrlMean : 0;
 
         org.apache.commons.math3.distribution.NormalDistribution normal =
-            new org.apache.commons.math3.distribution.NormalDistribution();
+                new org.apache.commons.math3.distribution.NormalDistribution();
         double pValue = 2 * (1 - normal.cumulativeProbability(Math.abs(z)));
 
         if (report.getPrimaryMetric() != null) {
@@ -425,9 +425,9 @@ public class StatisticsService {
     }
 
     private ExperimentMetricsResponse buildMetricsResponse(
-        ExperimentReport report,
-        String controlBucket,
-        List<String> treatmentBuckets
+            ExperimentReport report,
+            String controlBucket,
+            List<String> treatmentBuckets
     ) {
         TestResult primary = report.getPrimaryMetric();
         if (primary == null) {
@@ -436,74 +436,74 @@ public class StatisticsService {
 
         var controlSummary = report.getBucketSummaries().get(controlBucket);
         double controlRate = controlSummary != null
-            ? (report.isCupedApplied() && controlSummary.getCupedAdjustedMean() != null
+                ? (report.isCupedApplied() && controlSummary.getCupedAdjustedMean() != null
                 ? controlSummary.getCupedAdjustedMean()
                 : controlSummary.getConversionRate())
-            : 0;
+                : 0;
 
         ExperimentMetricsResponse.MetricResult primaryResult = ExperimentMetricsResponse.MetricResult.builder()
-            .id("conversion_rate")
-            .name("转化率")
-            .value(controlRate)
-            .lift(primary.getLift() != null ? primary.getLift().getValue() * 100 : 0)
-            .pValue(primary.getPValue())
-            .significant(primary.isSignificant())
-            .direction(primary.getLift() != null && primary.getLift().getValue() > 0 ? "positive" : "negative")
-            .confidenceInterval(primary.getConfidenceInterval() != null
-                ? new double[]{primary.getConfidenceInterval().getLower(), primary.getConfidenceInterval().getUpper()}
-                : new double[]{0, 0})
-            .build();
+                .id("conversion_rate")
+                .name("转化率")
+                .value(controlRate)
+                .lift(primary.getLift() != null ? primary.getLift().getValue() * 100 : 0)
+                .pValue(primary.getPValue())
+                .significant(primary.isSignificant())
+                .direction(primary.getLift() != null && primary.getLift().getValue() > 0 ? "positive" : "negative")
+                .confidenceInterval(primary.getConfidenceInterval() != null
+                        ? new double[]{primary.getConfidenceInterval().getLower(), primary.getConfidenceInterval().getUpper()}
+                        : new double[]{0, 0})
+                .build();
 
         List<ExperimentMetricsResponse.MetricResult> secondary = new ArrayList<>();
         if (controlSummary != null && controlSummary.getTotalRevenue() > 0) {
             secondary.add(ExperimentMetricsResponse.MetricResult.builder()
-                .id("revenue_per_user")
-                .name("每用户收入")
-                .value(controlSummary.getAvgRevenuePerUser())
-                .lift(0)
-                .pValue(1.0)
-                .significant(false)
-                .direction("neutral")
-                .confidenceInterval(new double[]{0, 0})
-                .build());
+                    .id("revenue_per_user")
+                    .name("每用户收入")
+                    .value(controlSummary.getAvgRevenuePerUser())
+                    .lift(0)
+                    .pValue(1.0)
+                    .significant(false)
+                    .direction("neutral")
+                    .confidenceInterval(new double[]{0, 0})
+                    .build());
         }
 
         List<ExperimentMetricsResponse.MetricResult> guardrail = new ArrayList<>();
         if (report.getSrmCheck() != null) {
             guardrail.add(ExperimentMetricsResponse.MetricResult.builder()
-                .id("srm_check")
-                .name("SRM检验")
-                .value(report.getSrmCheck().getPValue())
-                .lift(0)
-                .pValue(report.getSrmCheck().getPValue())
-                .significant(!report.getSrmCheck().isPassed())
-                .direction("neutral")
-                .confidenceInterval(new double[]{0, 0})
-                .build());
+                    .id("srm_check")
+                    .name("SRM检验")
+                    .value(report.getSrmCheck().getPValue())
+                    .lift(0)
+                    .pValue(report.getSrmCheck().getPValue())
+                    .significant(!report.getSrmCheck().isPassed())
+                    .direction("neutral")
+                    .confidenceInterval(new double[]{0, 0})
+                    .build());
         }
 
         return ExperimentMetricsResponse.builder()
-            .primary(primaryResult)
-            .secondary(secondary)
-            .guardrail(guardrail)
-            .build();
+                .primary(primaryResult)
+                .secondary(secondary)
+                .guardrail(guardrail)
+                .build();
     }
 
     private ExperimentMetricsResponse buildEmptyMetricsResponse() {
         return ExperimentMetricsResponse.builder()
-            .primary(ExperimentMetricsResponse.MetricResult.builder()
-                .id("conversion_rate")
-                .name("转化率")
-                .value(0)
-                .lift(0)
-                .pValue(1.0)
-                .significant(false)
-                .direction("neutral")
-                .confidenceInterval(new double[]{0, 0})
-                .build())
-            .secondary(List.of())
-            .guardrail(List.of())
-            .build();
+                .primary(ExperimentMetricsResponse.MetricResult.builder()
+                        .id("conversion_rate")
+                        .name("转化率")
+                        .value(0)
+                        .lift(0)
+                        .pValue(1.0)
+                        .significant(false)
+                        .direction("neutral")
+                        .confidenceInterval(new double[]{0, 0})
+                        .build())
+                .secondary(List.of())
+                .guardrail(List.of())
+                .build();
     }
 
     private List<String> parseGuardrailMetrics(String guardrailMetricsJson) {
@@ -511,7 +511,8 @@ public class StatisticsService {
             return null;
         }
         try {
-            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {});
+            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {
+            });
             List<String> names = new ArrayList<>();
             for (Object item : raw) {
                 if (item instanceof String s) {

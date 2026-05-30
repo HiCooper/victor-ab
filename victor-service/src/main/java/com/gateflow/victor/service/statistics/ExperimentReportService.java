@@ -2,17 +2,17 @@ package com.gateflow.victor.service.statistics;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.domain.entity.Layer;
+import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.stats.engine.StatsEngine;
 import com.gateflow.victor.stats.model.ExperimentReport;
 import com.gateflow.victor.stats.model.SequentialTestResult;
 import com.gateflow.victor.stats.model.TestResult;
 import com.gateflow.victor.stats.repository.ReportRepository;
-import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -56,13 +56,13 @@ public class ExperimentReportService {
         List<String> treatmentBuckets = new ArrayList<>();
         Map<String, Double> expectedProportions = new HashMap<>();
         int totalBucketSpan = buckets.stream()
-            .mapToInt(v -> v.getBucketEnd() - v.getBucketStart() + 1).sum();
+                .mapToInt(v -> v.getBucketEnd() - v.getBucketStart() + 1).sum();
 
         for (Bucket v : buckets) {
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
             double proportion = totalBucketSpan > 0
-                ? (double) (v.getBucketEnd() - v.getBucketStart() + 1) / totalBucketSpan
-                : 1.0 / buckets.size();
+                    ? (double) (v.getBucketEnd() - v.getBucketStart() + 1) / totalBucketSpan
+                    : 1.0 / buckets.size();
             expectedProportions.put(key, proportion);
 
             if ("control".equalsIgnoreCase(key) || controlBucket == null) {
@@ -73,11 +73,11 @@ public class ExperimentReportService {
         }
 
         LocalDate startDate = experiment.getStartTime() != null
-            ? experiment.getStartTime().toLocalDate()
-            : LocalDate.now().minusDays(7);
+                ? experiment.getStartTime().toLocalDate()
+                : LocalDate.now().minusDays(7);
         LocalDate endDate = experiment.getEndTime() != null
-            ? experiment.getEndTime().toLocalDate()
-            : LocalDate.now();
+                ? experiment.getEndTime().toLocalDate()
+                : LocalDate.now();
 
         List<String> guardrailMetricNames = parseGuardrailMetrics(experiment.getGuardrailMetrics());
 
@@ -89,22 +89,23 @@ public class ExperimentReportService {
         try {
             behaviorMap = statsEngine.getMetricsRepository().queryBehaviorMetrics(expId, startDate, endDate, allBucketKeys);
             log.info("Behavior metrics for {}: {} buckets, start={}, end={}",
-                expId, behaviorMap.size(), startDate, endDate);
+                    expId, behaviorMap.size(), startDate, endDate);
         } catch (Exception e) {
             log.warn("Behavior metrics query failed for {}: {}", expId, e.getMessage());
-            for (String vk : allBucketKeys) behaviorMap.put(vk, new com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics(vk));
+            for (String vk : allBucketKeys)
+                behaviorMap.put(vk, new com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics(vk));
         }
 
         // For running experiments, build lightweight report without full stats pipeline
         if ("running".equals(experiment.getStatus())) {
             return buildRunningReport(expId, experiment, layerKey, buckets, controlBucket,
-                treatmentBuckets, expectedProportions, behaviorMap, startDate, endDate);
+                    treatmentBuckets, expectedProportions, behaviorMap, startDate, endDate);
         }
 
         ExperimentReport report = statsEngine.analyzeExperiment(
-            expId, layerKey, startDate, endDate,
-            controlBucket, treatmentBuckets, expectedProportions,
-            guardrailMetricNames
+                expId, layerKey, startDate, endDate,
+                controlBucket, treatmentBuckets, expectedProportions,
+                guardrailMetricNames
         );
 
         if (report.getBucketSummaries() != null && !behaviorMap.isEmpty()) {
@@ -188,11 +189,11 @@ public class ExperimentReportService {
     }
 
     private Map<String, Object> buildRunningReport(String expId, Experiment experiment,
-            String layerKey, List<Bucket> buckets,
-            String controlBucket, List<String> treatmentBuckets,
-            Map<String, Double> expectedProportions,
-            Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap,
-            LocalDate startDate, LocalDate endDate) {
+                                                   String layerKey, List<Bucket> buckets,
+                                                   String controlBucket, List<String> treatmentBuckets,
+                                                   Map<String, Double> expectedProportions,
+                                                   Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap,
+                                                   LocalDate startDate, LocalDate endDate) {
 
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("experimentId", expId);
@@ -220,10 +221,10 @@ public class ExperimentReportService {
         if (Arrays.stream(observedArr).sum() > 0) {
             double srmPValue = com.gateflow.victor.stats.algorithm.SrmTest.chiSquareTest(observedArr, expectedArr);
             report.put("srmCheck", Map.of(
-                "passed", srmPValue > 0.01,
-                "pValue", srmPValue,
-                "observedCounts", observedMap,
-                "expectedRatios", expectedProportions
+                    "passed", srmPValue > 0.01,
+                    "pValue", srmPValue,
+                    "observedCounts", observedMap,
+                    "expectedRatios", expectedProportions
             ));
         }
 
@@ -270,20 +271,20 @@ public class ExperimentReportService {
         map.put("status", experiment.getStatus());
         map.put("generatedAt", LocalDateTime.now().toString());
         map.put("timeRange", Map.of(
-            "start", report.getStartDate().toString(),
-            "end", report.getEndDate().toString()
+                "start", report.getStartDate().toString(),
+                "end", report.getEndDate().toString()
         ));
 
         // SRM check
         if (report.getSrmCheck() != null) {
             map.put("srmCheck", Map.of(
-                "passed", report.getSrmCheck().isPassed(),
-                "chiSquareStat", report.getSrmCheck().getChiSquareStatistic(),
-                "pValue", report.getSrmCheck().getPValue(),
-                "observedCounts", report.getSrmCheck().getObservedCounts() != null
-                    ? report.getSrmCheck().getObservedCounts() : Map.of(),
-                "expectedRatios", report.getSrmCheck().getExpectedRatios() != null
-                    ? report.getSrmCheck().getExpectedRatios() : Map.of()
+                    "passed", report.getSrmCheck().isPassed(),
+                    "chiSquareStat", report.getSrmCheck().getChiSquareStatistic(),
+                    "pValue", report.getSrmCheck().getPValue(),
+                    "observedCounts", report.getSrmCheck().getObservedCounts() != null
+                            ? report.getSrmCheck().getObservedCounts() : Map.of(),
+                    "expectedRatios", report.getSrmCheck().getExpectedRatios() != null
+                            ? report.getSrmCheck().getExpectedRatios() : Map.of()
             ));
         }
 
@@ -320,9 +321,9 @@ public class ExperimentReportService {
         // Recommendation
         if (report.getRecommendation() != null) {
             map.put("recommendation", Map.of(
-                "action", report.getRecommendation().name(),
-                "reasoning", report.getRecommendationReason() != null
-                    ? report.getRecommendationReason() : ""
+                    "action", report.getRecommendation().name(),
+                    "reasoning", report.getRecommendationReason() != null
+                            ? report.getRecommendationReason() : ""
             ));
         }
 
@@ -383,7 +384,8 @@ public class ExperimentReportService {
             return null; // StatsEngine will use default
         }
         try {
-            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {});
+            List<?> raw = objectMapper.readValue(guardrailMetricsJson, new TypeReference<List<?>>() {
+            });
             List<String> names = new ArrayList<>();
             for (Object item : raw) {
                 if (item instanceof String s) {

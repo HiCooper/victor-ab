@@ -190,8 +190,8 @@ public class BayesianAnalysisService {
     private int estimateRequiredSamples(BayesianAnalysisRequest request) {
         // 简化估算: 基于当前转化率差异
         double currentDiff = Math.abs(
-            (double) request.getTreatmentConversions() / request.getTreatmentSamples() -
-            (double) request.getControlConversions() / request.getControlSamples()
+                (double) request.getTreatmentConversions() / request.getTreatmentSamples() -
+                        (double) request.getControlConversions() / request.getControlSamples()
         );
         if (currentDiff < 0.001) {
             return request.getTreatmentSamples() * 3; // 差异太小，需要更多样本

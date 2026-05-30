@@ -2,14 +2,14 @@ package com.gateflow.victor.service.traffic;
 
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.dto.TrafficMapResponse;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Domain;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.infra.mapper.DomainMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -180,12 +180,12 @@ public class TrafficMapService {
         List<TrafficMapResponse.ConflictWarning> conflicts = new ArrayList<>();
 
         List<Experiment> activeExperiments = experiments.stream()
-            .filter(e -> {
-                ExperimentStatus s = ExperimentStatus.fromCode(e.getStatus());
-                return s == ExperimentStatus.RUNNING;
-            })
-            .filter(e -> deriveExperimentBucketRange(e) != null)
-            .collect(Collectors.toList());
+                .filter(e -> {
+                    ExperimentStatus s = ExperimentStatus.fromCode(e.getStatus());
+                    return s == ExperimentStatus.RUNNING;
+                })
+                .filter(e -> deriveExperimentBucketRange(e) != null)
+                .collect(Collectors.toList());
 
         for (int i = 0; i < activeExperiments.size(); i++) {
             for (int j = i + 1; j < activeExperiments.size(); j++) {
@@ -289,8 +289,8 @@ public class TrafficMapService {
 
             // 排除已占用的区间
             List<int[]> occupiedRanges = segments.stream()
-                .map(s -> new int[]{s.getBucketStart(), s.getBucketEnd()})
-                .collect(Collectors.toList());
+                    .map(s -> new int[]{s.getBucketStart(), s.getBucketEnd()})
+                    .collect(Collectors.toList());
 
             TrafficMapResponse.BucketSegment detailedFree = calculateFreeSegments(occupiedRanges);
             if (detailedFree != null) {
@@ -322,8 +322,8 @@ public class TrafficMapService {
 
         // 简化实现：计算总空闲桶数
         int totalOccupied = occupiedRanges.stream()
-            .mapToInt(r -> r[1] - r[0] + 1)
-            .sum();
+                .mapToInt(r -> r[1] - r[0] + 1)
+                .sum();
 
         int freeBuckets = TOTAL_BUCKETS - totalOccupied;
         if (freeBuckets <= 0) {

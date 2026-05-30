@@ -1,10 +1,10 @@
 package com.gateflow.victor.service.analysis;
 
 import com.gateflow.victor.domain.dto.SubgroupAnalysisResponse;
-import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.stats.config.ClickHouseDataSourceConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,14 +46,14 @@ public class SubgroupAnalysisService {
 
     /**
      * 按通用维度拆分分析
-     * 
+     *
      * @param experimentId 实验ID
-     * @param dimension 拆分维度 (platform, device_id 等)
-     * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param dimension    拆分维度 (platform, device_id 等)
+     * @param startDate    开始日期
+     * @param endDate      结束日期
      */
-    public SubgroupAnalysisResponse analyzeByDimension(Long experimentId, String dimension, 
-                                                        LocalDate startDate, LocalDate endDate) {
+    public SubgroupAnalysisResponse analyzeByDimension(Long experimentId, String dimension,
+                                                       LocalDate startDate, LocalDate endDate) {
         Experiment experiment = experimentMapper.selectById(experimentId);
         if (experiment == null) {
             throw new IllegalArgumentException("Experiment not found: " + experimentId);
@@ -78,19 +78,19 @@ public class SubgroupAnalysisService {
         String treatmentBucket = buckets.size() > 1 ? buckets.get(1).getBucketId() : null;
 
         // 从 ClickHouse 查询分维度数据
-        Map<String, SubgroupAnalysisResponse.SubgroupResult> subgroups = 
-            querySubgroupStats(experiment.getExpId(), dimension, startDate, endDate, controlBucket, treatmentBucket);
+        Map<String, SubgroupAnalysisResponse.SubgroupResult> subgroups =
+                querySubgroupStats(experiment.getExpId(), dimension, startDate, endDate, controlBucket, treatmentBucket);
 
         // 计算统计检验
         for (SubgroupAnalysisResponse.SubgroupResult sg : subgroups.values()) {
             if (sg.getControlUsers() > 0 && sg.getTreatmentUsers() > 0) {
                 ZTestResult zTest = runZTest(
-                    (long) (sg.getControlConversionRate() * sg.getControlUsers()),
-                    sg.getControlUsers(),
-                    (long) (sg.getTreatmentConversionRate() * sg.getTreatmentUsers()),
-                    sg.getTreatmentUsers()
+                        (long) (sg.getControlConversionRate() * sg.getControlUsers()),
+                        sg.getControlUsers(),
+                        (long) (sg.getTreatmentConversionRate() * sg.getTreatmentUsers()),
+                        sg.getTreatmentUsers()
                 );
-                
+
                 sg.setPValue(zTest.pValue);
                 sg.setSignificant(zTest.pValue < 0.05);
                 sg.setConfidenceInterval(String.format("[%.2f, %.2f]", zTest.ciLower, zTest.ciUpper));
@@ -118,19 +118,19 @@ public class SubgroupAnalysisService {
 
         // 查询各维度的用户数和转化数
         String sql = """
-            SELECT 
-                JSONExtractString(properties, ?) as subgroup,
-                bucket,
-                sum(unique_users) as total_users,
-                sum(conversions) as total_conversions
-            FROM victor.experiment_metrics
-            WHERE exp_id = ?
-              AND metric_date >= ?
-              AND metric_date <= ?
-              AND bucket IN (?, ?)
-            GROUP BY subgroup, bucket
-            ORDER BY subgroup, bucket
-            """;
+                SELECT 
+                    JSONExtractString(properties, ?) as subgroup,
+                    bucket,
+                    sum(unique_users) as total_users,
+                    sum(conversions) as total_conversions
+                FROM victor.experiment_metrics
+                WHERE exp_id = ?
+                  AND metric_date >= ?
+                  AND metric_date <= ?
+                  AND bucket IN (?, ?)
+                GROUP BY subgroup, bucket
+                ORDER BY subgroup, bucket
+                """;
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -178,8 +178,8 @@ public class SubgroupAnalysisService {
         // 计算 Lift
         for (SubgroupAnalysisResponse.SubgroupResult sg : results.values()) {
             if (sg.getControlConversionRate() > 0) {
-                double lift = (sg.getTreatmentConversionRate() - sg.getControlConversionRate()) 
-                    / sg.getControlConversionRate() * 100;
+                double lift = (sg.getTreatmentConversionRate() - sg.getControlConversionRate())
+                        / sg.getControlConversionRate() * 100;
                 sg.setLift(String.format("%+.1f%%", lift));
             }
         }
@@ -187,8 +187,8 @@ public class SubgroupAnalysisService {
         return results;
     }
 
-    private ZTestResult runZTest(long controlConversions, int controlTotal, 
-                                   long treatmentConversions, int treatmentTotal) {
+    private ZTestResult runZTest(long controlConversions, int controlTotal,
+                                 long treatmentConversions, int treatmentTotal) {
         double p1 = (double) controlConversions / controlTotal;
         double p2 = (double) treatmentConversions / treatmentTotal;
         double pPool = (double) (controlConversions + treatmentConversions) / (controlTotal + treatmentTotal);
@@ -250,7 +250,7 @@ public class SubgroupAnalysisService {
 
         if (overall.getControlConversionRate() > 0) {
             double lift = (overall.getTreatmentConversionRate() - overall.getControlConversionRate())
-                / overall.getControlConversionRate() * 100;
+                    / overall.getControlConversionRate() * 100;
             overall.setLift(String.format("%+.1f%%", lift));
         }
 

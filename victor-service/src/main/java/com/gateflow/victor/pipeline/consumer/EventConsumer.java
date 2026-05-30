@@ -13,11 +13,11 @@ import java.util.List;
 
 /**
  * Kafka event consumer with batch processing.
- *
+ * <p>
  * Error handling: Spring Boot auto-configures DefaultErrorHandler with 10 retries
  * (FixedBackOff(0, 1s)). After exhausting retries, failed records are logged and
  * the offset is committed (messages are silently dropped).
- *
+ * <p>
  * TODO: Add DeadLetterPublishingRecoverer to route permanently-failed messages
  *       to a dead-letter topic (e.g., victor-events-dlt) for inspection and replay.
  *       Requires configuring a KafkaTemplate with:
@@ -32,9 +32,9 @@ public class EventConsumer {
     private final ClickHouseWriter writer;
 
     @KafkaListener(
-        topics = "${victor.pipeline.kafka-topic:victor-events}",
-        groupId = "victor-consumer",
-        batch = "true"
+            topics = "${victor.pipeline.kafka-topic:victor-events}",
+            groupId = "victor-consumer",
+            batch = "true"
     )
     public void consumeBatch(List<ConsumerRecord<String, EventDTO>> records, Acknowledgment acknowledgment) {
         log.info("Kafka consumer received {} events", records.size());

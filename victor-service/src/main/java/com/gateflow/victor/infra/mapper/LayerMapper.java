@@ -28,6 +28,6 @@ public interface LayerMapper extends BaseMapper<Layer> {
      * 批量查询层（按ID列表）
      */
     @Select("<script>SELECT * FROM victor_layer WHERE id IN " +
-        "<foreach item='id' collection='ids' open='(' separator=',' close=')'>#{id}</foreach></script>")
+            "<foreach item='id' collection='ids' open='(' separator=',' close=')'>#{id}</foreach></script>")
     List<Layer> selectByIds(@Param("ids") List<Long> ids);
 }

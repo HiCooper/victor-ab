@@ -30,24 +30,59 @@ public class SdkEvent {
         return e;
     }
 
-    public String getEventId() { return eventId; }
-    public void setEventId(String eventId) { this.eventId = eventId; }
+    public String getEventId() {
+        return eventId;
+    }
 
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
+    }
 
-    public String getExperimentKey() { return experimentKey; }
-    public void setExperimentKey(String experimentKey) { this.experimentKey = experimentKey; }
+    public String getUserId() {
+        return userId;
+    }
 
-    public String getBucket() { return bucket; }
-    public void setBucket(String bucket) { this.bucket = bucket; }
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
 
-    public String getLayerId() { return layerId; }
-    public void setLayerId(String layerId) { this.layerId = layerId; }
+    public String getExperimentKey() {
+        return experimentKey;
+    }
 
-    public long getTimestamp() { return timestamp; }
-    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+    public void setExperimentKey(String experimentKey) {
+        this.experimentKey = experimentKey;
+    }
 
-    public Map<String, Object> getProperties() { return properties; }
-    public void setProperties(Map<String, Object> properties) { this.properties = properties; }
+    public String getBucket() {
+        return bucket;
+    }
+
+    public void setBucket(String bucket) {
+        this.bucket = bucket;
+    }
+
+    public String getLayerId() {
+        return layerId;
+    }
+
+    public void setLayerId(String layerId) {
+        this.layerId = layerId;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public Map<String, Object> getProperties() {
+        return properties;
+    }
+
+    public void setProperties(Map<String, Object> properties) {
+        this.properties = properties;
+    }
 }

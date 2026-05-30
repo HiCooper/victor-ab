@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 /**
  * JWT authentication filter — runs once per request before controllers.
  * Extracts Bearer token, validates it, and sets Spring Security context.
- *
+ * <p>
  * SDK endpoints (/api/v1/bucketing, /api/v1/config, /api/v1/events) also accept
  * an {@code X-Api-Key} header as an alternative authentication method.
  */

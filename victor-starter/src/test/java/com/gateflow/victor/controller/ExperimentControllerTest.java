@@ -3,8 +3,8 @@ package com.gateflow.victor.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
-import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,16 +15,15 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * ExperimentController 集成测试
@@ -86,8 +85,8 @@ class ExperimentControllerTest {
 
         // 执行请求
         mockMvc.perform(post("/api/v1/experiments")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expId").value("exp_test_001"))
                 .andExpect(jsonPath("$.name").value("测试实验"));
@@ -105,8 +104,8 @@ class ExperimentControllerTest {
 
         // 执行请求
         mockMvc.perform(post("/api/v1/experiments")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
         verify(experimentService, never()).createExperiment(any(), any());
@@ -213,8 +212,8 @@ class ExperimentControllerTest {
         when(experimentService.updateExperiment(any(Experiment.class))).thenReturn(updated);
 
         mockMvc.perform(put("/api/v1/experiments/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("更新后的名称"));
 

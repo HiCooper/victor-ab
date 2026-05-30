@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * 配置响应模型 - SDK内部使用
- * 
+ * <p>
  * 从服务端拉取的实验配置数据结构
  */
 @Data

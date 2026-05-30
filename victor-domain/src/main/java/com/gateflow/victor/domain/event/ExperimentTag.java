@@ -2,9 +2,6 @@ package com.gateflow.victor.domain.event;
 
 import lombok.Data;
 
-import java.util.List;
-import java.util.Map;
-
 /**
  * 实验标签 - 用于埋点
  */

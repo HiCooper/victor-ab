@@ -1,14 +1,13 @@
 package com.gateflow.victor.controller;
 
-import com.gateflow.victor.common.util.BucketIdGenerator;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Permission;
-import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.service.experiment.ExperimentService;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 实验管理 API
@@ -50,16 +48,16 @@ public class ExperimentController {
         experiment.setAutoRampEnabled(request.getAutoRampEnabled());
 
         List<Bucket> buckets = request.getBuckets() != null
-            ? request.getBuckets().stream().map(vr -> {
-                Bucket v = new Bucket();
-                v.setBucketId(vr.getBucketKey());
-                v.setName(vr.getName());
-                v.setBucketStart(vr.getBucketStart());
-                v.setBucketEnd(vr.getBucketEnd());
-                v.setParams(vr.getParams() != null ? vr.getParams() : "{}");
-                return v;
-            }).toList()
-            : null;
+                ? request.getBuckets().stream().map(vr -> {
+            Bucket v = new Bucket();
+            v.setBucketId(vr.getBucketKey());
+            v.setName(vr.getName());
+            v.setBucketStart(vr.getBucketStart());
+            v.setBucketEnd(vr.getBucketEnd());
+            v.setParams(vr.getParams() != null ? vr.getParams() : "{}");
+            return v;
+        }).toList()
+                : null;
 
         Experiment created = experimentService.createExperiment(experiment, buckets);
         return ResponseEntity.ok(created);
@@ -140,7 +138,7 @@ public class ExperimentController {
             Experiment updated = experimentService.updateExperimentWithBuckets(experiment, request.getBuckets());
             return ResponseEntity.ok(updated);
         }
-        
+
         Experiment updated = experimentService.updateExperiment(experiment);
         return ResponseEntity.ok(updated);
     }
@@ -226,8 +224,8 @@ public class ExperimentController {
         if (experiment == null) {
             return ResponseEntity.notFound().build();
         }
-        com.gateflow.victor.common.enums.ExperimentStatus status = 
-            com.gateflow.victor.common.enums.ExperimentStatus.fromCode(experiment.getStatus());
+        com.gateflow.victor.common.enums.ExperimentStatus status =
+                com.gateflow.victor.common.enums.ExperimentStatus.fromCode(experiment.getStatus());
         return ResponseEntity.ok(lifecycleService.getAvailableActions(status));
     }
 

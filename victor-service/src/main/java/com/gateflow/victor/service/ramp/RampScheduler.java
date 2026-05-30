@@ -3,10 +3,10 @@ package com.gateflow.victor.service.ramp;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.enums.ExperimentStatus;
-import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -32,13 +32,8 @@ import java.util.Map;
 @Slf4j
 public class RampScheduler {
 
-    private final ExperimentMapper experimentMapper;
-    private final BucketMapper bucketMapper;
-    private final ExperimentService experimentService;
-    private final StringRedisTemplate redis;
-    private final ObjectMapper objectMapper;
-
     private static final Map<RampStage, Long> DEFAULT_STAGE_HOURS = new LinkedHashMap<>();
+
     static {
         DEFAULT_STAGE_HOURS.put(RampStage.STAGE_1, 2L);
         DEFAULT_STAGE_HOURS.put(RampStage.STAGE_5, 4L);
@@ -46,16 +41,22 @@ public class RampScheduler {
         DEFAULT_STAGE_HOURS.put(RampStage.STAGE_50, 24L);
     }
 
+    private final ExperimentMapper experimentMapper;
+    private final BucketMapper bucketMapper;
+    private final ExperimentService experimentService;
+    private final StringRedisTemplate redis;
+    private final ObjectMapper objectMapper;
+
     private int getMaxBucketBucketEnd(Experiment exp) {
         List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
         if (buckets == null || buckets.isEmpty()) {
             return 0;
         }
         return buckets.stream()
-            .filter(v -> v.getBucketEnd() != null)
-            .mapToInt(Bucket::getBucketEnd)
-            .max()
-            .orElse(0);
+                .filter(v -> v.getBucketEnd() != null)
+                .mapToInt(Bucket::getBucketEnd)
+                .max()
+                .orElse(0);
     }
 
     private void updateBucketBucketEnds(Experiment exp, int newBucketEnd) {
@@ -68,55 +69,14 @@ public class RampScheduler {
         }
     }
 
-    public enum RampStage {
-        STAGE_1(1, 100, "灰度1%", "SRM检验、核心流程可用性"),
-        STAGE_5(5, 500, "灰度5%", "护栏指标趋势、主指标初步方向"),
-        STAGE_10(10, 1000, "灰度10%", "统计功效达标检查"),
-        STAGE_50(50, 5000, "灰度50%", "全面验证"),
-        STAGE_100(100, 9999, "全量发布", "实验完成");
-
-        private final int percent;
-        private final int bucketEnd;
-        private final String label;
-        private final String focus;
-
-        RampStage(int percent, int bucketEnd, String label, String focus) {
-            this.percent = percent;
-            this.bucketEnd = bucketEnd;
-            this.label = label;
-            this.focus = focus;
-        }
-
-        public int getPercent() { return percent; }
-        public int getBucketEnd() { return bucketEnd; }
-        public String getLabel() { return label; }
-        public String getFocus() { return focus; }
-
-        public RampStage next() {
-            if (this == STAGE_1) return STAGE_5;
-            if (this == STAGE_5) return STAGE_10;
-            if (this == STAGE_10) return STAGE_50;
-            if (this == STAGE_50) return STAGE_100;
-            return this;
-        }
-
-        public static RampStage fromBucketEnd(int bucketEnd) {
-            if (bucketEnd < 200) return STAGE_1;
-            if (bucketEnd < 600) return STAGE_5;
-            if (bucketEnd < 1100) return STAGE_10;
-            if (bucketEnd < 5100) return STAGE_50;
-            return STAGE_100;
-        }
-    }
-
     @Scheduled(fixedRate = 300_000)
     public void checkAndAdvanceRamp() {
         log.info("Checking auto-ramp experiments...");
 
         List<Experiment> rampingExperiments = experimentMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
-                .eq(Experiment::getStatus, ExperimentStatus.RUNNING.getCode())
-                .eq(Experiment::getAutoRampEnabled, true)
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
+                        .eq(Experiment::getStatus, ExperimentStatus.RUNNING.getCode())
+                        .eq(Experiment::getAutoRampEnabled, true)
         );
 
         for (Experiment exp : rampingExperiments) {
@@ -143,11 +103,11 @@ public class RampScheduler {
             updateBucketBucketEnds(exp, nextStage.getBucketEnd());
 
             log.info("Experiment {} advanced from {} to {}",
-                exp.getExpId(), currentStage.getLabel(), nextStage.getLabel());
+                    exp.getExpId(), currentStage.getLabel(), nextStage.getLabel());
         } else if (checkResult.isCritical()) {
             experimentService.stopExperiment(exp.getId());
             log.warn("Experiment {} paused due to critical gate failure: {}",
-                exp.getExpId(), checkResult.getMessage());
+                    exp.getExpId(), checkResult.getMessage());
         }
     }
 
@@ -223,7 +183,8 @@ public class RampScheduler {
         }
         try {
             Map<String, Object> config = objectMapper.readValue(rampConfigJson,
-                new TypeReference<Map<String, Object>>() {});
+                    new TypeReference<Map<String, Object>>() {
+                    });
             @SuppressWarnings("unchecked")
             Map<String, Object> stages = (Map<String, Object>) config.get("stages");
             if (stages == null) {
@@ -284,6 +245,58 @@ public class RampScheduler {
         updateBucketBucketEnds(exp, nextStage.getBucketEnd());
 
         log.info("Manually advanced experiment {} to {}", exp.getExpId(), nextStage.getLabel());
+    }
+
+    public enum RampStage {
+        STAGE_1(1, 100, "灰度1%", "SRM检验、核心流程可用性"),
+        STAGE_5(5, 500, "灰度5%", "护栏指标趋势、主指标初步方向"),
+        STAGE_10(10, 1000, "灰度10%", "统计功效达标检查"),
+        STAGE_50(50, 5000, "灰度50%", "全面验证"),
+        STAGE_100(100, 9999, "全量发布", "实验完成");
+
+        private final int percent;
+        private final int bucketEnd;
+        private final String label;
+        private final String focus;
+
+        RampStage(int percent, int bucketEnd, String label, String focus) {
+            this.percent = percent;
+            this.bucketEnd = bucketEnd;
+            this.label = label;
+            this.focus = focus;
+        }
+
+        public static RampStage fromBucketEnd(int bucketEnd) {
+            if (bucketEnd < 200) return STAGE_1;
+            if (bucketEnd < 600) return STAGE_5;
+            if (bucketEnd < 1100) return STAGE_10;
+            if (bucketEnd < 5100) return STAGE_50;
+            return STAGE_100;
+        }
+
+        public int getPercent() {
+            return percent;
+        }
+
+        public int getBucketEnd() {
+            return bucketEnd;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public String getFocus() {
+            return focus;
+        }
+
+        public RampStage next() {
+            if (this == STAGE_1) return STAGE_5;
+            if (this == STAGE_5) return STAGE_10;
+            if (this == STAGE_10) return STAGE_50;
+            if (this == STAGE_50) return STAGE_100;
+            return this;
+        }
     }
 
     @Data

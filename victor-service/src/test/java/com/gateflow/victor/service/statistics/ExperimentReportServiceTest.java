@@ -2,12 +2,12 @@ package com.gateflow.victor.service.statistics;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.stats.engine.StatsEngine;
 import com.gateflow.victor.stats.model.*;
 import com.gateflow.victor.stats.repository.ReportRepository;
@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,25 +30,30 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ExperimentReportServiceTest {
 
-    @Mock private StatsEngine statsEngine;
-    @Mock private ReportJobService jobService;
-    @Mock private ReportRepository reportRepository;
-    @Mock private ExperimentMapper experimentMapper;
-    @Mock private BucketMapper bucketMapper;
-    @Mock private LayerMapper layerMapper;
-    @Mock private ObjectMapper objectMapper;
-
-    private ExperimentReportService service;
-
     private static final String EXP_ID = "exp_test_001";
     private static final LocalDate START = LocalDate.of(2026, 5, 19);
     private static final LocalDate END = LocalDate.of(2026, 5, 26);
+    @Mock
+    private StatsEngine statsEngine;
+    @Mock
+    private ReportJobService jobService;
+    @Mock
+    private ReportRepository reportRepository;
+    @Mock
+    private ExperimentMapper experimentMapper;
+    @Mock
+    private BucketMapper bucketMapper;
+    @Mock
+    private LayerMapper layerMapper;
+    @Mock
+    private ObjectMapper objectMapper;
+    private ExperimentReportService service;
 
     @BeforeEach
     void setUp() {
         service = new ExperimentReportService(
-            statsEngine, jobService, reportRepository,
-            experimentMapper, bucketMapper, layerMapper, objectMapper
+                statsEngine, jobService, reportRepository,
+                experimentMapper, bucketMapper, layerMapper, objectMapper
         );
     }
 
@@ -92,8 +96,8 @@ class ExperimentReportServiceTest {
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.LAUNCH, true);
         when(statsEngine.analyzeExperiment(
-            eq(EXP_ID), eq("web"), any(), any(),
-            eq("control"), eq(List.of("treatment")), anyMap(), isNull()
+                eq(EXP_ID), eq("web"), any(), any(),
+                eq("control"), eq(List.of("treatment")), anyMap(), isNull()
         )).thenReturn(report);
 
         Map<String, Object> result = service.getReport(EXP_ID);
@@ -126,7 +130,7 @@ class ExperimentReportServiceTest {
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.CONTINUE_EXPERIMENT, false);
         when(statsEngine.analyzeExperiment(any(), any(), any(), any(), any(), any(), anyMap(), any()))
-            .thenReturn(report);
+                .thenReturn(report);
         doThrow(new RuntimeException("DB down")).when(reportRepository).saveReport(any(), any(), anyBoolean());
 
         Map<String, Object> result = service.getReport(EXP_ID);
@@ -186,7 +190,7 @@ class ExperimentReportServiceTest {
     void shouldParseGuardrailMetricsStringArray() throws Exception {
         String json = "[\"avgRevenue\",\"conversionRate\"]";
         when(objectMapper.readValue(eq(json), any(TypeReference.class)))
-            .thenReturn(List.of("avgRevenue", "conversionRate"));
+                .thenReturn(List.of("avgRevenue", "conversionRate"));
 
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         exp.setGuardrailMetrics(json);
@@ -200,7 +204,7 @@ class ExperimentReportServiceTest {
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.LAUNCH, true);
         when(statsEngine.analyzeExperiment(eq(EXP_ID), any(), any(), any(), any(), any(), anyMap(), any()))
-            .thenReturn(report);
+                .thenReturn(report);
 
         Map<String, Object> result = service.getReport(EXP_ID);
         assertNotNull(result);
@@ -222,7 +226,7 @@ class ExperimentReportServiceTest {
         report.getSrmCheck().setPassed(false);
         report.getSrmCheck().setMessage("SRM检验失败");
         when(statsEngine.analyzeExperiment(any(), any(), any(), any(), any(), any(), anyMap(), any()))
-            .thenReturn(report);
+                .thenReturn(report);
 
         Map<String, Object> result = service.getReport(EXP_ID);
 
@@ -265,40 +269,40 @@ class ExperimentReportServiceTest {
 
     private ExperimentReport buildReport(String expId, Recommendation rec, boolean srmPassed) {
         return ExperimentReport.builder()
-            .expId(expId)
-            .layer("web")
-            .startDate(START)
-            .endDate(END)
-            .srmCheck(ExperimentReport.SrmCheckResult.builder()
-                .passed(srmPassed)
-                .pValue(0.5)
-                .chiSquareStatistic(0.45)
-                .observedCounts(Map.of("control", 5000L, "treatment", 5000L))
-                .expectedRatios(Map.of("control", 0.5, "treatment", 0.5))
-                .message("SRM检验通过")
-                .build())
-            .primaryMetric(TestResult.builder()
-                .testName("z_test")
-                .statistic(2.5)
-                .pValue(0.012)
-                .significant(true)
-                .lift(LiftEstimate.of(0.26, 0.05, 0.47))
-                .confidenceInterval(ConfidenceInterval.of(0.01, 0.04, 0.95))
-                .build())
-            .secondaryMetrics(List.of())
-            .guardrailMetrics(List.of())
-            .bucketSummaries(Map.of(
-                "control", ExperimentReport.BucketSummary.builder()
-                    .bucket("control").totalUsers(5000).totalConversions(115)
-                    .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
-                "treatment", ExperimentReport.BucketSummary.builder()
-                    .bucket("treatment").totalUsers(5000).totalConversions(145)
-                    .conversionRate(0.029).avgRevenuePerUser(2.5).isControl(false).build()
-            ))
-            .dailyTrends(Map.of())
-            .recommendation(rec)
-            .recommendationReason("主指标统计显著且方向正向")
-            .generatedAt(42)
-            .build();
+                .expId(expId)
+                .layer("web")
+                .startDate(START)
+                .endDate(END)
+                .srmCheck(ExperimentReport.SrmCheckResult.builder()
+                        .passed(srmPassed)
+                        .pValue(0.5)
+                        .chiSquareStatistic(0.45)
+                        .observedCounts(Map.of("control", 5000L, "treatment", 5000L))
+                        .expectedRatios(Map.of("control", 0.5, "treatment", 0.5))
+                        .message("SRM检验通过")
+                        .build())
+                .primaryMetric(TestResult.builder()
+                        .testName("z_test")
+                        .statistic(2.5)
+                        .pValue(0.012)
+                        .significant(true)
+                        .lift(LiftEstimate.of(0.26, 0.05, 0.47))
+                        .confidenceInterval(ConfidenceInterval.of(0.01, 0.04, 0.95))
+                        .build())
+                .secondaryMetrics(List.of())
+                .guardrailMetrics(List.of())
+                .bucketSummaries(Map.of(
+                        "control", ExperimentReport.BucketSummary.builder()
+                                .bucket("control").totalUsers(5000).totalConversions(115)
+                                .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
+                        "treatment", ExperimentReport.BucketSummary.builder()
+                                .bucket("treatment").totalUsers(5000).totalConversions(145)
+                                .conversionRate(0.029).avgRevenuePerUser(2.5).isControl(false).build()
+                ))
+                .dailyTrends(Map.of())
+                .recommendation(rec)
+                .recommendationReason("主指标统计显著且方向正向")
+                .generatedAt(42)
+                .build();
     }
 }

@@ -5,14 +5,9 @@ import com.gateflow.victor.common.bucketing.BucketEngine;
 import com.gateflow.victor.common.bucketing.BucketResult;
 import com.gateflow.victor.sdk.model.SdkConfigResponse;
 import com.gateflow.victor.sdk.model.SdkEvent;
-import com.gateflow.victor.sdk.model.SdkExperimentTag;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,9 +22,9 @@ import java.util.logging.Logger;
 
 /**
  * Victor SDK 客户端 - 主入口类
- * 
+ * <p>
  * 供其他Java服务集成，提供分桶计算、配置拉取等功能
- * 
+ * <p>
  * 特性:
  * - 本地 Caffeine 缓存
  * - 定时轮询配置更新
@@ -47,14 +42,12 @@ public class VictorClient {
     private final ScheduledExecutorService scheduler;
     private final ReentrantLock configLock = new ReentrantLock();
     private final Path cacheFilePath;
-
-    private volatile String currentVersion;
-    private volatile SdkConfigResponse fallbackConfig; // 离线容灾配置
-    private volatile boolean initialized = false;
-
     // 事件上报
     private final BlockingQueue<SdkEvent> eventQueue;
     private final ScheduledExecutorService eventFlusher;
+    private volatile String currentVersion;
+    private volatile SdkConfigResponse fallbackConfig; // 离线容灾配置
+    private volatile boolean initialized = false;
 
     private VictorClient(VictorConfig config) {
         this.config = config;
@@ -64,7 +57,7 @@ public class VictorClient {
                 .build();
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        
+
         this.experimentCache = Caffeine.newBuilder()
                 .maximumSize(config.getCacheMaxSize())
                 .expireAfterWrite(config.getCacheExpiry(), TimeUnit.SECONDS)
@@ -135,7 +128,7 @@ public class VictorClient {
             if (Files.exists(cacheFilePath)) {
                 String json = new String(Files.readAllBytes(cacheFilePath));
                 fallbackConfig = objectMapper.readValue(json, SdkConfigResponse.class);
-                
+
                 // 恢复缓存到内存
                 if (fallbackConfig.getExperiments() != null) {
                     for (SdkConfigResponse.ExperimentConfig expConfig : fallbackConfig.getExperiments()) {
@@ -143,7 +136,7 @@ public class VictorClient {
                     }
                 }
                 currentVersion = fallbackConfig.getVersion();
-                
+
                 LOGGER.info("Loaded local cache with " + fallbackConfig.getExperiments().size() + " experiments");
             }
         } catch (IOException e) {
@@ -160,10 +153,10 @@ public class VictorClient {
             if (!Files.exists(cacheFilePath.getParent())) {
                 Files.createDirectories(cacheFilePath.getParent());
             }
-            
+
             String json = objectMapper.writeValueAsString(configResponse);
             Files.write(cacheFilePath, json.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            
+
             LOGGER.fine("Persisted config to local cache");
         } catch (IOException e) {
             LOGGER.warning("Failed to persist config: " + e.getMessage());
@@ -193,31 +186,6 @@ public class VictorClient {
             return result.getBucketId();
         }
         return null;
-    }
-
-    /**
-     * 获取用户所有实验的分桶结果
-     *
-     * @param userId 用户ID
-     * @return Map<expId, bucket>
-     */
-    public Map<String, String> getAllBuckets(String userId) {
-        Map<String, SdkConfigResponse.ExperimentConfig> allConfigs = experimentCache.asMap();
-        if (allConfigs.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        Map<String, String> results = new HashMap<>();
-        for (Map.Entry<String, SdkConfigResponse.ExperimentConfig> entry : allConfigs.entrySet()) {
-            BucketEngine.ExperimentSpec spec = buildExperimentSpec(entry.getValue());
-            BucketResult result = BucketEngine.computeBucketResult(userId, spec);
-            if (result.isHit()) {
-                results.put(entry.getKey(), result.getBucketId());
-                trackAssignment(userId, entry.getKey(), result.getBucketId(), entry.getValue().getLayerId());
-            }
-        }
-
-        return results;
     }
 
     /**
@@ -321,30 +289,6 @@ public class VictorClient {
     }
 
     /**
-     * 获取实验标签 (用于埋点)
-     *
-     * @param userId 用户ID
-     * @return 实验标签列表
-     */
-    public List<SdkExperimentTag> getExperimentTags(String userId) {
-        Map<String, String> buckets = getAllBuckets(userId);
-        List<SdkExperimentTag> tags = new ArrayList<>();
-
-        for (Map.Entry<String, String> entry : buckets.entrySet()) {
-            SdkConfigResponse.ExperimentConfig expConfig = experimentCache.getIfPresent(entry.getKey());
-            if (expConfig != null) {
-                SdkExperimentTag tag = new SdkExperimentTag();
-                tag.setExpId(entry.getKey());
-                tag.setBucket(entry.getValue());
-                tag.setLayer(expConfig.getLayerId());
-                tags.add(tag);
-            }
-        }
-
-        return tags;
-    }
-
-    /**
      * 拉取配置（带离线容灾）
      */
     private void fetchConfig() {
@@ -365,7 +309,7 @@ public class VictorClient {
                 String json = response.body().string();
                 SdkConfigResponse configResponse = objectMapper.readValue(json, SdkConfigResponse.class);
                 updateConfig(configResponse);
-                
+
                 // 成功拉取后持久化到本地
                 persistConfig(configResponse);
             }

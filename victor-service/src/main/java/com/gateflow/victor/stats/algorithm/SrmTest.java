@@ -2,16 +2,11 @@ package com.gateflow.victor.stats.algorithm;
 
 /**
  * SRM (Sample Ratio Mismatch) Test
- *
+ * <p>
  * Uses Chi-Square test to detect if the actual traffic distribution
  * significantly deviates from the expected distribution.
  */
 public class SrmTest {
-
-    /**
-     * Chi-Square test result containing both statistic and p-value.
-     */
-    public record ChiSquareResult(double chiSquare, double pValue, int degreesOfFreedom) {}
 
     /**
      * Perform Chi-Square test for Sample Ratio Mismatch
@@ -65,7 +60,7 @@ public class SrmTest {
         if (x < 0 || a <= 0) {
             throw new IllegalArgumentException("Invalid parameters");
         }
-        
+
         if (x < a + 1) {
             return gammaSeries(a, x);
         } else {
@@ -76,7 +71,7 @@ public class SrmTest {
     private static double gammaSeries(double a, double x) {
         double sum = 1.0 / a;
         double term = sum;
-        
+
         for (int n = 1; n <= 100; n++) {
             term *= x / (a + n);
             sum += term;
@@ -84,7 +79,7 @@ public class SrmTest {
                 break;
             }
         }
-        
+
         return sum * Math.exp(-x + a * Math.log(x) - logGamma(a));
     }
 
@@ -93,7 +88,7 @@ public class SrmTest {
         double c = 1.0 / 1e-30;
         double d = 1.0 / b;
         double h = d;
-        
+
         for (int i = 1; i <= 100; i++) {
             double an = -i * (i - a);
             b += 2;
@@ -108,29 +103,35 @@ public class SrmTest {
                 break;
             }
         }
-        
+
         return Math.exp(-x + a * Math.log(x) - logGamma(a)) * h;
     }
 
     private static double logGamma(double x) {
         double[] g = {
-            76.18009172947146,
-            -86.50532032941677,
-            24.01409824083091,
-            -1.231739572450155,
-            0.1208650973866179e-2,
-            -0.5395239384953e-5
+                76.18009172947146,
+                -86.50532032941677,
+                24.01409824083091,
+                -1.231739572450155,
+                0.1208650973866179e-2,
+                -0.5395239384953e-5
         };
-        
+
         double y = x;
         double tmp = x + 5.5;
         tmp -= (x + 0.5) * Math.log(tmp);
-        
+
         double ser = 1.000000000190015;
         for (int j = 0; j < 6; j++) {
             ser += g[j] / ++y;
         }
-        
+
         return -tmp + Math.log(2.5066282746310005 * ser / x);
+    }
+
+    /**
+     * Chi-Square test result containing both statistic and p-value.
+     */
+    public record ChiSquareResult(double chiSquare, double pValue, int degreesOfFreedom) {
     }
 }

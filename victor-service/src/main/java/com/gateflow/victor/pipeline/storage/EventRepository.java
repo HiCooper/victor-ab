@@ -6,8 +6,8 @@ import com.gateflow.victor.stats.config.ClickHouseDataSourceConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
-import javax.sql.DataSource;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -24,12 +24,12 @@ import java.util.Map;
 public class EventRepository {
 
     private static final String INSERT_SQL = """
-        INSERT INTO victor.events (
-            event_date, event_id, user_id, timestamp,
-            platform, device_id, session_id, exp_ids, buckets, layers,
-            properties, received_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now64(3))
-        """;
+            INSERT INTO victor.events (
+                event_date, event_id, user_id, timestamp,
+                platform, device_id, session_id, exp_ids, buckets, layers,
+                properties, received_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now64(3))
+            """;
 
     private final DataSource dataSource;
     private final ObjectMapper objectMapper;
@@ -98,7 +98,7 @@ public class EventRepository {
 
     private void bindEventParameters(PreparedStatement ps, EventDTO event, Connection conn) throws Exception {
         LocalDateTime timestamp = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(event.getTimestamp()), ZoneId.systemDefault()
+                Instant.ofEpochMilli(event.getTimestamp()), ZoneId.systemDefault()
         );
 
         ps.setDate(1, Date.valueOf(timestamp.toLocalDate()));
@@ -111,11 +111,11 @@ public class EventRepository {
 
         if (event.getExperimentTags() != null && !event.getExperimentTags().isEmpty()) {
             ps.setArray(8, conn.createArrayOf("String",
-                event.getExperimentTags().stream().map(t -> t.getExpId()).toArray()));
+                    event.getExperimentTags().stream().map(t -> t.getExpId()).toArray()));
             ps.setArray(9, conn.createArrayOf("String",
-                event.getExperimentTags().stream().map(t -> t.getBucket()).toArray()));
+                    event.getExperimentTags().stream().map(t -> t.getBucket()).toArray()));
             ps.setArray(10, conn.createArrayOf("String",
-                event.getExperimentTags().stream().map(t -> t.getLayer()).toArray()));
+                    event.getExperimentTags().stream().map(t -> t.getLayer()).toArray()));
         } else {
             ps.setArray(8, conn.createArrayOf("String", new String[0]));
             ps.setArray(9, conn.createArrayOf("String", new String[0]));
@@ -123,7 +123,7 @@ public class EventRepository {
         }
 
         ps.setString(11, event.getProperties() != null ?
-            objectMapper.writeValueAsString(event.getProperties()) : "{}");
+                objectMapper.writeValueAsString(event.getProperties()) : "{}");
     }
 
     /**
@@ -131,11 +131,11 @@ public class EventRepository {
      */
     public void insertTrackerEvent(Map<String, Object> trackerEvent) {
         String sql = """
-            INSERT INTO gateflow_tracker.events
-                (event_id, event_type, user_id, timestamp, page_url,
-                 element_id, element_text, properties, exp_ids, buckets)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
+                INSERT INTO gateflow_tracker.events
+                    (event_id, event_type, user_id, timestamp, page_url,
+                     element_id, element_text, properties, exp_ids, buckets)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -149,9 +149,9 @@ public class EventRepository {
             ps.setString(7, (String) trackerEvent.getOrDefault("elementText", ""));
             ps.setString(8, "{}");
             ps.setArray(9, conn.createArrayOf("String",
-                ((List<String>) trackerEvent.getOrDefault("expIds", List.of())).toArray(new String[0])));
+                    ((List<String>) trackerEvent.getOrDefault("expIds", List.of())).toArray(new String[0])));
             ps.setArray(10, conn.createArrayOf("String",
-                ((List<String>) trackerEvent.getOrDefault("buckets", List.of())).toArray(new String[0])));
+                    ((List<String>) trackerEvent.getOrDefault("buckets", List.of())).toArray(new String[0])));
             ps.executeUpdate();
         } catch (Exception e) {
             log.error("Failed to insert tracker event", e);

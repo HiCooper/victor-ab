@@ -16,10 +16,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * ConfigController 集成测试
@@ -71,7 +72,7 @@ class ConfigControllerTest {
         when(configService.getLatestVersion()).thenReturn(versionInfo);
 
         mockMvc.perform(get("/api/v1/config/version")
-                .param("platform", "server"))
+                        .param("platform", "server"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value("20240505-120000"));
 
@@ -85,8 +86,8 @@ class ConfigControllerTest {
         when(configService.getLatestVersion()).thenReturn(versionInfo);
 
         mockMvc.perform(get("/api/v1/config/version")
-                .param("platform", "server")
-                .param("version", "20240505-120000"))
+                        .param("platform", "server")
+                        .param("version", "20240505-120000"))
                 .andExpect(status().isNotModified());
 
         verify(configService).getLatestVersion();
@@ -98,7 +99,7 @@ class ConfigControllerTest {
         when(configService.getFullConfig("server")).thenReturn(testConfigResponse);
 
         mockMvc.perform(get("/api/v1/config/fetch")
-                .param("platform", "server"))
+                        .param("platform", "server"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value("20240505-120000"))
                 .andExpect(jsonPath("$.changeType").value("FULL"))
@@ -118,8 +119,8 @@ class ConfigControllerTest {
                 .thenReturn(incrementalResponse);
 
         mockMvc.perform(get("/api/v1/config/fetch")
-                .param("platform", "server")
-                .param("fromVersion", "20240505-120000"))
+                        .param("platform", "server")
+                        .param("fromVersion", "20240505-120000"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.changeType").value("INCREMENTAL"));
 
@@ -137,7 +138,7 @@ class ConfigControllerTest {
         when(configService.getFullConfig("server")).thenReturn(emptyResponse);
 
         mockMvc.perform(get("/api/v1/config/fetch")
-                .param("platform", "server"))
+                        .param("platform", "server"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.experiments").isEmpty());
 

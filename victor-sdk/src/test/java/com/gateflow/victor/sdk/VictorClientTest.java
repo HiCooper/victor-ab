@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * VictorClient SDK 测试
- * 
+ * <p>
  * 测试分桶计算、参数获取等核心逻辑
  * 注意：系统使用10000个桶（0-9999），支持0.1%粒度流量分配
  */
@@ -176,11 +176,11 @@ class VictorClientTest {
         buckets.add(createTestBucketConfig("control", 0, 4999, null));
         buckets.add(createTestBucketConfig("treatment", 5000, 9999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig = 
+        SdkConfigResponse.ExperimentConfig expConfig =
                 createTestExperimentConfig(expId, "layer_ui", "test_salt", 0, 9999, buckets);
 
         // 使用BucketEngine直接计算验证一致性
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig.getExpId(),
                         expConfig.getLayerId(),
@@ -194,11 +194,11 @@ class VictorClientTest {
                 );
 
         // 计算多次，结果应一致
-        com.gateflow.victor.common.bucketing.BucketResult result1 = 
+        com.gateflow.victor.common.bucketing.BucketResult result1 =
                 com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
-        com.gateflow.victor.common.bucketing.BucketResult result2 = 
+        com.gateflow.victor.common.bucketing.BucketResult result2 =
                 com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
-        com.gateflow.victor.common.bucketing.BucketResult result3 = 
+        com.gateflow.victor.common.bucketing.BucketResult result3 =
                 com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
 
         assertEquals(result1.getBucket(), result2.getBucket());
@@ -214,10 +214,10 @@ class VictorClientTest {
         buckets.add(createTestBucketConfig("control", 0, 4999, null));
         buckets.add(createTestBucketConfig("treatment", 5000, 9999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig = 
+        SdkConfigResponse.ExperimentConfig expConfig =
                 createTestExperimentConfig("exp_dist_test", "layer_test", "dist_salt", 0, 9999, buckets);
 
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig.getExpId(),
                         expConfig.getLayerId(),
@@ -237,7 +237,7 @@ class VictorClientTest {
 
         for (int i = 0; i < totalUsers; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.common.bucketing.BucketResult result = 
+            com.gateflow.victor.common.bucketing.BucketResult result =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
                 if ("control".equals(result.getBucket())) {
@@ -269,10 +269,10 @@ class VictorClientTest {
         buckets.add(createTestBucketConfig("control", 0, 499, null));
         buckets.add(createTestBucketConfig("treatment", 500, 999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig = 
+        SdkConfigResponse.ExperimentConfig expConfig =
                 createTestExperimentConfig("exp_10pct", "layer_test", "salt_10pct", 0, 999, buckets);
 
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig.getExpId(),
                         expConfig.getLayerId(),
@@ -290,7 +290,7 @@ class VictorClientTest {
 
         for (int i = 0; i < totalUsers; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.common.bucketing.BucketResult result = 
+            com.gateflow.victor.common.bucketing.BucketResult result =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
                 hitCount++;
@@ -316,7 +316,7 @@ class VictorClientTest {
         buckets1.add(createTestBucketConfig("exp1_control", 0, 2499, null));
         buckets1.add(createTestBucketConfig("exp1_treatment", 2500, 4999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig1 = 
+        SdkConfigResponse.ExperimentConfig expConfig1 =
                 createTestExperimentConfig("exp_1", layerId, salt, 0, 4999, buckets1);
 
         // 实验2: 桶范围 5000-9999 (50%流量，同一层，不重叠)
@@ -324,10 +324,10 @@ class VictorClientTest {
         buckets2.add(createTestBucketConfig("exp2_control", 5000, 7499, null));
         buckets2.add(createTestBucketConfig("exp2_treatment", 7500, 9999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig2 = 
+        SdkConfigResponse.ExperimentConfig expConfig2 =
                 createTestExperimentConfig("exp_2", layerId, salt, 5000, 9999, buckets2);
 
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig1.getExpId(),
                         expConfig1.getLayerId(),
@@ -340,7 +340,7 @@ class VictorClientTest {
                                 .toList()
                 );
 
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec2 = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec2 =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig2.getExpId(),
                         expConfig2.getLayerId(),
@@ -356,9 +356,9 @@ class VictorClientTest {
         // 验证同一用户要么命中实验1，要么命中实验2，不会同时命中
         for (int i = 0; i < 100; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.common.bucketing.BucketResult result1 = 
+            com.gateflow.victor.common.bucketing.BucketResult result1 =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec1);
-            com.gateflow.victor.common.bucketing.BucketResult result2 = 
+            com.gateflow.victor.common.bucketing.BucketResult result2 =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec2);
 
             // 两个实验不能同时命中（同一层，不同桶范围）
@@ -375,7 +375,7 @@ class VictorClientTest {
         buckets1.add(createTestBucketConfig("layer1_control", 0, 4999, null));
         buckets1.add(createTestBucketConfig("layer1_treatment", 5000, 9999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig1 = 
+        SdkConfigResponse.ExperimentConfig expConfig1 =
                 createTestExperimentConfig("exp_layer1", "layer_1", "salt_1", 0, 9999, buckets1);
 
         // 实验2: 层2，100%流量 (不同层，不同盐值)
@@ -383,10 +383,10 @@ class VictorClientTest {
         buckets2.add(createTestBucketConfig("layer2_control", 0, 4999, null));
         buckets2.add(createTestBucketConfig("layer2_treatment", 5000, 9999, null));
 
-        SdkConfigResponse.ExperimentConfig expConfig2 = 
+        SdkConfigResponse.ExperimentConfig expConfig2 =
                 createTestExperimentConfig("exp_layer2", "layer_2", "salt_2", 0, 9999, buckets2);
 
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig1.getExpId(),
                         expConfig1.getLayerId(),
@@ -399,7 +399,7 @@ class VictorClientTest {
                                 .toList()
                 );
 
-        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec2 = 
+        com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec2 =
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
                         expConfig2.getExpId(),
                         expConfig2.getLayerId(),
@@ -416,9 +416,9 @@ class VictorClientTest {
         int bothHitCount = 0;
         for (int i = 0; i < 100; i++) {
             String userId = "user_" + i;
-            com.gateflow.victor.common.bucketing.BucketResult result1 = 
+            com.gateflow.victor.common.bucketing.BucketResult result1 =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec1);
-            com.gateflow.victor.common.bucketing.BucketResult result2 = 
+            com.gateflow.victor.common.bucketing.BucketResult result2 =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec2);
 
             // 两个实验都是100%流量，应该都命中
@@ -435,7 +435,7 @@ class VictorClientTest {
     @DisplayName("BucketConfig参数测试 - 空参数处理")
     void bucketConfig_NullParams() {
         SdkConfigResponse.BucketConfig config = createTestBucketConfig("test_bucket", 0, 9999, null);
-        
+
         assertNull(config.getParams());
         assertEquals("test_bucket", config.getBucketKey());
         assertEquals(0, config.getBucketStart());
@@ -445,7 +445,7 @@ class VictorClientTest {
     @Test
     @DisplayName("ExperimentConfig测试 - 空版本列表")
     void experimentConfig_EmptyBuckets() {
-        SdkConfigResponse.ExperimentConfig config = 
+        SdkConfigResponse.ExperimentConfig config =
                 createTestExperimentConfig("exp_test", "layer_test", "salt_test", 0, 9999, new ArrayList<>());
 
         assertEquals("exp_test", config.getExpId());

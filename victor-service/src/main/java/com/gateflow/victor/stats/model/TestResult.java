@@ -1,7 +1,7 @@
 package com.gateflow.victor.stats.model;
 
-import lombok.Data;
 import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder

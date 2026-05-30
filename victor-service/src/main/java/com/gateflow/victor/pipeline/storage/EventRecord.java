@@ -1,7 +1,8 @@
 package com.gateflow.victor.pipeline.storage;
 
-import lombok.Data;
 import lombok.Builder;
+import lombok.Data;
+
 import java.time.LocalDateTime;
 import java.util.List;
 

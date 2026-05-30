@@ -21,50 +21,50 @@ class ExperimentLifecycleServiceTest {
     @Test
     void shouldAllowDraftToPendingApproval() {
         assertDoesNotThrow(() ->
-            lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.PENDING_APPROVAL));
+                lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.PENDING_APPROVAL));
     }
 
     @Test
     void shouldAllowDraftToRunning() {
         assertDoesNotThrow(() ->
-            lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.RUNNING));
+                lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.RUNNING));
     }
 
     @Test
     void shouldAllowPendingApprovalToRunning() {
         assertDoesNotThrow(() ->
-            lifecycleService.validateTransition(ExperimentStatus.PENDING_APPROVAL, ExperimentStatus.RUNNING));
+                lifecycleService.validateTransition(ExperimentStatus.PENDING_APPROVAL, ExperimentStatus.RUNNING));
     }
 
     @Test
     void shouldAllowPendingApprovalToDraft() {
         assertDoesNotThrow(() ->
-            lifecycleService.validateTransition(ExperimentStatus.PENDING_APPROVAL, ExperimentStatus.DRAFT));
+                lifecycleService.validateTransition(ExperimentStatus.PENDING_APPROVAL, ExperimentStatus.DRAFT));
     }
 
     @Test
     void shouldAllowRunningToStopped() {
         assertDoesNotThrow(() ->
-            lifecycleService.validateTransition(ExperimentStatus.RUNNING, ExperimentStatus.STOPPED));
+                lifecycleService.validateTransition(ExperimentStatus.RUNNING, ExperimentStatus.STOPPED));
     }
 
     @Test
     void shouldAllowStoppedToArchive() {
         assertDoesNotThrow(() ->
-            lifecycleService.validateTransition(ExperimentStatus.STOPPED, ExperimentStatus.ARCHIVE));
+                lifecycleService.validateTransition(ExperimentStatus.STOPPED, ExperimentStatus.ARCHIVE));
     }
 
     @Test
     void shouldRejectRunningToArchive() {
         VictorException exception = assertThrows(VictorException.class, () ->
-            lifecycleService.validateTransition(ExperimentStatus.RUNNING, ExperimentStatus.ARCHIVE));
+                lifecycleService.validateTransition(ExperimentStatus.RUNNING, ExperimentStatus.ARCHIVE));
         assertTrue(exception.getMessage().contains("无效的状态转换"));
     }
 
     @Test
     void shouldRejectDraftToStopped() {
         VictorException exception = assertThrows(VictorException.class, () ->
-            lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.STOPPED));
+                lifecycleService.validateTransition(ExperimentStatus.DRAFT, ExperimentStatus.STOPPED));
         assertTrue(exception.getMessage().contains("无效的状态转换"));
     }
 
@@ -73,7 +73,7 @@ class ExperimentLifecycleServiceTest {
         for (ExperimentStatus status : ExperimentStatus.values()) {
             if (status != ExperimentStatus.ARCHIVE) {
                 VictorException exception = assertThrows(VictorException.class, () ->
-                    lifecycleService.validateTransition(ExperimentStatus.ARCHIVE, status));
+                        lifecycleService.validateTransition(ExperimentStatus.ARCHIVE, status));
                 assertTrue(exception.getMessage().contains("无效的状态转换"));
             }
         }
@@ -113,8 +113,8 @@ class ExperimentLifecycleServiceTest {
     @Test
     void shouldLogTransition() {
         assertDoesNotThrow(() ->
-            lifecycleService.logTransition(1L, "exp_test_001",
-                ExperimentStatus.DRAFT, ExperimentStatus.PENDING_APPROVAL,
-                "test_user", "测试提交审批"));
+                lifecycleService.logTransition(1L, "exp_test_001",
+                        ExperimentStatus.DRAFT, ExperimentStatus.PENDING_APPROVAL,
+                        "test_user", "测试提交审批"));
     }
 }

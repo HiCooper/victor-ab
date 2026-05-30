@@ -2,11 +2,11 @@ package com.gateflow.victor.service.rbac;
 
 import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Role;
-import com.gateflow.victor.domain.entity.UserRole;
 import com.gateflow.victor.domain.entity.RolePermission;
+import com.gateflow.victor.domain.entity.UserRole;
 import com.gateflow.victor.infra.mapper.RoleMapper;
-import com.gateflow.victor.infra.mapper.UserRoleMapper;
 import com.gateflow.victor.infra.mapper.RolePermissionMapper;
+import com.gateflow.victor.infra.mapper.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -15,7 +15,8 @@
 
     <!-- 基础列 -->
     <sql id="Base_Column_List">
-        id, version, etag, config_json, change_type, changed_experiments, created_at
+        id
+        , version, etag, config_json, change_type, changed_experiments, created_at
     </sql>
 
     <!-- 查询最新配置版本 -->

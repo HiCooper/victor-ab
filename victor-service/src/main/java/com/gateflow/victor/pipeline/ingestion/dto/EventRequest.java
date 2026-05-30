@@ -1,8 +1,9 @@
 package com.gateflow.victor.pipeline.ingestion.dto;
 
-import lombok.Data;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+
 import java.util.List;
 
 @Data

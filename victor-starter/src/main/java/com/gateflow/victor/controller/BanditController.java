@@ -3,8 +3,8 @@ package com.gateflow.victor.controller;
 import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.BanditRequest;
 import com.gateflow.victor.domain.dto.BanditResponse;
-import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.service.bandit.BanditService;
 import com.gateflow.victor.service.bucket.BucketService;
 import com.gateflow.victor.stats.repository.MetricsRepository;
@@ -50,8 +50,8 @@ public class BanditController {
         String businessExpId = buckets.get(0).getExpId();
         Map<Long, int[]> data = new HashMap<>();
         Map<String, MetricsRepository.BucketStats> bucketStats =
-            metricsRepository.queryExperimentStats(
-                businessExpId, LocalDate.now().minusDays(7), LocalDate.now());
+                metricsRepository.queryExperimentStats(
+                        businessExpId, LocalDate.now().minusDays(7), LocalDate.now());
 
         for (Bucket v : buckets) {
             // Match MySQL bucket key (bucketId) to ClickHouse bucket name
@@ -59,8 +59,8 @@ public class BanditController {
             MetricsRepository.BucketStats stats = bucketStats.get(bucketKey);
             if (stats != null && stats.getTotalUsers() > 0) {
                 data.put(v.getId(), new int[]{
-                    (int) stats.getTotalUsers(),
-                    (int) stats.getTotalConversions()
+                        (int) stats.getTotalUsers(),
+                        (int) stats.getTotalConversions()
                 });
             } else {
                 data.put(v.getId(), new int[]{0, 0});

@@ -1,7 +1,7 @@
 package com.gateflow.victor.stats.model;
 
-import lombok.Data;
 import lombok.Builder;
+import lombok.Data;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,44 +14,44 @@ import java.util.Map;
 @Data
 @Builder
 public class ExperimentReport {
-    
+
     private String expId;
     private String layer;
-    
+
     // 时间范围
     private LocalDate startDate;
     private LocalDate endDate;
-    
+
     // SRM 检验结果
     private SrmCheckResult srmCheck;
-    
+
     // 主指标检验结果
     private TestResult primaryMetric;
-    
+
     // 辅助指标检验结果
     private List<TestResult> secondaryMetrics;
-    
+
     // 护栏指标检验结果
     private List<SequentialTestResult> guardrailMetrics;
-    
+
     // 各分桶统计
     private Map<String, BucketSummary> bucketSummaries;
-    
+
     // 每日趋势数据
     private Map<String, List<DailyMetric>> dailyTrends;
-    
+
     // 推荐决策
     private Recommendation recommendation;
-    
+
     // 决策原因
     private String recommendationReason;
-    
+
     // CUPED 是否已应用
     private boolean cupedApplied;
 
     // 生成时间
     private long generatedAt;
-    
+
     /**
      * SRM 检验结果
      */
@@ -65,7 +65,7 @@ public class ExperimentReport {
         private Map<String, Double> expectedRatios;
         private String message;
     }
-    
+
     /**
      * 分桶摘要
      */
@@ -85,7 +85,7 @@ public class ExperimentReport {
         // Tracker 行为指标 (跨库 JOIN)
         private com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics behaviorMetrics;
     }
-    
+
     /**
      * 每日指标
      */

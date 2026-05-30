@@ -39,15 +39,15 @@ public class PowerAnalysisController {
             @RequestParam(defaultValue = "50") int controlTrafficPercent,
             @RequestParam long dailyUsers) {
         long totalSampleSize = powerAnalysisService.calculateTotalSampleSize(
-            0.1, 0.05, 0.05, 0.8, controlTrafficPercent);
+                0.1, 0.05, 0.05, 0.8, controlTrafficPercent);
         int days = powerAnalysisService.estimateExperimentDuration(
-            sampleSizePerGroup, controlTrafficPercent, dailyUsers);
+                sampleSizePerGroup, controlTrafficPercent, dailyUsers);
 
         return ResponseEntity.ok(Map.of(
-            "sampleSizePerGroup", sampleSizePerGroup,
-            "dailyUsers", dailyUsers,
-            "estimatedDays", days,
-            "minimumDays", Math.max(days, 7)
+                "sampleSizePerGroup", sampleSizePerGroup,
+                "dailyUsers", dailyUsers,
+                "estimatedDays", days,
+                "minimumDays", Math.max(days, 7)
         ));
     }
 }

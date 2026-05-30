@@ -24,7 +24,8 @@
 
     <!-- 基础列 -->
     <sql id="Base_Column_List">
-        id, exp_id, name, description, layer_id, status,
+        id
+        , exp_id, name, description, layer_id, status,
         targeting_rules, primary_metric,
         secondary_metrics, guardrail_metrics, auto_ramp_enabled,
         start_time, end_time, created_by, created_at, updated_at

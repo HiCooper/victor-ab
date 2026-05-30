@@ -1,5 +1,6 @@
 package com.gateflow.victor.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.config.RequirePermission;
@@ -8,7 +9,6 @@ import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.domain.entity.Permission;
 import com.gateflow.victor.infra.mapper.DomainMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -104,11 +104,11 @@ public class DomainController {
         LambdaQueryWrapper<Layer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Layer::getDomainId, id);
         long layerCount = layerMapper.selectCount(wrapper);
-        
+
         if (layerCount > 0) {
             throw new VictorException(ErrorCode.DOMAIN_HAS_LAYERS);
         }
-        
+
         domainMapper.deleteById(id);
         return ResponseEntity.noContent().build();
     }

@@ -2,7 +2,10 @@ package com.gateflow.victor.infra.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.gateflow.victor.domain.entity.Bucket;
-import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -63,7 +66,7 @@ public interface BucketMapper extends BaseMapper<Bucket> {
      * 批量查询多个实验的活跃分桶
      */
     @Select("<script>SELECT id, exp_id, version, bucket_id, name, bucket_start, bucket_end, params, is_active, created_at FROM victor_bucket WHERE exp_id IN " +
-        "<foreach item='id' collection='expIds' open='(' separator=',' close=')'>#{id}</foreach> " +
-        "AND is_active = TRUE ORDER BY exp_id, bucket_start ASC</script>")
+            "<foreach item='id' collection='expIds' open='(' separator=',' close=')'>#{id}</foreach> " +
+            "AND is_active = TRUE ORDER BY exp_id, bucket_start ASC</script>")
     List<Bucket> selectActiveBucketsByExpIds(@Param("expIds") List<String> expIds);
 }

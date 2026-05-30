@@ -1,11 +1,11 @@
 package com.gateflow.victor.service.experiment;
 
-import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.infra.mapper.BucketMapper;
+import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 /**
  * 实验版本控制服务
- *
+ * <p>
  * 功能：
  * 1. 编辑实验时自动创建新版本
  * 2. 查询版本历史
@@ -45,13 +45,13 @@ public class BucketVersionService {
 
     /**
      * 创建新版本（编辑实验时调用）
-     *
+     * <p>
      * 流程：
      * 1. 将当前所有版本标记为非活跃
      * 2. 生成新版本号
      * 3. 插入新版本的分桶配置
      *
-     * @param expId 实验主键ID
+     * @param expId      实验主键ID
      * @param newBuckets 新的分桶配置列表
      * @return 新版本号
      */
@@ -74,8 +74,8 @@ public class BucketVersionService {
         // 注意：仅在 Bucket 没有预设 bucketStart/bucketEnd 时才重新分配
         // 如果前端已通过 trafficPercentage 指定了比例（由 ExperimentService.calculateBucketBoundaries 计算），则跳过
         boolean hasPredefinedBoundaries = newBuckets.stream()
-            .anyMatch(v -> v.getBucketStart() != null && v.getBucketEnd() != null);
-        
+                .anyMatch(v -> v.getBucketStart() != null && v.getBucketEnd() != null);
+
         if (!hasPredefinedBoundaries) {
             redistributeBucketRanges(newBuckets);
             log.info("Auto-redistributed bucket ranges for {} buckets", newBuckets.size());
@@ -102,9 +102,9 @@ public class BucketVersionService {
         }
 
         log.info("Created new version {} for experiment {} with {} buckets, bucket ranges: {}",
-            newVersion, bizExpId, newBuckets.size(),
-            newBuckets.stream().map(v -> v.getBucketId() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
-                .collect(Collectors.joining(", ")));
+                newVersion, bizExpId, newBuckets.size(),
+                newBuckets.stream().map(v -> v.getBucketId() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
+                        .collect(Collectors.joining(", ")));
 
         return newVersion;
     }
@@ -144,7 +144,7 @@ public class BucketVersionService {
     /**
      * 获取实验的指定版本
      *
-     * @param expId 实验主键ID
+     * @param expId   实验主键ID
      * @param version 版本号
      * @return 版本列表
      */
@@ -176,13 +176,13 @@ public class BucketVersionService {
 
     /**
      * 回滚到指定版本
-     *
+     * <p>
      * 流程：
      * 1. 验证目标版本存在
      * 2. 将当前版本标记为非活跃
      * 3. 激活目标版本
      *
-     * @param expId 实验主键ID
+     * @param expId         实验主键ID
      * @param targetVersion 目标版本号
      * @return 回滚后的版本列表
      */
@@ -218,7 +218,7 @@ public class BucketVersionService {
     /**
      * 对比两个版本的差异
      *
-     * @param expId 实验主键ID
+     * @param expId    实验主键ID
      * @param version1 版本1
      * @param version2 版本2
      * @return 版本对比结果
@@ -257,7 +257,7 @@ public class BucketVersionService {
     /**
      * 清理旧版本（保留最近N个版本）
      *
-     * @param expId 实验主键ID
+     * @param expId     实验主键ID
      * @param keepCount 保留的版本数量
      * @return 删除的版本数量
      */
@@ -273,7 +273,7 @@ public class BucketVersionService {
 
         if (versions.size() <= keepCount) {
             log.info("No old versions to cleanup for experiment {} (current: {}, keep: {})",
-                bizExpId, versions.size(), keepCount);
+                    bizExpId, versions.size(), keepCount);
             return 0;
         }
 
@@ -307,9 +307,9 @@ public class BucketVersionService {
 
         // 检查bucket_key唯一性
         long distinctKeys = buckets.stream()
-            .map(Bucket::getBucketId)
-            .distinct()
-            .count();
+                .map(Bucket::getBucketId)
+                .distinct()
+                .count();
 
         if (distinctKeys != buckets.size()) {
             throw new VictorException(ErrorCode.VARIANT_DUPLICATE_KEY);
@@ -318,12 +318,12 @@ public class BucketVersionService {
 
     /**
      * 自动重新分配分桶边界
-     *
+     * <p>
      * 策略：
      * 1. 将所有分桶平均分配 [0, 9999] 的范围
      * 2. 确保无重叠、无间隙
      * 3. 最后一个分桶的bucketEnd固定为9999
-     *
+     * <p>
      * 例如：
      * - 2个分桶: control[0-4999], treatment[5000-9999]
      * - 3个分桶: control[0-3332], treatment_a[3333-6665], treatment_b[6666-9999]
@@ -358,7 +358,7 @@ public class BucketVersionService {
             bucket.setBucketEnd(currentEnd);
 
             log.debug("Assigned bucket range for {}: [{}, {}]",
-                bucket.getBucketId(), currentStart, currentEnd);
+                    bucket.getBucketId(), currentStart, currentEnd);
 
             currentStart = currentEnd + 1;
         }
@@ -370,8 +370,8 @@ public class BucketVersionService {
         }
 
         log.info("Redistributed bucket ranges for {} buckets: {}", bucketCount,
-            buckets.stream().map(v -> v.getBucketId() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
-                .collect(Collectors.joining(", ")));
+                buckets.stream().map(v -> v.getBucketId() + "[" + v.getBucketStart() + "-" + v.getBucketEnd() + "]")
+                        .collect(Collectors.joining(", ")));
     }
 
     /**
@@ -386,25 +386,60 @@ public class BucketVersionService {
         private int bucketCount1;
         private int bucketCount2;
 
-        public String getVersion1() { return version1; }
-        public void setVersion1(String version1) { this.version1 = version1; }
+        public String getVersion1() {
+            return version1;
+        }
 
-        public String getVersion2() { return version2; }
-        public void setVersion2(String version2) { this.version2 = version2; }
+        public void setVersion1(String version1) {
+            this.version1 = version1;
+        }
 
-        public List<Bucket> getBuckets1() { return buckets1; }
-        public void setBuckets1(List<Bucket> buckets1) { this.buckets1 = buckets1; }
+        public String getVersion2() {
+            return version2;
+        }
 
-        public List<Bucket> getBuckets2() { return buckets2; }
-        public void setBuckets2(List<Bucket> buckets2) { this.buckets2 = buckets2; }
+        public void setVersion2(String version2) {
+            this.version2 = version2;
+        }
 
-        public boolean isHasDifferences() { return hasDifferences; }
-        public void setHasDifferences(boolean hasDifferences) { this.hasDifferences = hasDifferences; }
+        public List<Bucket> getBuckets1() {
+            return buckets1;
+        }
 
-        public int getBucketCount1() { return bucketCount1; }
-        public void setBucketCount1(int bucketCount1) { this.bucketCount1 = bucketCount1; }
+        public void setBuckets1(List<Bucket> buckets1) {
+            this.buckets1 = buckets1;
+        }
 
-        public int getBucketCount2() { return bucketCount2; }
-        public void setBucketCount2(int bucketCount2) { this.bucketCount2 = bucketCount2; }
+        public List<Bucket> getBuckets2() {
+            return buckets2;
+        }
+
+        public void setBuckets2(List<Bucket> buckets2) {
+            this.buckets2 = buckets2;
+        }
+
+        public boolean isHasDifferences() {
+            return hasDifferences;
+        }
+
+        public void setHasDifferences(boolean hasDifferences) {
+            this.hasDifferences = hasDifferences;
+        }
+
+        public int getBucketCount1() {
+            return bucketCount1;
+        }
+
+        public void setBucketCount1(int bucketCount1) {
+            this.bucketCount1 = bucketCount1;
+        }
+
+        public int getBucketCount2() {
+            return bucketCount2;
+        }
+
+        public void setBucketCount2(int bucketCount2) {
+            this.bucketCount2 = bucketCount2;
+        }
     }
 }

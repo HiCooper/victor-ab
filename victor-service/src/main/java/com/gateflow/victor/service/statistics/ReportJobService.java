@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -16,6 +18,19 @@ import java.util.*;
 public class ReportJobService {
 
     private final ReportJobMapper reportJobMapper;
+
+    private static Map<String, Object> toMap(ReportJob job) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", job.getId());
+        map.put("type", job.getType());
+        map.put("status", job.getStatus());
+        map.put("experimentId", job.getExperimentId());
+        map.put("startTime", job.getStartTime() != null ? job.getStartTime().toString() : null);
+        map.put("endTime", job.getEndTime() != null ? job.getEndTime().toString() : null);
+        map.put("progress", job.getProgress());
+        map.put("message", job.getMessage());
+        return map;
+    }
 
     public void createJob(String jobId, String type, String experimentId) {
         ReportJob job = new ReportJob();
@@ -62,18 +77,5 @@ public class ReportJobService {
         return reportJobMapper.selectList(wrapper).stream()
                 .map(ReportJobService::toMap)
                 .toList();
-    }
-
-    private static Map<String, Object> toMap(ReportJob job) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("id", job.getId());
-        map.put("type", job.getType());
-        map.put("status", job.getStatus());
-        map.put("experimentId", job.getExperimentId());
-        map.put("startTime", job.getStartTime() != null ? job.getStartTime().toString() : null);
-        map.put("endTime", job.getEndTime() != null ? job.getEndTime().toString() : null);
-        map.put("progress", job.getProgress());
-        map.put("message", job.getMessage());
-        return map;
     }
 }

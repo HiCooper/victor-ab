@@ -31,14 +31,14 @@ public class ExperimentRepository {
      */
     public List<ExperimentSummary> findRunningExperiments() {
         String sql = """
-            SELECT e.id, e.exp_id, e.name, e.layer_id, e.status,
-                   e.primary_metric, e.secondary_metrics, e.guardrail_metrics,
-                   e.start_time, e.end_time,
-                   l.layer_id AS layer_key, l.salt
-            FROM victor_experiment e
-            JOIN victor_layer l ON e.layer_id = l.id
-            WHERE e.status IN ('running')
-            """;
+                SELECT e.id, e.exp_id, e.name, e.layer_id, e.status,
+                       e.primary_metric, e.secondary_metrics, e.guardrail_metrics,
+                       e.start_time, e.end_time,
+                       l.layer_id AS layer_key, l.salt
+                FROM victor_experiment e
+                JOIN victor_layer l ON e.layer_id = l.id
+                WHERE e.status IN ('running')
+                """;
         return jdbc.query(sql, this::mapExperimentSummary);
     }
 
@@ -47,14 +47,14 @@ public class ExperimentRepository {
      */
     public List<ExperimentSummary> findStoppingExperiments() {
         String sql = """
-            SELECT e.id, e.exp_id, e.name, e.layer_id, e.status,
-                   e.primary_metric, e.secondary_metrics, e.guardrail_metrics,
-                   e.start_time, e.end_time,
-                   l.layer_id AS layer_key, l.salt
-            FROM victor_experiment e
-            JOIN victor_layer l ON e.layer_id = l.id
-            WHERE e.status = 'stopped'
-            """;
+                SELECT e.id, e.exp_id, e.name, e.layer_id, e.status,
+                       e.primary_metric, e.secondary_metrics, e.guardrail_metrics,
+                       e.start_time, e.end_time,
+                       l.layer_id AS layer_key, l.salt
+                FROM victor_experiment e
+                JOIN victor_layer l ON e.layer_id = l.id
+                WHERE e.status = 'stopped'
+                """;
         return jdbc.query(sql, this::mapExperimentSummary);
     }
 
@@ -64,12 +64,12 @@ public class ExperimentRepository {
      */
     public BucketInfo findBuckets(String expId) {
         String sql = """
-            SELECT v.bucket_id, v.name, v.bucket_start, v.bucket_end, v.is_active
-            FROM victor_bucket v
-            JOIN victor_experiment e ON v.exp_id = e.id
-            WHERE e.exp_id = ? AND v.is_active = TRUE
-            ORDER BY v.bucket_start ASC
-            """;
+                SELECT v.bucket_id, v.name, v.bucket_start, v.bucket_end, v.is_active
+                FROM victor_bucket v
+                JOIN victor_experiment e ON v.exp_id = e.id
+                WHERE e.exp_id = ? AND v.is_active = TRUE
+                ORDER BY v.bucket_start ASC
+                """;
         List<BucketRow> rows = jdbc.query(sql, (rs, rowNum) -> {
             BucketRow row = new BucketRow();
             row.bucketKey = rs.getString("bucket_id");
@@ -105,16 +105,16 @@ public class ExperimentRepository {
      */
     public ExperimentDateRange findDateRange(String expId) {
         String sql = """
-            SELECT DATE(start_time) AS start_date, DATE(end_time) AS end_date
-            FROM victor_experiment
-            WHERE exp_id = ?
-            """;
+                SELECT DATE(start_time) AS start_date, DATE(end_time) AS end_date
+                FROM victor_experiment
+                WHERE exp_id = ?
+                """;
         return jdbc.queryForObject(sql, (rs, rowNum) -> {
             ExperimentDateRange range = new ExperimentDateRange();
             range.startDate = rs.getDate("start_date") != null
-                ? rs.getDate("start_date").toLocalDate() : LocalDate.now().minusDays(7);
+                    ? rs.getDate("start_date").toLocalDate() : LocalDate.now().minusDays(7);
             range.endDate = rs.getDate("end_date") != null
-                ? rs.getDate("end_date").toLocalDate() : LocalDate.now();
+                    ? rs.getDate("end_date").toLocalDate() : LocalDate.now();
             return range;
         }, expId);
     }
@@ -130,9 +130,9 @@ public class ExperimentRepository {
         s.primaryMetric = rs.getString("primary_metric");
         s.guardrailMetrics = rs.getString("guardrail_metrics");
         s.startTime = rs.getTimestamp("start_time") != null
-            ? rs.getTimestamp("start_time").toLocalDateTime() : null;
+                ? rs.getTimestamp("start_time").toLocalDateTime() : null;
         s.endTime = rs.getTimestamp("end_time") != null
-            ? rs.getTimestamp("end_time").toLocalDateTime() : null;
+                ? rs.getTimestamp("end_time").toLocalDateTime() : null;
         return s;
     }
 

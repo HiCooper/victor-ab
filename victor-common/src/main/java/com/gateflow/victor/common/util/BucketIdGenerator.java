@@ -4,9 +4,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 分桶ID生成器
- *
+ * <p>
  * 格式：5位随机数字 (00000-99999)
- *
+ * <p>
  * 示例：
  * - 12345
  * - 98765

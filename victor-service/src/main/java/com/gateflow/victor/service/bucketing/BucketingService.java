@@ -2,18 +2,20 @@ package com.gateflow.victor.service.bucketing;
 
 import com.gateflow.victor.common.bucketing.BucketEngine;
 import com.gateflow.victor.common.bucketing.BucketResult;
+import com.gateflow.victor.common.enums.ExperimentStatus;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
-import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -31,7 +33,7 @@ public class BucketingService {
     /**
      * 获取用户在指定实验中的分桶结果
      *
-     * @param userId       用户ID
+     * @param userId        用户ID
      * @param experimentKey 实验标识
      * @return 分桶结果
      */

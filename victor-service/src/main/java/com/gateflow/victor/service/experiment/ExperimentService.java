@@ -1,27 +1,26 @@
 package com.gateflow.victor.service.experiment;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;
+import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.common.util.BucketIdGenerator;
 import com.gateflow.victor.common.util.ExperimentIdGenerator;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.BucketMapper;
-import com.gateflow.victor.common.exception.VictorException;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,7 +42,7 @@ public class ExperimentService {
      * 创建实验
      *
      * @param experiment 实验信息
-     * @param buckets 版本列表
+     * @param buckets    版本列表
      * @return 创建的实验
      */
     @Transactional(rollbackFor = Exception.class)
@@ -122,14 +121,14 @@ public class ExperimentService {
     @Transactional(rollbackFor = Exception.class)
     public Experiment updateExperimentWithBuckets(Experiment experiment, List<ExperimentCreateRequest.BucketRequest> bucketRequests) {
         log.info("Updating experiment {} with new version", experiment.getId());
-        
+
         // 1. 更新实验基本信息
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
-        
+
         // 2. 根据trafficPercentage自动计算bucket边界
         List<ExperimentCreateRequest.BucketRequest> processedBuckets = calculateBucketBoundaries(bucketRequests);
-        
+
         // 3. 转换BucketRequest为Bucket实体
         List<Bucket> newBuckets = processedBuckets.stream().map(req -> {
             Bucket bucket = new Bucket();
@@ -140,41 +139,41 @@ public class ExperimentService {
             bucket.setParams(req.getParams());
             return bucket;
         }).collect(Collectors.toList());
-        
+
         // 4. 创建新版本
         String newVersion = versionService.createNewVersion(experiment.getId(), newBuckets);
-        
+
         log.info("Updated experiment {} with new version {}", experiment.getId(), newVersion);
         return experimentMapper.selectById(experiment.getId());
     }
-    
+
     /**
      * 根据trafficPercentage自动计算bucket边界
      * 后端使用0-9999的bucket系统表示0%-100%
      */
     private List<ExperimentCreateRequest.BucketRequest> calculateBucketBoundaries(
             List<ExperimentCreateRequest.BucketRequest> bucketRequests) {
-        
+
         if (bucketRequests == null || bucketRequests.isEmpty()) {
             return bucketRequests;
         }
-        
+
         // 验证trafficPercentage必填
         for (ExperimentCreateRequest.BucketRequest req : bucketRequests) {
             if (req.getTrafficPercentage() == null) {
                 throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, req.getBucketKey() + " 缺少trafficPercentage字段");
             }
         }
-        
+
         // 验证trafficPercentage总和
         int totalPercentage = bucketRequests.stream()
                 .mapToInt(ExperimentCreateRequest.BucketRequest::getTrafficPercentage)
                 .sum();
-        
+
         if (totalPercentage != 100) {
             throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, "当前为: " + totalPercentage + "%");
         }
-        
+
         // 自动计算bucket边界
         int currentBucket = 0;
         for (ExperimentCreateRequest.BucketRequest req : bucketRequests) {
@@ -183,11 +182,11 @@ public class ExperimentService {
             req.setBucketStart(currentBucket * 100);
             req.setBucketEnd((currentBucket + percentage) * 100 - 1);
             currentBucket += percentage;
-            
+
             log.debug("Bucket {}: trafficPercentage={}%, bucketStart={}, bucketEnd={}",
                     req.getBucketKey(), percentage, req.getBucketStart(), req.getBucketEnd());
         }
-        
+
         return bucketRequests;
     }
 
@@ -215,7 +214,7 @@ public class ExperimentService {
         experimentMapper.updateById(experiment);
 
         lifecycleService.logTransition(expId, experiment.getExpId(),
-            from, ExperimentStatus.RUNNING, "system", "启动实验");
+                from, ExperimentStatus.RUNNING, "system", "启动实验");
 
         return experiment;
     }
@@ -238,7 +237,7 @@ public class ExperimentService {
         experimentMapper.updateById(experiment);
 
         lifecycleService.logTransition(expId, experiment.getExpId(),
-            from, ExperimentStatus.PENDING_APPROVAL, operator, "提交审批");
+                from, ExperimentStatus.PENDING_APPROVAL, operator, "提交审批");
 
         return experiment;
     }
@@ -262,7 +261,7 @@ public class ExperimentService {
         experimentMapper.updateById(experiment);
 
         lifecycleService.logTransition(expId, experiment.getExpId(),
-            from, ExperimentStatus.RUNNING, operator, "审批通过: " + comment);
+                from, ExperimentStatus.RUNNING, operator, "审批通过: " + comment);
 
         return experiment;
     }
@@ -285,7 +284,7 @@ public class ExperimentService {
         experimentMapper.updateById(experiment);
 
         lifecycleService.logTransition(expId, experiment.getExpId(),
-            from, ExperimentStatus.DRAFT, operator, "驳回: " + reason);
+                from, ExperimentStatus.DRAFT, operator, "驳回: " + reason);
 
         return experiment;
     }
@@ -309,7 +308,7 @@ public class ExperimentService {
         experimentMapper.updateById(experiment);
 
         lifecycleService.logTransition(expId, experiment.getExpId(),
-            from, ExperimentStatus.STOPPED, "system", "停止实验");
+                from, ExperimentStatus.STOPPED, "system", "停止实验");
 
         return experiment;
     }
@@ -332,7 +331,7 @@ public class ExperimentService {
         experimentMapper.updateById(experiment);
 
         lifecycleService.logTransition(expId, experiment.getExpId(),
-            from, ExperimentStatus.ARCHIVE, operator, "归档: " + decision);
+                from, ExperimentStatus.ARCHIVE, operator, "归档: " + decision);
 
         return experiment;
     }
@@ -438,7 +437,7 @@ public class ExperimentService {
      * 查询实验列表
      *
      * @param layerId 层ID（可选）
-     * @param status 状态（可选）
+     * @param status  状态（可选）
      * @return 实验列表
      */
     public List<Experiment> listExperiments(Long layerId, String status) {
@@ -447,8 +446,8 @@ public class ExperimentService {
         }
         if (status != null) {
             return experimentMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
-                    .eq(Experiment::getStatus, status)
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
+                            .eq(Experiment::getStatus, status)
             );
         }
         return experimentMapper.selectList(null);
@@ -461,9 +460,9 @@ public class ExperimentService {
      */
     public List<Experiment> listPendingExperiments() {
         return experimentMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
-                .eq(Experiment::getStatus, ExperimentStatus.PENDING_APPROVAL.getCode())
-                .orderByAsc(Experiment::getCreatedAt)
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Experiment>()
+                        .eq(Experiment::getStatus, ExperimentStatus.PENDING_APPROVAL.getCode())
+                        .orderByAsc(Experiment::getCreatedAt)
         );
     }
 
@@ -471,24 +470,24 @@ public class ExperimentService {
      * 分页查询实验列表
      *
      * @param current 当前页码
-     * @param size 每页数量
+     * @param size    每页数量
      * @param layerId 层ID（可选）
-     * @param status 状态（可选）
+     * @param status  状态（可选）
      * @return 分页结果
      */
     public Page<Experiment> listExperimentsPaged(int current, int size, Long layerId, String status) {
         Page<Experiment> page = new Page<>(current, size);
         LambdaQueryWrapper<Experiment> wrapper = new LambdaQueryWrapper<>();
-        
+
         if (layerId != null) {
             wrapper.eq(Experiment::getLayerId, layerId);
         }
         if (status != null && !status.isEmpty()) {
             wrapper.eq(Experiment::getStatus, status);
         }
-        
+
         wrapper.orderByDesc(Experiment::getCreatedAt);
-        
+
         return experimentMapper.selectPage(page, wrapper);
     }
 
@@ -523,7 +522,7 @@ public class ExperimentService {
     /**
      * 查询实验的指定版本
      *
-     * @param expId 实验ID
+     * @param expId   实验ID
      * @param version 版本号
      * @return 版本列表
      */
@@ -551,15 +550,15 @@ public class ExperimentService {
         }
 
         boolean needsCalculation = buckets.stream()
-            .anyMatch(v -> v.getBucketStart() == null || v.getBucketEnd() == null);
+                .anyMatch(v -> v.getBucketStart() == null || v.getBucketEnd() == null);
 
         if (!needsCalculation) {
             return buckets;
         }
 
         int totalPercentage = buckets.stream()
-            .mapToInt(v -> getBucketTrafficPercentage(v))
-            .sum();
+                .mapToInt(v -> getBucketTrafficPercentage(v))
+                .sum();
 
         if (totalPercentage == 0) {
             // 未指定比例，均分 0-9999
@@ -598,11 +597,12 @@ public class ExperimentService {
         if (bucket.getParams() != null) {
             try {
                 com.fasterxml.jackson.databind.JsonNode params =
-                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(bucket.getParams());
+                        new com.fasterxml.jackson.databind.ObjectMapper().readTree(bucket.getParams());
                 if (params.has("trafficPercentage")) {
                     return params.get("trafficPercentage").asInt();
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
         }
         return 0;
     }
