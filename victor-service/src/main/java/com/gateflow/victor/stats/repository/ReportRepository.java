@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.stats.model.*;
+import java.sql.ResultSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -298,13 +299,16 @@ public class ReportRepository {
     }
 
     private ExperimentReport mapRow(ResultSet rs) throws Exception {
-        ExperimentReport report = new ExperimentReport();
-        report.setExpId(rs.getString("exp_id"));
-        report.setStartDate(rs.getDate("report_date").toLocalDate());
-        report.setEndDate(rs.getDate("report_date").toLocalDate());
+        ExperimentReport report = ExperimentReport.builder()
+            .expId(rs.getString("exp_id"))
+            .startDate(rs.getDate("report_date").toLocalDate())
+            .endDate(rs.getDate("report_date").toLocalDate())
+            .build();
         return report;
     }
 
+    @Data
+    @AllArgsConstructor
     public static class CupedValueDto {
         private String variant;
         private Double cupedAdjustedMean;

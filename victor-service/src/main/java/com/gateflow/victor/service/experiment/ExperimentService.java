@@ -78,11 +78,11 @@ public class ExperimentService {
         if (processedVariants != null && !processedVariants.isEmpty()) {
             String version = versionService.generateVersion();
             LocalDateTime now = LocalDateTime.now();
-            for (Variant variant : processedVariants) {
-                variant.setExpId(experiment.getExpId());
-                variant.setVersion(version);
-                variant.setIsActive(true);
-                variant.setCreatedAt(now);
+            for (Bucket variant : processedVariants) {
+                bucket.setExpId(experiment.getExpId());
+                bucket.setVersion(version);
+                bucket.setIsActive(true);
+                bucket.setCreatedAt(now);
                 bucketMapper.insert(variant);
             }
             log.info("Created experiment {} with version {}", experiment.getExpId(), version);
@@ -132,12 +132,12 @@ public class ExperimentService {
         
         // 3. 转换VariantRequest为Variant实体
         List<Bucket> newVariants = processedVariants.stream().map(req -> {
-            Variant variant = new Bucket();
-            variant.setBucketId(BucketIdGenerator.generate());
-            variant.setName(req.getName());
-            variant.setBucketStart(req.getBucketStart());
-            variant.setBucketEnd(req.getBucketEnd());
-            variant.setParams(req.getParams());
+            Bucket variant = new Bucket();
+            bucket.setBucketId(BucketIdGenerator.generate());
+            bucket.setName(req.getName());
+            bucket.setBucketStart(req.getBucketStart());
+            bucket.setBucketEnd(req.getBucketEnd());
+            bucket.setParams(req.getParams());
             return variant;
         }).collect(Collectors.toList());
         
@@ -374,8 +374,8 @@ public class ExperimentService {
         List<Bucket> sourceVariants = bucketMapper.selectByExpId(source.getExpId());
         if (!sourceVariants.isEmpty()) {
             LocalDateTime now = LocalDateTime.now();
-            for (Variant sourceVariant : sourceVariants) {
-                Variant clonedVariant = new Bucket();
+            for (Bucket sourceVariant : sourceVariants) {
+                Bucket clonedVariant = new Bucket();
                 clonedVariant.setExpId(cloned.getExpId());
                 clonedVariant.setBucketId(BucketIdGenerator.generate());
                 clonedVariant.setName(sourceVariant.getName());
@@ -569,7 +569,7 @@ public class ExperimentService {
             int currentStart = 0;
 
             for (int i = 0; i < variants.size(); i++) {
-                Variant v = variants.get(i);
+                Bucket v = variants.get(i);
                 int end = currentStart + perVariant + (i < remainder ? 1 : 0) - 1;
                 v.setBucketStart(currentStart);
                 v.setBucketEnd(end);
@@ -581,7 +581,7 @@ public class ExperimentService {
             }
 
             int currentStart = 0;
-            for (Variant v : variants) {
+            for (Bucket v : variants) {
                 int percentage = getVariantTrafficPercentage(v);
                 int bucketSpan = (int) Math.round(percentage / 100.0 * 10000);
                 v.setBucketStart(currentStart);
@@ -593,12 +593,12 @@ public class ExperimentService {
         return variants;
     }
 
-    private int getVariantTrafficPercentage(Variant variant) {
+    private int getVariantTrafficPercentage(Bucket bucket) {
         // If params contain traffic info, use it; otherwise equal distribution
-        if (variant.getParams() != null) {
+        if (bucket.getParams() != null) {
             try {
                 com.fasterxml.jackson.databind.JsonNode params =
-                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(variant.getParams());
+                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(bucket.getParams());
                 if (params.has("trafficPercentage")) {
                     return params.get("trafficPercentage").asInt();
                 }
@@ -616,14 +616,14 @@ public class ExperimentService {
         }
 
         int totalBuckets = 0;
-        for (Variant variant : variants) {
-            if (variant.getBucketStart() == null || variant.getBucketEnd() == null) {
+        for (Bucket variant : variants) {
+            if (bucket.getBucketStart() == null || bucket.getBucketEnd() == null) {
                 throw new VictorException("BKT_002", "Variant bucket range must not be null");
             }
-            if (variant.getBucketStart() < 0 || variant.getBucketEnd() > 9999) {
+            if (bucket.getBucketStart() < 0 || bucket.getBucketEnd() > 9999) {
                 throw new VictorException("BKT_002", "Variant bucket range must be within [0, 9999]");
             }
-            totalBuckets += (variant.getBucketEnd() - variant.getBucketStart() + 1);
+            totalBuckets += (bucket.getBucketEnd() - bucket.getBucketStart() + 1);
         }
 
         // 变体桶范围总和必须覆盖 0-9999 (即 10000 个桶)

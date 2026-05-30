@@ -48,8 +48,8 @@ class ExperimentServiceTest {
 
     private Experiment testExperiment;
     private Layer testLayer;
-    private Variant testVariant;
-    private Variant testVariant2;
+    private Bucket testVariant;
+    private Bucket testVariant2;
 
     @BeforeEach
     void setUp() {

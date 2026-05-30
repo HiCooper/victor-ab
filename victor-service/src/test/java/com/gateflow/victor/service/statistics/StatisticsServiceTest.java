@@ -144,8 +144,8 @@ class StatisticsServiceTest {
         return exp;
     }
 
-    private Variant buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
-        Variant v = new Bucket();
+    private Bucket buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
+        Bucket v = new Bucket();
         v.setId((long) bucketStart);
         v.setName(key);
         v.setBucketId(bucketId);

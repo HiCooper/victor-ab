@@ -38,7 +38,7 @@ class BucketControllerTest {
     @MockBean
     private BucketService bucketService;
 
-    private Variant testVariant;
+    private Bucket testVariant;
 
     @BeforeEach
     void setUp() {
@@ -176,7 +176,7 @@ class BucketControllerTest {
         request.setBucketStart(0);
         request.setBucketEnd(599);
 
-        Variant updated = new Bucket();
+        Bucket updated = new Bucket();
         updated.setId(1L);
         updated.setName("更新后的名称");
 

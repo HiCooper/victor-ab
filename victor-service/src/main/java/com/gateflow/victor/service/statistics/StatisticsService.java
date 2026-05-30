@@ -165,7 +165,7 @@ public class StatisticsService {
         int idx = 0;
         long totalUsers = 0;
 
-        for (Variant variant : variants) {
+        for (Bucket variant : variants) {
             String key = variant.getBucketId();
             var stats = variantStats.get(key);
             long users = stats != null ? stats.getTotalUsers() : 0;
@@ -361,7 +361,7 @@ public class StatisticsService {
             .toList();
 
         Map<String, Double> expectedProportions = new LinkedHashMap<>();
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             int bucketSize = v.getBucketEnd() - v.getBucketStart() + 1;
             expectedProportions.put(v.getBucketId(), bucketSize / 10000.0);
         }

@@ -90,7 +90,7 @@ public class BucketingService {
                 .distinct()
                 .toList();
         Map<String, List<Bucket>> variantMap = bucketMapper.selectActiveBucketsByExpIds(expIds).stream()
-                .collect(Collectors.groupingBy(Variant::getExpId));
+                .collect(Collectors.groupingBy(Bucket::getExpId));
 
         List<BucketEngine.ExperimentSpec> specs = experiments.stream()
                 .filter(exp -> isBucketable(exp.getStatus()))

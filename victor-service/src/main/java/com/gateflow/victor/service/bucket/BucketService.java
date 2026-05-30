@@ -31,7 +31,7 @@ public class BucketService {
      * @return 创建的版本
      */
     @Transactional(rollbackFor = Exception.class)
-    public Variant createVariant(Variant variant) {
+    public Bucket createBucket(Bucket variant) {
         // 验证实验是否存在（通过业务expId查询）
         Experiment experiment = experimentMapper.selectByExpId(variant.getExpId());
         if (experiment == null) {
@@ -59,7 +59,7 @@ public class BucketService {
      * @return 创建的版本列表
      */
     @Transactional(rollbackFor = Exception.class)
-    public List<Bucket> createVariants(List<Bucket> variants) {
+    public List<Bucket> createBuckets(List<Bucket> variants) {
         if (variants == null || variants.isEmpty()) {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
@@ -77,7 +77,7 @@ public class BucketService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        for (Variant variant : variants) {
+        for (Bucket variant : variants) {
             variant.setExpId(expId);
             validateBucketRange(variant, experiment);
             variant.setCreatedAt(now);
@@ -94,8 +94,8 @@ public class BucketService {
      * @return 更新后的版本
      */
     @Transactional(rollbackFor = Exception.class)
-    public Variant updateVariant(Variant variant) {
-        Variant existing = bucketMapper.selectById(variant.getId());
+    public Bucket updateBucket(Bucket variant) {
+        Bucket existing = bucketMapper.selectById(variant.getId());
         if (existing == null) {
             throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variant.getId()));
         }
@@ -125,8 +125,8 @@ public class BucketService {
      * @param variantId 版本ID
      */
     @Transactional(rollbackFor = Exception.class)
-    public void deleteVariant(Long variantId) {
-        Variant variant = bucketMapper.selectById(variantId);
+    public void deleteBucket(Long variantId) {
+        Bucket variant = bucketMapper.selectById(variantId);
         if (variant == null) {
             throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variantId));
         }
@@ -146,7 +146,7 @@ public class BucketService {
      * @param expId 业务实验ID
      * @return 版本列表
      */
-    public List<Bucket> getVariantsByExperiment(String expId) {
+    public List<Bucket> getBucketsByExperiment(String expId) {
         return bucketMapper.selectByExpId(expId);
     }
 
@@ -156,7 +156,7 @@ public class BucketService {
      * @param expId 数据库主键ID
      * @return 版本列表
      */
-    public List<Bucket> getVariantsByExperimentId(Long expId) {
+    public List<Bucket> getBucketsByExperimentId(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             return Collections.emptyList();
@@ -170,14 +170,14 @@ public class BucketService {
      * @param variantId 版本ID
      * @return 版本信息
      */
-    public Variant getVariant(Long variantId) {
+    public Bucket getBucket(Long variantId) {
         return bucketMapper.selectById(variantId);
     }
 
     /**
      * 验证桶范围
      */
-    private void validateBucketRange(Variant variant, Experiment experiment) {
+    private void validateBucketRange(Bucket variant, Experiment experiment) {
         if (variant.getBucketStart() < 0 ||
             variant.getBucketEnd() > 9999) {
             throw new VictorException(ErrorCode.VARIANT_BUCKET_OUT_OF_RANGE);

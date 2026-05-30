@@ -71,7 +71,7 @@ public class BucketVersionService {
         validateVariantKeys(newVariants);
 
         // 2. 自动重新分配分桶边界（确保无重叠、无间隙）
-        // 注意：仅在 Variant 没有预设 bucketStart/bucketEnd 时才重新分配
+        // 注意：仅在 Bucket 没有预设 bucketStart/bucketEnd 时才重新分配
         // 如果前端已通过 trafficPercentage 指定了比例（由 ExperimentService.calculateBucketBoundaries 计算），则跳过
         boolean hasPredefinedBoundaries = newVariants.stream()
             .anyMatch(v -> v.getBucketStart() != null && v.getBucketEnd() != null);
@@ -92,7 +92,7 @@ public class BucketVersionService {
         LocalDateTime now = LocalDateTime.now();
 
         // 5. 插入新版本的分桶
-        for (Variant variant : newVariants) {
+        for (Bucket variant : newVariants) {
             variant.setId(null); // 清除ID，作为新记录插入
             variant.setExpId(bizExpId);
             variant.setVersion(newVersion);
@@ -284,7 +284,7 @@ public class BucketVersionService {
 
             // 不删除活跃版本
             List<Bucket> activeVariants = bucketMapper.selectByExpIdAndVersion(bizExpId, version);
-            boolean isActive = activeVariants.stream().anyMatch(Variant::getIsActive);
+            boolean isActive = activeVariants.stream().anyMatch(Bucket::getIsActive);
 
             if (!isActive) {
                 bucketMapper.deleteByVersion(bizExpId, version);
@@ -307,7 +307,7 @@ public class BucketVersionService {
 
         // 检查variant_key唯一性
         long distinctKeys = variants.stream()
-            .map(Variant::getBucketId)
+            .map(Bucket::getBucketId)
             .distinct()
             .count();
 
@@ -343,7 +343,7 @@ public class BucketVersionService {
 
         int currentStart = 0;
         for (int i = 0; i < variantCount; i++) {
-            Variant variant = variants.get(i);
+            Bucket variant = variants.get(i);
 
             // 前 remainder 个分桶各多分配1个单位
             int size = baseSize + (i < remainder ? 1 : 0);
@@ -364,7 +364,7 @@ public class BucketVersionService {
         }
 
         // 验证最后一个分桶的结束位置
-        Variant lastVariant = variants.get(variantCount - 1);
+        Bucket lastVariant = variants.get(variantCount - 1);
         if (lastVariant.getBucketEnd() != 9999) {
             throw new VictorException(ErrorCode.BKT_LAST_END_MUST_9999, String.valueOf(lastVariant.getBucketEnd()));
         }

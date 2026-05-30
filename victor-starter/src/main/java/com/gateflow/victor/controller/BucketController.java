@@ -33,7 +33,7 @@ public class BucketController {
     @Operation(summary = "创建版本", description = "创建单个实验版本")
     @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Bucket> createVariant(@Valid @RequestBody VariantCreateRequest request) {
-        Variant variant = new Bucket();
+        Bucket variant = new Bucket();
         variant.setExpId(request.getExpId());
         variant.setBucketId(request.getVariantKey());
         variant.setName(request.getName());
@@ -41,7 +41,7 @@ public class BucketController {
         variant.setBucketEnd(request.getBucketEnd());
         variant.setParams(request.getParams());
 
-        Variant created = bucketService.createVariant(variant);
+        Bucket created = bucketService.createVariant(variant);
         return ResponseEntity.ok(created);
     }
 
@@ -50,7 +50,7 @@ public class BucketController {
     @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<List<Bucket>> createVariants(@Valid @RequestBody List<VariantCreateRequest> requests) {
         List<Bucket> variants = requests.stream().map(req -> {
-            Variant v = new Bucket();
+            Bucket v = new Bucket();
             v.setExpId(req.getExpId());
             v.setBucketId(req.getVariantKey());
             v.setName(req.getName());
@@ -68,7 +68,7 @@ public class BucketController {
     @Operation(summary = "查询版本详情", description = "根据ID查询版本信息")
     public ResponseEntity<Bucket> getVariant(
             @Parameter(description = "版本ID") @PathVariable Long id) {
-        Variant variant = bucketService.getVariant(id);
+        Bucket variant = bucketService.getVariant(id);
         if (variant == null) {
             return ResponseEntity.notFound().build();
         }
@@ -89,14 +89,14 @@ public class BucketController {
     public ResponseEntity<Bucket> updateVariant(
             @Parameter(description = "版本ID") @PathVariable Long id,
             @RequestBody VariantUpdateRequest request) {
-        Variant variant = new Bucket();
+        Bucket variant = new Bucket();
         variant.setId(id);
         variant.setName(request.getName());
         variant.setBucketStart(request.getBucketStart());
         variant.setBucketEnd(request.getBucketEnd());
         variant.setParams(request.getParams());
 
-        Variant updated = bucketService.updateVariant(variant);
+        Bucket updated = bucketService.updateVariant(variant);
         return ResponseEntity.ok(updated);
     }
 

@@ -47,7 +47,7 @@ public class TrafficMapService {
 
         int minStart = Integer.MAX_VALUE;
         int maxEnd = Integer.MIN_VALUE;
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             if (v.getBucketStart() != null && v.getBucketStart() < minStart) {
                 minStart = v.getBucketStart();
             }
@@ -73,7 +73,7 @@ public class TrafficMapService {
         }
 
         int total = 0;
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             if (v.getBucketStart() != null && v.getBucketEnd() != null) {
                 total += (v.getBucketEnd() - v.getBucketStart() + 1);
             }
@@ -142,7 +142,7 @@ public class TrafficMapService {
             List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
             List<TrafficMapResponse.VariantDetail> variantDetails = new ArrayList<>();
 
-            for (Variant v : variants) {
+            for (Bucket v : variants) {
                 TrafficMapResponse.VariantDetail vd = new TrafficMapResponse.VariantDetail();
                 vd.setVariantKey(v.getBucketId());
                 vd.setVariantName(v.getName());
@@ -266,7 +266,7 @@ public class TrafficMapService {
             List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
             List<TrafficMapResponse.VariantOccupancy> variantOccupancies = new ArrayList<>();
 
-            for (Variant v : variants) {
+            for (Bucket v : variants) {
                 TrafficMapResponse.VariantOccupancy vo = new TrafficMapResponse.VariantOccupancy();
                 vo.setVariantKey(v.getBucketId());
                 vo.setVariantName(v.getName());

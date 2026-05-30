@@ -83,8 +83,8 @@ class ExperimentReportServiceTest {
     void shouldGenerateAndPersistReport() {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         Layer layer = buildLayer("web");
-        Variant ctrl = buildVariant("control", 0, 4999, "control");
-        Variant treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildVariant("control", 0, 4999, "control");
+        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -117,8 +117,8 @@ class ExperimentReportServiceTest {
     void shouldReturnReportEvenWhenPersistFails() {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         Layer layer = buildLayer("web");
-        Variant ctrl = buildVariant("control", 0, 4999, "control");
-        Variant treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildVariant("control", 0, 4999, "control");
+        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -191,8 +191,8 @@ class ExperimentReportServiceTest {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         exp.setGuardrailMetrics(json);
         Layer layer = buildLayer("web");
-        Variant ctrl = buildVariant("control", 0, 4999, "control");
-        Variant treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildVariant("control", 0, 4999, "control");
+        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -211,8 +211,8 @@ class ExperimentReportServiceTest {
     void shouldReportSrmFailure() {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         Layer layer = buildLayer("web");
-        Variant ctrl = buildVariant("control", 0, 4999, "control");
-        Variant treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildVariant("control", 0, 4999, "control");
+        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -253,8 +253,8 @@ class ExperimentReportServiceTest {
         return layer;
     }
 
-    private Variant buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
-        Variant v = new Bucket();
+    private Bucket buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
+        Bucket v = new Bucket();
         v.setId((long) bucketStart);
         v.setName(key);
         v.setBucketId(bucketId);

@@ -27,7 +27,7 @@ public class BanditService {
 
         // 对每个variant计算后验Beta分布
         Map<Long, double[]> posteriors = new HashMap<>();
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             int[] stats = data.getOrDefault(v.getId(), new int[]{0, 0});
             int samples = stats[0];
             int conversions = stats[1];
@@ -44,30 +44,30 @@ public class BanditService {
         // 采样并计算选择概率
         int simulations = 10000;
         Map<Long, Integer> wins = new HashMap<>();
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             wins.put(v.getId(), 0);
         }
 
         Random random = new Random();
         for (int i = 0; i < simulations; i++) {
             double bestRate = -1;
-            Long bestVariant = null;
+            Long bestBucket = null;
 
-            for (Variant v : variants) {
+            for (Bucket v : variants) {
                 double[] post = posteriors.get(v.getId());
                 double sample = sampleBeta(post[0], post[1], random);
                 if (sample > bestRate) {
                     bestRate = sample;
-                    bestVariant = v.getId();
+                    bestBucket = v.getId();
                 }
             }
-            if (bestVariant != null) {
-                wins.put(bestVariant, wins.get(bestVariant) + 1);
+            if (bestBucket != null) {
+                wins.put(bestBucket, wins.get(bestBucket) + 1);
             }
         }
 
         // 计算分配概率
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             double prob = (double) wins.get(v.getId()) / simulations;
             allocationProbabilities.put(v.getName(), prob);
         }
@@ -81,7 +81,7 @@ public class BanditService {
         Long bestId = variants.stream()
                 .filter(v -> v.getName().equals(bestName))
                 .findFirst()
-                .map(Variant::getId)
+                .map(Bucket::getId)
                 .orElse(null);
 
         BanditResponse response = new BanditResponse();
@@ -103,7 +103,7 @@ public class BanditService {
         Map<String, Double> estimatedRates = new HashMap<>();
 
         // 计算每个variant的转化率
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             int[] stats = data.getOrDefault(v.getId(), new int[]{0, 0});
             int samples = stats[0];
             int conversions = stats[1];
@@ -119,7 +119,7 @@ public class BanditService {
         Long bestId = variants.stream()
                 .filter(v -> v.getName().equals(bestName))
                 .findFirst()
-                .map(Variant::getId)
+                .map(Bucket::getId)
                 .orElse(null);
 
         // 分配概率: epsilon用于探索，1-epsilon用于利用
@@ -127,7 +127,7 @@ public class BanditService {
         double exploreProb = epsilon / variants.size();
         double exploitProb = 1 - epsilon;
 
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             if (v.getName().equals(bestName)) {
                 allocationProbabilities.put(v.getName(), exploitProb + exploreProb);
             } else {
@@ -158,7 +158,7 @@ public class BanditService {
                 .mapToInt(arr -> arr[0])
                 .sum();
 
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             int[] stats = data.getOrDefault(v.getId(), new int[]{0, 0});
             int samples = stats[0];
             int conversions = stats[1];
@@ -183,11 +183,11 @@ public class BanditService {
         Long bestId = variants.stream()
                 .filter(v -> v.getName().equals(bestName))
                 .findFirst()
-                .map(Variant::getId)
+                .map(Bucket::getId)
                 .orElse(null);
 
         Map<String, Double> allocationProbabilities = new HashMap<>();
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             if (v.getName().equals(bestName)) {
                 allocationProbabilities.put(v.getName(), 1.0);
             } else {

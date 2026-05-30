@@ -42,7 +42,7 @@ class ExperimentControllerTest {
     private ExperimentService experimentService;
 
     private Experiment testExperiment;
-    private Variant testVariant;
+    private Bucket testVariant;
 
     @BeforeEach
     void setUp() {

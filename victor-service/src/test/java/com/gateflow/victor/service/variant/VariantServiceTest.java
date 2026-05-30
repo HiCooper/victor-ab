@@ -36,7 +36,7 @@ class BucketServiceTest {
     private BucketService bucketService;
 
     private Experiment testExperiment;
-    private Variant testVariant;
+    private Bucket testVariant;
 
     @BeforeEach
     void setUp() {
@@ -61,7 +61,7 @@ class BucketServiceTest {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(bucketMapper.insert(any(Variant.class))).thenReturn(1);
 
-        Variant created = bucketService.createVariant(testVariant);
+        Bucket created = bucketService.createVariant(testVariant);
 
         assertNotNull(created);
         assertEquals("control", created.getBucketId());
@@ -99,7 +99,7 @@ class BucketServiceTest {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(bucketMapper.insert(any(Variant.class))).thenReturn(1);
 
-        Variant variant2 = new Bucket();
+        Bucket variant2 = new Bucket();
         variant2.setExpId("exp_test_001");
         variant2.setBucketId("treatment");
         variant2.setBucketStart(500);
@@ -127,7 +127,7 @@ class BucketServiceTest {
     void getVariant_Success() {
         when(bucketMapper.selectById(1L)).thenReturn(testVariant);
 
-        Variant found = bucketService.getVariant(1L);
+        Bucket found = bucketService.getVariant(1L);
 
         assertNotNull(found);
         assertEquals("control", found.getBucketId());
@@ -139,7 +139,7 @@ class BucketServiceTest {
     void getVariant_NotFound() {
         when(bucketMapper.selectById(999L)).thenReturn(null);
 
-        Variant found = bucketService.getVariant(999L);
+        Bucket found = bucketService.getVariant(999L);
 
         assertNull(found);
         verify(bucketMapper).selectById(999L);
@@ -160,7 +160,7 @@ class BucketServiceTest {
     @Test
     @DisplayName("更新版本 - 成功")
     void updateVariant_Success() {
-        Variant existing = new Bucket();
+        Bucket existing = new Bucket();
         existing.setId(1L);
         existing.setExpId("exp_test_001");
         existing.setBucketStart(0);
@@ -170,13 +170,13 @@ class BucketServiceTest {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(bucketMapper.updateById(any(Variant.class))).thenReturn(1);
 
-        Variant update = new Bucket();
+        Bucket update = new Bucket();
         update.setId(1L);
         update.setBucketStart(0);
         update.setBucketEnd(499);
         update.setName("更新后的名称");
 
-        Variant result = bucketService.updateVariant(update);
+        Bucket result = bucketService.updateVariant(update);
 
         assertNotNull(result);
         verify(bucketMapper).updateById(any(Variant.class));
@@ -187,7 +187,7 @@ class BucketServiceTest {
     void updateVariant_NotFound() {
         when(bucketMapper.selectById(999L)).thenReturn(null);
 
-        Variant update = new Bucket();
+        Bucket update = new Bucket();
         update.setId(999L);
         update.setName("更新后的名称");
 
@@ -201,7 +201,7 @@ class BucketServiceTest {
     @Test
     @DisplayName("更新版本 - 实验非草稿状态")
     void updateVariant_NotDraftExperiment() {
-        Variant existing = new Bucket();
+        Bucket existing = new Bucket();
         existing.setId(1L);
         existing.setExpId("exp_test_001");
 
@@ -209,7 +209,7 @@ class BucketServiceTest {
         when(bucketMapper.selectById(1L)).thenReturn(existing);
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
 
-        Variant update = new Bucket();
+        Bucket update = new Bucket();
         update.setId(1L);
         update.setName("更新后的名称");
 
@@ -223,7 +223,7 @@ class BucketServiceTest {
     @Test
     @DisplayName("删除版本 - 成功")
     void deleteVariant_Success() {
-        Variant existing = new Bucket();
+        Bucket existing = new Bucket();
         existing.setId(1L);
         existing.setExpId("exp_test_001");
 
@@ -251,7 +251,7 @@ class BucketServiceTest {
     @Test
     @DisplayName("桶范围验证 - 超出实验范围")
     void validateBucketRange_OutOfExperimentRange() {
-        Variant variant = new Bucket();
+        Bucket variant = new Bucket();
         variant.setExpId("exp_test_001");
         variant.setBucketId("control");
         variant.setBucketStart(0);

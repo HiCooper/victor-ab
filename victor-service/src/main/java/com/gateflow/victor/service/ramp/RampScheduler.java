@@ -61,7 +61,7 @@ public class RampScheduler {
     private void updateVariantBucketEnds(Experiment exp, int newBucketEnd) {
         List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
         if (variants != null) {
-            for (Variant v : variants) {
+            for (Bucket v : variants) {
                 v.setBucketEnd(newBucketEnd);
                 bucketMapper.updateById(v);
             }

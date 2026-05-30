@@ -53,7 +53,7 @@ public class BanditController {
             metricsRepository.queryExperimentStats(
                 businessExpId, LocalDate.now().minusDays(7), LocalDate.now());
 
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             // Match MySQL variant key (bucketId) to ClickHouse variant name
             String variantKey = v.getBucketId() != null ? v.getBucketId() : v.getName();
             MetricsRepository.VariantStats stats = variantStats.get(variantKey);

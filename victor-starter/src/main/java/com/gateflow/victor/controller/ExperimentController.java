@@ -51,7 +51,7 @@ public class ExperimentController {
 
         List<Bucket> variants = request.getVariants() != null
             ? request.getVariants().stream().map(vr -> {
-                Variant v = new Bucket();
+                Bucket v = new Bucket();
                 v.setBucketId(vr.getVariantKey());
                 v.setName(vr.getName());
                 v.setBucketStart(vr.getBucketStart());

@@ -58,7 +58,7 @@ public class ExperimentReportService {
         int totalBucketSpan = variants.stream()
             .mapToInt(v -> v.getBucketEnd() - v.getBucketStart() + 1).sum();
 
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
             double proportion = totalBucketSpan > 0
                 ? (double) (v.getBucketEnd() - v.getBucketStart() + 1) / totalBucketSpan
@@ -210,7 +210,7 @@ public class ExperimentReportService {
         double[] expectedArr = new double[n];
         Map<String, Long> observedMap = new LinkedHashMap<>();
         for (int i = 0; i < n; i++) {
-            Variant v = variants.get(i);
+            Bucket v = variants.get(i);
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
             var vs = variantStats.get(key);
             observedArr[i] = vs != null ? vs.getTotalUsers() : 0;
@@ -227,9 +227,9 @@ public class ExperimentReportService {
             ));
         }
 
-        // Variant summaries with behavior metrics
+        // Bucket summaries with behavior metrics
         List<Map<String, Object>> summaries = new ArrayList<>();
-        for (Variant v : variants) {
+        for (Bucket v : variants) {
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
             var vs = variantStats.get(key);
             Map<String, Object> s = new LinkedHashMap<>();
@@ -326,7 +326,7 @@ public class ExperimentReportService {
             ));
         }
 
-        // Variant summaries
+        // Bucket summaries
         if (report.getVariantSummaries() != null) {
             List<Map<String, Object>> summaries = new ArrayList<>();
             for (ExperimentReport.VariantSummary vs : report.getVariantSummaries().values()) {

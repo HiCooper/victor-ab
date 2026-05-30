@@ -61,7 +61,7 @@ class ConfigServiceTest {
 
     private Experiment testExperiment;
     private Layer testLayer;
-    private Variant testVariant;
+    private Bucket testVariant;
 
     @BeforeEach
     void setUp() {
