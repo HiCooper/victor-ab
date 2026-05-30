@@ -37,7 +37,7 @@ public class EventConsumer {
         batch = "true"
     )
     public void consumeBatch(List<ConsumerRecord<String, EventDTO>> records, Acknowledgment acknowledgment) {
-        log.debug("Received {} events from Kafka", records.size());
+        log.info("Kafka consumer received {} events", records.size());
 
         List<EventDTO> events = new ArrayList<>();
         for (ConsumerRecord<String, EventDTO> record : records) {

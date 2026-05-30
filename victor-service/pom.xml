@@ -27,10 +27,16 @@
             <artifactId>victor-domain</artifactId>
         </dependency>
 
-        <!-- Victor Stats Engine -->
+        <!-- ClickHouse JDBC -->
         <dependency>
-            <groupId>com.gateflow</groupId>
-            <artifactId>victor-stats-engine</artifactId>
+            <groupId>com.clickhouse</groupId>
+            <artifactId>clickhouse-jdbc</artifactId>
+        </dependency>
+
+        <!-- Commons Math3 (statistical engine) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
         </dependency>
 
         <!-- Spring Boot -->

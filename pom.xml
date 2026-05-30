@@ -16,7 +16,6 @@
     <modules>
         <module>victor-common</module>
         <module>victor-domain</module>
-        <module>victor-stats-engine</module>
         <module>victor-service</module>
         <module>victor-sdk</module>
         <module>victor-starter</module>

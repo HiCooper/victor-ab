@@ -27,12 +27,6 @@
             <artifactId>victor-service</artifactId>
         </dependency>
 
-        <!-- Victor Stats Engine -->
-        <dependency>
-            <groupId>com.gateflow</groupId>
-            <artifactId>victor-stats-engine</artifactId>
-        </dependency>
-
         <!-- Spring Boot Starter Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

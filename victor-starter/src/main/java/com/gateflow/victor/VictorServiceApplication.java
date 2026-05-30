@@ -2,9 +2,9 @@ package com.gateflow.victor;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-/**
- * Victor AB Experiment System 启动类
- */
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+@EnableScheduling
 @SpringBootApplication(scanBasePackages = "com.gateflow.victor")
 public class VictorServiceApplication {
 

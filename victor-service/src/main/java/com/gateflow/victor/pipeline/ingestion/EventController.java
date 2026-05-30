@@ -21,7 +21,7 @@ public class EventController {
 
     @PostMapping
     public ResponseEntity<EventResponse> collectEvents(@Valid @RequestBody EventRequest request) {
-        log.debug("Received {} events", request.getEvents().size());
+        log.info("API received {} events", request.getEvents().size());
         
         List<String> errors = new ArrayList<>();
         int accepted = 0;

@@ -50,10 +50,8 @@ public class MetricsRepository {
             LocalDate endDate
     ) {
         String sql = """
-            SELECT 
-                sum(unique_users) AS total_users,
-                sum(conversions) AS total_conversions,
-                sum(total_revenue) AS total_revenue
+            SELECT
+                sum(unique_users) AS total_users
             FROM victor.experiment_metrics
             WHERE exp_id = ?
               AND variant = ?
@@ -61,30 +59,25 @@ public class MetricsRepository {
               AND metric_date >= ?
               AND metric_date <= ?
             """;
-        
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+
             ps.setString(1, expId);
             ps.setString(2, variant);
             ps.setString(3, layer);
             ps.setDate(4, Date.valueOf(startDate));
             ps.setDate(5, Date.valueOf(endDate));
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     long totalUsers = rs.getLong("total_users");
-                    long totalConversions = rs.getLong("total_conversions");
-                    double totalRevenue = rs.getDouble("total_revenue");
-                    
-                    // 计算转化率作为均值
-                    double conversionRate = totalUsers > 0 ? (double) totalConversions / totalUsers : 0;
-                    
+
                     return SampleStatistics.builder()
                         .n(totalUsers)
-                        .mean(conversionRate)
-                        .variance(conversionRate * (1 - conversionRate)) // 二项分布方差
-                        .sum(totalConversions)
+                        .mean(0)
+                        .variance(0)
+                        .sum(0)
                         .build();
                 }
             }
@@ -112,42 +105,33 @@ public class MetricsRepository {
         Map<String, VariantStats> results = new HashMap<>();
         
         String sql = """
-            SELECT 
+            SELECT
                 variant,
                 layer,
                 sum(unique_users) AS total_users,
-                sum(conversions) AS total_conversions,
-                sum(total_events) AS total_events,
-                sum(total_revenue) AS total_revenue
+                sum(total_events) AS total_events
             FROM victor.experiment_metrics
             WHERE exp_id = ?
               AND metric_date >= ?
               AND metric_date <= ?
             GROUP BY variant, layer
             """;
-        
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+
             ps.setString(1, expId);
             ps.setDate(2, Date.valueOf(startDate));
             ps.setDate(3, Date.valueOf(endDate));
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     VariantStats stats = new VariantStats();
                     stats.setVariant(rs.getString("variant"));
                     stats.setLayer(rs.getString("layer"));
                     stats.setTotalUsers(rs.getLong("total_users"));
-                    stats.setTotalConversions(rs.getLong("total_conversions"));
                     stats.setTotalEvents(rs.getLong("total_events"));
-                    stats.setTotalRevenue(rs.getDouble("total_revenue"));
-                    
-                    if (stats.getTotalUsers() > 0) {
-                        stats.setConversionRate((double) stats.getTotalConversions() / stats.getTotalUsers());
-                        stats.setAvgRevenue(stats.getTotalRevenue() / stats.getTotalUsers());
-                    }
-                    
+
                     results.put(stats.getVariant(), stats);
                 }
             }
@@ -170,11 +154,9 @@ public class MetricsRepository {
         Map<LocalDate, DailyStats> results = new HashMap<>();
         
         String sql = """
-            SELECT 
+            SELECT
                 metric_date,
-                sum(unique_users) AS total_users,
-                sum(conversions) AS total_conversions,
-                sum(total_revenue) AS total_revenue
+                sum(unique_users) AS total_users
             FROM victor.experiment_metrics
             WHERE exp_id = ?
               AND variant = ?
@@ -183,28 +165,32 @@ public class MetricsRepository {
             GROUP BY metric_date
             ORDER BY metric_date
             """;
-        
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+
             ps.setString(1, expId);
             ps.setString(2, variant);
             ps.setDate(3, Date.valueOf(startDate));
             ps.setDate(4, Date.valueOf(endDate));
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     LocalDate date = rs.getDate("metric_date").toLocalDate();
                     DailyStats stats = new DailyStats();
                     stats.setDate(date);
                     stats.setTotalUsers(rs.getLong("total_users"));
-                    stats.setTotalConversions(rs.getLong("total_conversions"));
-                    stats.setTotalRevenue(rs.getDouble("total_revenue"));
-                    
-                    if (stats.getTotalUsers() > 0) {
-                        stats.setConversionRate((double) stats.getTotalConversions() / stats.getTotalUsers());
-                    }
-                    
+                    results.put(date, stats);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query daily trend for expId={}", expId, e);
+        }
+
+        return results;
+    }
+
+    /**
                     results.put(date, stats);
                 }
             }
