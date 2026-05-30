@@ -16,12 +16,11 @@ import java.util.List;
 @RequestMapping("/api/v1/events")
 @RequiredArgsConstructor
 public class EventController {
-    
+
     private final EventKafkaProducer kafkaProducer;
 
     @PostMapping
     public ResponseEntity<EventResponse> collectEvents(@Valid @RequestBody EventRequest request) {
-        log.info("API received {} events", request.getEvents().size());
         
         List<String> errors = new ArrayList<>();
         int accepted = 0;

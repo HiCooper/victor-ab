@@ -259,8 +259,52 @@ public class ReportRepository {
         return results;
     }
 
-    @Data
-    @AllArgsConstructor
+    public ExperimentReport findReportByDate(String expId, LocalDate date) {
+        String sql = """
+            SELECT exp_id, report_date,
+                   srm_passed, srm_p_value, srm_message,
+                   primary_metric_name, primary_p_value,
+                   primary_lift, primary_lift_ci_lower, primary_lift_ci_upper,
+                   primary_significant,
+                   secondary_results_json, guardrail_results_json,
+                   variant_summaries_json, daily_trends_json,
+                   recommendation, recommendation_reason,
+                   cuped_applied, generated_at
+            FROM victor_experiment_report
+            WHERE exp_id = ? AND report_date = ?
+            ORDER BY report_date DESC
+            LIMIT 1
+            """;
+
+        List<ExperimentReport> reports = jdbc.query(sql, (rs, rowNum) -> {
+            try {
+                return mapRow(rs);
+            } catch (Exception e) {
+                log.error("Failed to map report row", e);
+                return null;
+            }
+        }, expId, java.sql.Date.valueOf(date));
+        return reports.isEmpty() ? null : reports.get(0);
+    }
+
+    public List<LocalDate> getAvailableReportDates(String expId) {
+        String sql = """
+            SELECT DISTINCT report_date
+            FROM victor_experiment_report
+            WHERE exp_id = ?
+            ORDER BY report_date DESC
+            """;
+        return jdbc.query(sql, (rs, rowNum) -> rs.getDate("report_date").toLocalDate(), expId);
+    }
+
+    private ExperimentReport mapRow(ResultSet rs) throws Exception {
+        ExperimentReport report = new ExperimentReport();
+        report.setExpId(rs.getString("exp_id"));
+        report.setStartDate(rs.getDate("report_date").toLocalDate());
+        report.setEndDate(rs.getDate("report_date").toLocalDate());
+        return report;
+    }
+
     public static class CupedValueDto {
         private String variant;
         private Double cupedAdjustedMean;

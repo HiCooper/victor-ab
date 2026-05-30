@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 /**
  * EventRepository - ClickHouse event storage.
@@ -123,5 +124,37 @@ public class EventRepository {
 
         ps.setString(11, event.getProperties() != null ?
             objectMapper.writeValueAsString(event.getProperties()) : "{}");
+    }
+
+    /**
+     * Insert a tracker behavior event into gateflow_tracker.events for testing.
+     */
+    public void insertTrackerEvent(Map<String, Object> trackerEvent) {
+        String sql = """
+            INSERT INTO gateflow_tracker.events
+                (event_id, event_type, user_id, timestamp, page_url,
+                 element_id, element_text, properties, exp_ids, variants)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, (String) trackerEvent.getOrDefault("eventId", ""));
+            ps.setString(2, (String) trackerEvent.getOrDefault("eventType", ""));
+            ps.setString(3, (String) trackerEvent.getOrDefault("userId", ""));
+            ps.setObject(4, java.time.LocalDateTime.now());
+            ps.setString(5, (String) trackerEvent.getOrDefault("pageUrl", ""));
+            ps.setString(6, (String) trackerEvent.getOrDefault("elementId", ""));
+            ps.setString(7, (String) trackerEvent.getOrDefault("elementText", ""));
+            ps.setString(8, "{}");
+            ps.setArray(9, conn.createArrayOf("String",
+                ((List<String>) trackerEvent.getOrDefault("expIds", List.of())).toArray(new String[0])));
+            ps.setArray(10, conn.createArrayOf("String",
+                ((List<String>) trackerEvent.getOrDefault("variants", List.of())).toArray(new String[0])));
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.error("Failed to insert tracker event", e);
+        }
     }
 }

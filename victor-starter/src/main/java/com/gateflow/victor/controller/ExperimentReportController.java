@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -32,17 +33,32 @@ public class ExperimentReportController {
      * Get experiment report by experiment ID
      */
     @GetMapping("/experiments/{expId}")
-    @Operation(summary = "获取实验报告", description = "根据实验ID获取统计报告")
+    @Operation(summary = "获取实验报告", description = "根据实验ID获取统计报告，可选日期参数查历史报告")
     @RequirePermission(Permission.VIEW_ANALYSIS)
-    public ResponseEntity<Map<String, Object>> getExperimentReport(@PathVariable String expId) {
-        log.info("Getting report for experiment: {}", expId);
+    public ResponseEntity<Map<String, Object>> getExperimentReport(
+            @PathVariable String expId,
+            @RequestParam(required = false) String date) {
+        log.info("Getting report for experiment: {}, date: {}", expId, date);
         try {
-            Map<String, Object> report = reportService.getReport(expId);
+            Map<String, Object> report;
+            if (date != null && !date.isEmpty()) {
+                report = reportService.getHistoricalReport(expId, LocalDate.parse(date));
+            } else {
+                report = reportService.getReport(expId);
+            }
             return ResponseEntity.ok(report);
         } catch (Exception e) {
             log.error("Failed to get report for experiment: {}", expId, e);
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/experiments/{expId}/dates")
+    @Operation(summary = "获取报告可用日期", description = "获取该实验所有已生成报告的日期列表")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
+    public ResponseEntity<List<String>> getAvailableDates(@PathVariable String expId) {
+        List<LocalDate> dates = reportService.getAvailableReportDates(expId);
+        return ResponseEntity.ok(dates.stream().map(LocalDate::toString).toList());
     }
 
     /**

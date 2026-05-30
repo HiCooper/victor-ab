@@ -68,4 +68,14 @@ public class ExperimentStatisticsController {
         TrafficDataResponse response = statisticsService.getTrafficData(id, days);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/{id}/confidence-trend")
+    @Operation(summary = "获取置信度趋势", description = "获取实验的置信度趋势数据")
+    @RequirePermission(Permission.VIEW_ANALYSIS)
+    public ResponseEntity<ConfidenceTrendResponse> getConfidenceTrend(
+            @Parameter(description = "实验ID") @PathVariable Long id,
+            @Parameter(description = "天数") @RequestParam(required = false, defaultValue = "30") Integer days) {
+        ConfidenceTrendResponse response = statisticsService.getConfidenceTrend(id, days);
+        return ResponseEntity.ok(response);
+    }
 }

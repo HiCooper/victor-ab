@@ -480,6 +480,105 @@ public class MetricsRepository {
     }
 
     /**
+     * Cross-database query: JOIN AB assignments with tracker behavior events.
+     * Returns per-variant metrics including exposure UV/PV and click UV/PV.
+     */
+    public Map<String, BehaviorMetrics> queryBehaviorMetrics(
+            String expId, LocalDate startDate, LocalDate endDate,
+            List<String> variantKeys) {
+
+        Map<String, BehaviorMetrics> results = new LinkedHashMap<>();
+        for (String vk : variantKeys) {
+            results.put(vk, new BehaviorMetrics(vk));
+        }
+
+        String sql = """
+            WITH
+            assignment AS (
+                SELECT user_id, variants[1] AS variant
+                FROM victor.events
+                WHERE has(exp_ids, ?)
+                  AND toDate(timestamp) >= ?
+                  AND toDate(timestamp) <= ?
+                GROUP BY user_id, variant
+            ),
+            tracker_exposure AS (
+                SELECT user_id, count() AS pv
+                FROM gateflow_tracker.events
+                WHERE event_type = 'exposure'
+                  AND toDate(toDateTime(timestamp / 1000)) >= ?
+                  AND toDate(toDateTime(timestamp / 1000)) <= ?
+                GROUP BY user_id
+            ),
+            tracker_click AS (
+                SELECT user_id, count() AS pv
+                FROM gateflow_tracker.events
+                WHERE event_type = 'click'
+                  AND toDate(toDateTime(timestamp / 1000)) >= ?
+                  AND toDate(toDateTime(timestamp / 1000)) <= ?
+                GROUP BY user_id
+            )
+            SELECT
+                a.variant,
+                count(DISTINCT a.user_id) AS assignment_uv,
+                count(DISTINCT e.user_id) AS exposure_uv,
+                coalesce(sum(e.pv), 0)  AS exposure_pv,
+                count(DISTINCT c.user_id) AS click_uv,
+                coalesce(sum(c.pv), 0)   AS click_pv
+            FROM assignment a
+            LEFT JOIN tracker_exposure e ON a.user_id = e.user_id
+            LEFT JOIN tracker_click c ON a.user_id = c.user_id
+            GROUP BY a.variant
+            """;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, expId);
+            ps.setString(2, startDate.toString());
+            ps.setString(3, endDate.toString());
+            ps.setString(4, startDate.toString());
+            ps.setString(5, endDate.toString());
+            ps.setString(6, startDate.toString());
+            ps.setString(7, endDate.toString());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String variant = rs.getString("variant");
+                    BehaviorMetrics m = results.getOrDefault(variant, new BehaviorMetrics(variant));
+                    m.assignmentUv = rs.getLong("assignment_uv");
+                    m.exposureUv = rs.getLong("exposure_uv");
+                    m.exposurePv = rs.getLong("exposure_pv");
+                    m.clickUv = rs.getLong("click_uv");
+                    m.clickPv = rs.getLong("click_pv");
+                    results.put(variant, m);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query behavior metrics for expId={}", expId, e);
+        }
+
+        return results;
+    }
+
+    public static class BehaviorMetrics {
+        public String variant;
+        public long assignmentUv;
+        public long exposureUv;
+        public long exposurePv;
+        public long clickUv;
+        public long clickPv;
+
+        public BehaviorMetrics(String variant) {
+            this.variant = variant;
+        }
+
+        public double getPenetrationRate() {
+            return assignmentUv > 0 ? (double) exposureUv / assignmentUv : 0;
+        }
+    }
+
+    /**
      * 每日统计内部类
      */
     @lombok.Data

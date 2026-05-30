@@ -119,13 +119,13 @@ public class StatisticsService {
             var cStats = controlDaily.get(date);
             var tStats = treatmentDaily.get(date);
 
-            double controlRate = cStats != null ? cStats.getConversionRate() : 0;
-            double treatmentRate = tStats != null ? tStats.getConversionRate() : 0;
+            double controlUsers = cStats != null ? cStats.getTotalUsers() : 0;
+            double treatmentUsers = tStats != null ? tStats.getTotalUsers() : 0;
 
             dataPoints.add(TimeSeriesDataResponse.DataPoint.builder()
                 .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                .control(Math.round(controlRate * 1000.0) / 1000.0)
-                .treatment(Math.round(treatmentRate * 1000.0) / 1000.0)
+                .control(controlUsers)
+                .treatment(treatmentUsers)
                 .build());
         }
 
@@ -319,6 +319,21 @@ public class StatisticsService {
         }
 
         return TrafficDataResponse.builder().data(dataPoints).build();
+    }
+
+    public ConfidenceTrendResponse getConfidenceTrend(Long experimentId, Integer days) {
+        int d = days != null ? days : 30;
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(d - 1);
+
+        List<ConfidenceTrendResponse.DataPoint> dataPoints = new ArrayList<>();
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            dataPoints.add(ConfidenceTrendResponse.DataPoint.builder()
+                .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                .confidence(0)
+                .build());
+        }
+        return ConfidenceTrendResponse.builder().data(dataPoints).build();
     }
 
     // ========== 私有方法 ==========

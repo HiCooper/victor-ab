@@ -82,6 +82,8 @@ public class ExperimentReport {
         // CUPED 调整后的指标
         private Double cupedAdjustedMean;
         private Double cupedAdjustedVariance;
+        // Tracker 行为指标 (跨库 JOIN)
+        private com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics behaviorMetrics;
     }
     
     /**

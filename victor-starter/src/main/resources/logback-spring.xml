@@ -7,7 +7,7 @@
                     source="logger.error-log-path"
                     defaultValue="./logs/common-error.log"/>
 
-    <!-- Sentinel 旁路错误日志: 纯文本, 仅 ERROR 级别, 异步写盘 -->
+    <!-- 通用 错误日志: 纯文本, 仅 ERROR 级别, 异步写盘 -->
     <appender name="COMMON_ERROR_FILE_SYNC" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${COMMON_ERROR_LOG_PATH}</file>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">

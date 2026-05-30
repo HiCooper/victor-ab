@@ -81,13 +81,41 @@ public class ExperimentReportService {
 
         List<String> guardrailMetricNames = parseGuardrailMetrics(experiment.getGuardrailMetrics());
 
+        // Query behavior metrics from tracker (cross-database JOIN, may be slow)
+        List<String> allVariantKeys = new ArrayList<>();
+        allVariantKeys.add(controlVariant);
+        allVariantKeys.addAll(treatmentVariants);
+        Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap = new LinkedHashMap<>();
+        try {
+            behaviorMap = statsEngine.getMetricsRepository().queryBehaviorMetrics(expId, startDate, endDate, allVariantKeys);
+            log.info("Behavior metrics for {}: {} variants, start={}, end={}",
+                expId, behaviorMap.size(), startDate, endDate);
+        } catch (Exception e) {
+            log.warn("Behavior metrics query failed for {}: {}", expId, e.getMessage());
+            for (String vk : allVariantKeys) behaviorMap.put(vk, new com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics(vk));
+        }
+
+        // For running experiments, build lightweight report without full stats pipeline
+        if ("running".equals(experiment.getStatus())) {
+            return buildRunningReport(expId, experiment, layerKey, variants, controlVariant,
+                treatmentVariants, expectedProportions, behaviorMap, startDate, endDate);
+        }
+
         ExperimentReport report = statsEngine.analyzeExperiment(
             expId, layerKey, startDate, endDate,
             controlVariant, treatmentVariants, expectedProportions,
             guardrailMetricNames
         );
 
-        // Persist report for historical access
+        if (report.getVariantSummaries() != null && !behaviorMap.isEmpty()) {
+            for (ExperimentReport.VariantSummary vs : report.getVariantSummaries().values()) {
+                var bm = behaviorMap.get(vs.getVariant());
+                if (bm != null) {
+                    vs.setBehaviorMetrics(bm);
+                }
+            }
+        }
+
         try {
             reportRepository.saveReport(report, endDate, report.isCupedApplied());
         } catch (Exception e) {
@@ -104,6 +132,19 @@ public class ExperimentReportService {
         }
         Experiment experiment = experimentMapper.selectByExpId(expId);
         return convertReportToMap(report, experiment != null ? experiment : new Experiment());
+    }
+
+    public Map<String, Object> getHistoricalReport(String expId, LocalDate date) {
+        ExperimentReport report = reportRepository.findReportByDate(expId, date);
+        if (report == null) {
+            return Map.of("experimentId", expId, "status", "no_data", "message", "该日期无报告数据");
+        }
+        Experiment experiment = experimentMapper.selectByExpId(expId);
+        return convertReportToMap(report, experiment != null ? experiment : new Experiment());
+    }
+
+    public List<LocalDate> getAvailableReportDates(String expId) {
+        return reportRepository.getAvailableReportDates(expId);
     }
 
     public List<Map<String, Object>> getAllReports() {
@@ -144,6 +185,73 @@ public class ExperimentReportService {
             log.error("Report generation failed for expId={}", expId, e);
             jobService.updateJobStatus(jobId, "failed", 0);
         }
+    }
+
+    private Map<String, Object> buildRunningReport(String expId, Experiment experiment,
+            String layerKey, List<Variant> variants,
+            String controlVariant, List<String> treatmentVariants,
+            Map<String, Double> expectedProportions,
+            Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap,
+            LocalDate startDate, LocalDate endDate) {
+
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("experimentId", expId);
+        report.put("experimentName", experiment.getName());
+        report.put("status", "running");
+        report.put("generatedAt", LocalDateTime.now().toString());
+        report.put("timeRange", Map.of("start", startDate.toString(), "end", endDate.toString()));
+
+        // Per-variant user counts from ClickHouse experiment_metrics
+        var variantStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, startDate, endDate);
+
+        // SRM check
+        int n = variants.size();
+        long[] observedArr = new long[n];
+        double[] expectedArr = new double[n];
+        Map<String, Long> observedMap = new LinkedHashMap<>();
+        for (int i = 0; i < n; i++) {
+            Variant v = variants.get(i);
+            String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
+            var vs = variantStats.get(key);
+            observedArr[i] = vs != null ? vs.getTotalUsers() : 0;
+            expectedArr[i] = expectedProportions.getOrDefault(key, 1.0 / n);
+            observedMap.put(key, observedArr[i]);
+        }
+        if (Arrays.stream(observedArr).sum() > 0) {
+            double srmPValue = com.gateflow.victor.stats.algorithm.SrmTest.chiSquareTest(observedArr, expectedArr);
+            report.put("srmCheck", Map.of(
+                "passed", srmPValue > 0.01,
+                "pValue", srmPValue,
+                "observedCounts", observedMap,
+                "expectedRatios", expectedProportions
+            ));
+        }
+
+        // Variant summaries with behavior metrics
+        List<Map<String, Object>> summaries = new ArrayList<>();
+        for (Variant v : variants) {
+            String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
+            var vs = variantStats.get(key);
+            Map<String, Object> s = new LinkedHashMap<>();
+            s.put("variant", key);
+            s.put("totalUsers", vs != null ? vs.getTotalUsers() : 0);
+            s.put("isControl", key.equals(controlVariant));
+
+            var bm = behaviorMap.get(key);
+            if (bm != null) {
+                Map<String, Object> behavior = new LinkedHashMap<>();
+                behavior.put("exposureUv", bm.exposureUv);
+                behavior.put("exposurePv", bm.exposurePv);
+                behavior.put("clickUv", bm.clickUv);
+                behavior.put("clickPv", bm.clickPv);
+                behavior.put("penetrationRate", Math.round(bm.getPenetrationRate() * 10000.0) / 10000.0);
+                s.put("behavior", behavior);
+            }
+            summaries.add(s);
+        }
+        report.put("variantSummaries", summaries);
+
+        return report;
     }
 
     private Map<String, Object> buildEmptyReport(String expId) {
@@ -229,6 +337,16 @@ public class ExperimentReportService {
                 s.put("conversionRate", vs.getConversionRate());
                 s.put("avgRevenuePerUser", vs.getAvgRevenuePerUser());
                 s.put("isControl", vs.isControl());
+                if (vs.getBehaviorMetrics() != null) {
+                    var bm = vs.getBehaviorMetrics();
+                    Map<String, Object> behavior = new LinkedHashMap<>();
+                    behavior.put("exposureUv", bm.exposureUv);
+                    behavior.put("exposurePv", bm.exposurePv);
+                    behavior.put("clickUv", bm.clickUv);
+                    behavior.put("clickPv", bm.clickPv);
+                    behavior.put("penetrationRate", bm.getPenetrationRate());
+                    s.put("behavior", behavior);
+                }
                 summaries.add(s);
             }
             map.put("variantSummaries", summaries);
