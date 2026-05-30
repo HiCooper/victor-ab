@@ -1,9 +1,9 @@
 package com.gateflow.victor.service.experiment;
 
 import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import lombok.RequiredArgsConstructor;
@@ -29,9 +29,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class VariantVersionService {
+public class BucketVersionService {
 
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final ExperimentMapper experimentMapper;
 
     /**
@@ -56,7 +56,7 @@ public class VariantVersionService {
      * @return 新版本号
      */
     @Transactional(rollbackFor = Exception.class)
-    public String createNewVersion(Long expId, List<Variant> newVariants) {
+    public String createNewVersion(Long expId, List<Bucket> newVariants) {
         if (newVariants == null || newVariants.isEmpty()) {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
@@ -84,7 +84,7 @@ public class VariantVersionService {
         }
 
         // 3. 将当前版本标记为非活跃
-        variantMapper.deactivateAllVariants(bizExpId);
+        bucketMapper.deactivateAllBuckets(bizExpId);
         log.info("Deactivated all variants for experiment {}", bizExpId);
 
         // 4. 生成新版本号
@@ -98,7 +98,7 @@ public class VariantVersionService {
             variant.setVersion(newVersion);
             variant.setIsActive(true);
             variant.setCreatedAt(now);
-            variantMapper.insert(variant);
+            bucketMapper.insert(variant);
         }
 
         log.info("Created new version {} for experiment {} with {} variants, bucket ranges: {}",
@@ -115,12 +115,12 @@ public class VariantVersionService {
      * @param expId 实验主键ID
      * @return 活跃版本列表
      */
-    public List<Variant> getActiveVariants(Long expId) {
+    public List<Bucket> getActiveVariants(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             return List.of();
         }
-        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(experiment.getExpId());
         if (variants.isEmpty()) {
             log.warn("No active variants found for experiment {}", expId);
         }
@@ -133,12 +133,12 @@ public class VariantVersionService {
      * @param expId 实验主键ID
      * @return 所有版本列表
      */
-    public List<Variant> getAllVariants(Long expId) {
+    public List<Bucket> getAllVariants(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             return List.of();
         }
-        return variantMapper.selectByExpId(experiment.getExpId());
+        return bucketMapper.selectByExpId(experiment.getExpId());
     }
 
     /**
@@ -148,12 +148,12 @@ public class VariantVersionService {
      * @param version 版本号
      * @return 版本列表
      */
-    public List<Variant> getVariantsByVersion(Long expId, String version) {
+    public List<Bucket> getVariantsByVersion(Long expId, String version) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
         }
-        List<Variant> variants = variantMapper.selectByExpIdAndVersion(experiment.getExpId(), version);
+        List<Bucket> variants = bucketMapper.selectByExpIdAndVersion(experiment.getExpId(), version);
         if (variants.isEmpty()) {
             throw new VictorException(ErrorCode.VER_NOT_FOUND, String.valueOf(version));
         }
@@ -171,7 +171,7 @@ public class VariantVersionService {
         if (experiment == null) {
             return List.of();
         }
-        return variantMapper.selectVersionsByExpId(experiment.getExpId());
+        return bucketMapper.selectVersionsByExpId(experiment.getExpId());
     }
 
     /**
@@ -187,7 +187,7 @@ public class VariantVersionService {
      * @return 回滚后的版本列表
      */
     @Transactional(rollbackFor = Exception.class)
-    public List<Variant> rollbackToVersion(Long expId, String targetVersion) {
+    public List<Bucket> rollbackToVersion(Long expId, String targetVersion) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(expId));
@@ -195,17 +195,17 @@ public class VariantVersionService {
         String bizExpId = experiment.getExpId();
 
         // 1. 验证目标版本存在
-        List<Variant> targetVariants = variantMapper.selectByExpIdAndVersion(bizExpId, targetVersion);
+        List<Bucket> targetVariants = bucketMapper.selectByExpIdAndVersion(bizExpId, targetVersion);
         if (targetVariants.isEmpty()) {
             throw new VictorException(ErrorCode.VER_NOT_FOUND, String.valueOf(targetVersion));
         }
 
         // 2. 将当前版本标记为非活跃
-        variantMapper.deactivateAllVariants(bizExpId);
+        bucketMapper.deactivateAllBuckets(bizExpId);
         log.info("Deactivated all variants for experiment {} before rollback", bizExpId);
 
         // 3. 激活目标版本
-        int activated = variantMapper.activateVersion(bizExpId, targetVersion);
+        int activated = bucketMapper.activateVersion(bizExpId, targetVersion);
         if (activated == 0) {
             throw new VictorException(ErrorCode.VER_ACTIVATE_FAILED, String.valueOf(targetVersion));
         }
@@ -230,8 +230,8 @@ public class VariantVersionService {
         }
         String bizExpId = experiment.getExpId();
 
-        List<Variant> variants1 = variantMapper.selectByExpIdAndVersion(bizExpId, version1);
-        List<Variant> variants2 = variantMapper.selectByExpIdAndVersion(bizExpId, version2);
+        List<Bucket> variants1 = bucketMapper.selectByExpIdAndVersion(bizExpId, version1);
+        List<Bucket> variants2 = bucketMapper.selectByExpIdAndVersion(bizExpId, version2);
 
         if (variants1.isEmpty()) {
             throw new VictorException("Version not found: " + version1);
@@ -269,7 +269,7 @@ public class VariantVersionService {
         }
         String bizExpId = experiment.getExpId();
 
-        List<String> versions = variantMapper.selectVersionsByExpId(bizExpId);
+        List<String> versions = bucketMapper.selectVersionsByExpId(bizExpId);
 
         if (versions.size() <= keepCount) {
             log.info("No old versions to cleanup for experiment {} (current: {}, keep: {})",
@@ -283,11 +283,11 @@ public class VariantVersionService {
             String version = versions.get(i);
 
             // 不删除活跃版本
-            List<Variant> activeVariants = variantMapper.selectByExpIdAndVersion(bizExpId, version);
+            List<Bucket> activeVariants = bucketMapper.selectByExpIdAndVersion(bizExpId, version);
             boolean isActive = activeVariants.stream().anyMatch(Variant::getIsActive);
 
             if (!isActive) {
-                variantMapper.deleteByVersion(bizExpId, version);
+                bucketMapper.deleteByVersion(bizExpId, version);
                 deleted++;
                 log.info("Deleted old version {} for experiment {}", version, bizExpId);
             }
@@ -300,7 +300,7 @@ public class VariantVersionService {
     /**
      * 验证分桶配置（仅验证variant_key唯一性）
      */
-    private void validateVariantKeys(List<Variant> variants) {
+    private void validateVariantKeys(List<Bucket> variants) {
         if (variants == null || variants.isEmpty()) {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
@@ -329,7 +329,7 @@ public class VariantVersionService {
      * - 3个分桶: control[0-3332], treatment_a[3333-6665], treatment_b[6666-9999]
      * - 4个分桶: control[0-2499], treatment_a[2500-4999], treatment_b[5000-7499], treatment_c[7500-9999]
      */
-    private void redistributeBucketRanges(List<Variant> variants) {
+    private void redistributeBucketRanges(List<Bucket> variants) {
         int totalBuckets = 10000; // [0, 9999]
         int variantCount = variants.size();
 
@@ -380,8 +380,8 @@ public class VariantVersionService {
     public static class VersionComparison {
         private String version1;
         private String version2;
-        private List<Variant> variants1;
-        private List<Variant> variants2;
+        private List<Bucket> variants1;
+        private List<Bucket> variants2;
         private boolean hasDifferences;
         private int variantCount1;
         private int variantCount2;
@@ -392,11 +392,11 @@ public class VariantVersionService {
         public String getVersion2() { return version2; }
         public void setVersion2(String version2) { this.version2 = version2; }
 
-        public List<Variant> getVariants1() { return variants1; }
-        public void setVariants1(List<Variant> variants1) { this.variants1 = variants1; }
+        public List<Bucket> getVariants1() { return variants1; }
+        public void setVariants1(List<Bucket> variants1) { this.variants1 = variants1; }
 
-        public List<Variant> getVariants2() { return variants2; }
-        public void setVariants2(List<Variant> variants2) { this.variants2 = variants2; }
+        public List<Bucket> getVariants2() { return variants2; }
+        public void setVariants2(List<Bucket> variants2) { this.variants2 = variants2; }
 
         public boolean isHasDifferences() { return hasDifferences; }
         public void setHasDifferences(boolean hasDifferences) { this.hasDifferences = hasDifferences; }

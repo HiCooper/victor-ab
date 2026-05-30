@@ -1,9 +1,9 @@
-package com.gateflow.victor.service.variant;
+package com.gateflow.victor.service.bucket;
 
 import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;import com.gateflow.victor.common.exception.VictorException;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +19,9 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class VariantService {
+public class BucketService {
 
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final ExperimentMapper experimentMapper;
 
     /**
@@ -47,7 +47,7 @@ public class VariantService {
         validateBucketRange(variant, experiment);
 
         variant.setCreatedAt(LocalDateTime.now());
-        variantMapper.insert(variant);
+        bucketMapper.insert(variant);
 
         return variant;
     }
@@ -59,7 +59,7 @@ public class VariantService {
      * @return 创建的版本列表
      */
     @Transactional(rollbackFor = Exception.class)
-    public List<Variant> createVariants(List<Variant> variants) {
+    public List<Bucket> createVariants(List<Bucket> variants) {
         if (variants == null || variants.isEmpty()) {
             throw new VictorException(ErrorCode.VARIANT_EMPTY_LIST);
         }
@@ -81,7 +81,7 @@ public class VariantService {
             variant.setExpId(expId);
             validateBucketRange(variant, experiment);
             variant.setCreatedAt(now);
-            variantMapper.insert(variant);
+            bucketMapper.insert(variant);
         }
 
         return variants;
@@ -95,7 +95,7 @@ public class VariantService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Variant updateVariant(Variant variant) {
-        Variant existing = variantMapper.selectById(variant.getId());
+        Variant existing = bucketMapper.selectById(variant.getId());
         if (existing == null) {
             throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variant.getId()));
         }
@@ -114,7 +114,7 @@ public class VariantService {
         // 验证桶范围
         validateBucketRange(variant, experiment);
 
-        variantMapper.updateById(variant);
+        bucketMapper.updateById(variant);
 
         return variant;
     }
@@ -126,7 +126,7 @@ public class VariantService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteVariant(Long variantId) {
-        Variant variant = variantMapper.selectById(variantId);
+        Variant variant = bucketMapper.selectById(variantId);
         if (variant == null) {
             throw new VictorException(ErrorCode.VARIANT_NOT_FOUND, String.valueOf(variantId));
         }
@@ -137,7 +137,7 @@ public class VariantService {
             throw new VictorException(ErrorCode.VARIANT_ONLY_DRAFT_DELETE);
         }
 
-        variantMapper.deleteById(variantId);
+        bucketMapper.deleteById(variantId);
     }
 
     /**
@@ -146,8 +146,8 @@ public class VariantService {
      * @param expId 业务实验ID
      * @return 版本列表
      */
-    public List<Variant> getVariantsByExperiment(String expId) {
-        return variantMapper.selectByExpId(expId);
+    public List<Bucket> getVariantsByExperiment(String expId) {
+        return bucketMapper.selectByExpId(expId);
     }
 
     /**
@@ -156,12 +156,12 @@ public class VariantService {
      * @param expId 数据库主键ID
      * @return 版本列表
      */
-    public List<Variant> getVariantsByExperimentId(Long expId) {
+    public List<Bucket> getVariantsByExperimentId(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             return Collections.emptyList();
         }
-        return variantMapper.selectByExpId(experiment.getExpId());
+        return bucketMapper.selectByExpId(experiment.getExpId());
     }
 
     /**
@@ -171,7 +171,7 @@ public class VariantService {
      * @return 版本信息
      */
     public Variant getVariant(Long variantId) {
-        return variantMapper.selectById(variantId);
+        return bucketMapper.selectById(variantId);
     }
 
     /**

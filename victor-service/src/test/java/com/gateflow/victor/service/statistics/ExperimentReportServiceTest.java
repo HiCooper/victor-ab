@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.stats.engine.StatsEngine;
 import com.gateflow.victor.stats.model.*;
 import com.gateflow.victor.stats.repository.ReportRepository;
@@ -35,7 +35,7 @@ class ExperimentReportServiceTest {
     @Mock private ReportJobService jobService;
     @Mock private ReportRepository reportRepository;
     @Mock private ExperimentMapper experimentMapper;
-    @Mock private VariantMapper variantMapper;
+    @Mock private BucketMapper bucketMapper;
     @Mock private LayerMapper layerMapper;
     @Mock private ObjectMapper objectMapper;
 
@@ -49,7 +49,7 @@ class ExperimentReportServiceTest {
     void setUp() {
         service = new ExperimentReportService(
             statsEngine, jobService, reportRepository,
-            experimentMapper, variantMapper, layerMapper, objectMapper
+            experimentMapper, bucketMapper, layerMapper, objectMapper
         );
     }
 
@@ -70,7 +70,7 @@ class ExperimentReportServiceTest {
         Experiment exp = buildExperiment(EXP_ID, "running");
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(buildLayer("web"));
-        when(variantMapper.selectActiveVariants(EXP_ID)).thenReturn(List.of());
+        when(bucketMapper.selectActiveBuckets(EXP_ID)).thenReturn(List.of());
 
         Map<String, Object> result = service.getReport(EXP_ID);
 
@@ -88,7 +88,7 @@ class ExperimentReportServiceTest {
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
-        when(variantMapper.selectActiveVariants(EXP_ID)).thenReturn(List.of(ctrl, treat));
+        when(bucketMapper.selectActiveBuckets(EXP_ID)).thenReturn(List.of(ctrl, treat));
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.LAUNCH, true);
         when(statsEngine.analyzeExperiment(
@@ -122,7 +122,7 @@ class ExperimentReportServiceTest {
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
-        when(variantMapper.selectActiveVariants(EXP_ID)).thenReturn(List.of(ctrl, treat));
+        when(bucketMapper.selectActiveBuckets(EXP_ID)).thenReturn(List.of(ctrl, treat));
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.CONTINUE_EXPERIMENT, false);
         when(statsEngine.analyzeExperiment(any(), any(), any(), any(), any(), any(), anyMap(), any()))
@@ -196,7 +196,7 @@ class ExperimentReportServiceTest {
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
-        when(variantMapper.selectActiveVariants(EXP_ID)).thenReturn(List.of(ctrl, treat));
+        when(bucketMapper.selectActiveBuckets(EXP_ID)).thenReturn(List.of(ctrl, treat));
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.LAUNCH, true);
         when(statsEngine.analyzeExperiment(eq(EXP_ID), any(), any(), any(), any(), any(), anyMap(), any()))
@@ -216,7 +216,7 @@ class ExperimentReportServiceTest {
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
-        when(variantMapper.selectActiveVariants(EXP_ID)).thenReturn(List.of(ctrl, treat));
+        when(bucketMapper.selectActiveBuckets(EXP_ID)).thenReturn(List.of(ctrl, treat));
 
         ExperimentReport report = buildReport(EXP_ID, Recommendation.DO_NOT_LAUNCH, false);
         report.getSrmCheck().setPassed(false);
@@ -254,7 +254,7 @@ class ExperimentReportServiceTest {
     }
 
     private Variant buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
-        Variant v = new Variant();
+        Variant v = new Bucket();
         v.setId((long) bucketStart);
         v.setName(key);
         v.setBucketId(bucketId);

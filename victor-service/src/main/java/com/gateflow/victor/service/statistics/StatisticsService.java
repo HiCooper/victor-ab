@@ -7,9 +7,9 @@ import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.dto.*;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.gateflow.victor.stats.algorithm.SrmTest;
 import com.gateflow.victor.stats.algorithm.ZTest;
@@ -39,7 +39,7 @@ import java.util.Map;
 public class StatisticsService {
 
     private final ExperimentService experimentService;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final LayerMapper layerMapper;
     private final StatsEngine statsEngine;
     private final ReportRepository reportRepository;
@@ -69,7 +69,7 @@ public class StatisticsService {
             applyCupedToReport(report, cupedValues);
         }
 
-        List<Variant> variants = experimentService.getExperimentVariants(experimentId);
+        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
         if (variants.isEmpty()) {
             return buildEmptyMetricsResponse();
         }
@@ -96,7 +96,7 @@ public class StatisticsService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(d - 1);
 
-        List<Variant> variants = experimentService.getExperimentVariants(experimentId);
+        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
         if (variants.isEmpty()) {
             return TimeSeriesDataResponse.builder().data(List.of()).build();
         }
@@ -141,7 +141,7 @@ public class StatisticsService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
-        List<Variant> variants = experimentService.getExperimentVariants(experimentId);
+        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
         if (variants.isEmpty()) {
             return BucketStatisticsResponse.builder()
                 .buckets(List.of())
@@ -207,7 +207,7 @@ public class StatisticsService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
-        List<Variant> variants = experimentService.getExperimentVariants(experimentId);
+        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
         if (variants.size() < 2) {
             return AATestResponse.builder()
                 .results(List.of())
@@ -289,7 +289,7 @@ public class StatisticsService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(d - 1);
 
-        List<Variant> variants = experimentService.getExperimentVariants(experimentId);
+        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
         if (variants.isEmpty()) {
             return TrafficDataResponse.builder().data(List.of()).build();
         }
@@ -342,7 +342,7 @@ public class StatisticsService {
         Layer layer = layerMapper.selectById(experiment.getLayerId());
         String layerName = layer != null ? layer.getName() : "default";
 
-        List<Variant> variants = experimentService.getExperimentVariants(experiment.getId());
+        List<Bucket> variants = experimentService.getExperimentVariants(experiment.getId());
         if (variants.isEmpty()) {
             return ExperimentReport.builder()
                 .expId(experiment.getExpId())

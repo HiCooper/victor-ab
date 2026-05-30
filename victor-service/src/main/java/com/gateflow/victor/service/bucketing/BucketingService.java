@@ -4,10 +4,10 @@ import com.gateflow.victor.common.bucketing.BucketEngine;
 import com.gateflow.victor.common.bucketing.BucketResult;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ public class BucketingService {
 
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final ExperimentWhitelistService whitelistService;
 
     /**
@@ -49,7 +49,7 @@ public class BucketingService {
         }
 
         // 查询版本
-        List<Variant> variants = variantMapper.selectByExpId(experiment.getExpId());
+        List<Bucket> variants = bucketMapper.selectByExpId(experiment.getExpId());
 
         // 先检查白名单
         String whitelistBucketId = whitelistService.getBucketIdForWhitelistedUser(experiment.getExpId(), userId);
@@ -89,7 +89,7 @@ public class BucketingService {
                 .map(Experiment::getExpId)
                 .distinct()
                 .toList();
-        Map<String, List<Variant>> variantMap = variantMapper.selectActiveVariantsByExpIds(expIds).stream()
+        Map<String, List<Bucket>> variantMap = bucketMapper.selectActiveBucketsByExpIds(expIds).stream()
                 .collect(Collectors.groupingBy(Variant::getExpId));
 
         List<BucketEngine.ExperimentSpec> specs = experiments.stream()
@@ -108,7 +108,7 @@ public class BucketingService {
      * 构建实验规格
      */
     private BucketEngine.ExperimentSpec buildExperimentSpec(
-            Experiment experiment, Layer layer, List<Variant> variants) {
+            Experiment experiment, Layer layer, List<Bucket> variants) {
 
         List<BucketEngine.VariantSpec> variantSpecs = variants.stream()
                 .map(v -> new BucketEngine.VariantSpec(

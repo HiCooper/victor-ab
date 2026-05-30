@@ -3,8 +3,8 @@ package com.gateflow.victor.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.domain.dto.VariantCreateRequest;
 import com.gateflow.victor.domain.dto.VariantUpdateRequest;
-import com.gateflow.victor.domain.entity.Variant;
-import com.gateflow.victor.service.variant.VariantService;
+import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.service.bucket.BucketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,10 +24,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * VariantController 集成测试
+ * BucketController 集成测试
  */
-@WebMvcTest(VariantController.class)
-class VariantControllerTest {
+@WebMvcTest(BucketController.class)
+class BucketControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,13 +36,13 @@ class VariantControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private VariantService variantService;
+    private BucketService bucketService;
 
     private Variant testVariant;
 
     @BeforeEach
     void setUp() {
-        testVariant = new Variant();
+        testVariant = new Bucket();
         testVariant.setId(1L);
         testVariant.setExpId("exp_test_001");
         testVariant.setBucketId("control");
@@ -62,7 +62,7 @@ class VariantControllerTest {
         request.setBucketStart(0);
         request.setBucketEnd(499);
 
-        when(variantService.createVariant(any(Variant.class))).thenReturn(testVariant);
+        when(bucketService.createVariant(any(Variant.class))).thenReturn(testVariant);
 
         mockMvc.perform(post("/api/v1/variants")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -71,7 +71,7 @@ class VariantControllerTest {
                 .andExpect(jsonPath("$.bucketId").value("control"))
                 .andExpect(jsonPath("$.name").value("对照组"));
 
-        verify(variantService).createVariant(any(Variant.class));
+        verify(bucketService).createVariant(any(Variant.class));
     }
 
     @Test
@@ -86,7 +86,7 @@ class VariantControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(variantService, never()).createVariant(any());
+        verify(bucketService, never()).createVariant(any());
     }
 
     @Test
@@ -107,65 +107,65 @@ class VariantControllerTest {
         request2.setBucketEnd(999);
 
         List<VariantCreateRequest> requests = List.of(request1, request2);
-        List<Variant> variants = List.of(testVariant);
+        List<Bucket> variants = List.of(testVariant);
 
-        when(variantService.createVariants(anyList())).thenReturn(variants);
+        when(bucketService.createVariants(anyList())).thenReturn(variants);
 
         mockMvc.perform(post("/api/v1/variants/batch")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(requests)))
                 .andExpect(status().isOk());
 
-        verify(variantService).createVariants(anyList());
+        verify(bucketService).createVariants(anyList());
     }
 
     @Test
     @DisplayName("查询版本详情 - 成功")
     void getVariant_Success() throws Exception {
-        when(variantService.getVariant(1L)).thenReturn(testVariant);
+        when(bucketService.getVariant(1L)).thenReturn(testVariant);
 
         mockMvc.perform(get("/api/v1/variants/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.bucketId").value("control"));
 
-        verify(variantService).getVariant(1L);
+        verify(bucketService).getVariant(1L);
     }
 
     @Test
     @DisplayName("查询版本详情 - 不存在")
     void getVariant_NotFound() throws Exception {
-        when(variantService.getVariant(999L)).thenReturn(null);
+        when(bucketService.getVariant(999L)).thenReturn(null);
 
         mockMvc.perform(get("/api/v1/variants/999"))
                 .andExpect(status().isNotFound());
 
-        verify(variantService).getVariant(999L);
+        verify(bucketService).getVariant(999L);
     }
 
     @Test
     @DisplayName("查询实验版本列表 - 成功")
     void getVariantsByExperiment_Success() throws Exception {
-        List<Variant> variants = List.of(testVariant);
-        when(variantService.getVariantsByExperimentId(1L)).thenReturn(variants);
+        List<Bucket> variants = List.of(testVariant);
+        when(bucketService.getVariantsByExperimentId(1L)).thenReturn(variants);
 
         mockMvc.perform(get("/api/v1/variants/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bucketId").value("control"));
 
-        verify(variantService).getVariantsByExperimentId(1L);
+        verify(bucketService).getVariantsByExperimentId(1L);
     }
 
     @Test
     @DisplayName("查询实验版本列表 - 空列表")
     void getVariantsByExperiment_EmptyList() throws Exception {
-        when(variantService.getVariantsByExperimentId(1L)).thenReturn(Collections.emptyList());
+        when(bucketService.getVariantsByExperimentId(1L)).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/v1/variants/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        verify(variantService).getVariantsByExperimentId(1L);
+        verify(bucketService).getVariantsByExperimentId(1L);
     }
 
     @Test
@@ -176,11 +176,11 @@ class VariantControllerTest {
         request.setBucketStart(0);
         request.setBucketEnd(599);
 
-        Variant updated = new Variant();
+        Variant updated = new Bucket();
         updated.setId(1L);
         updated.setName("更新后的名称");
 
-        when(variantService.updateVariant(any(Variant.class))).thenReturn(updated);
+        when(bucketService.updateVariant(any(Variant.class))).thenReturn(updated);
 
         mockMvc.perform(put("/api/v1/variants/1")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -188,17 +188,17 @@ class VariantControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("更新后的名称"));
 
-        verify(variantService).updateVariant(any(Variant.class));
+        verify(bucketService).updateVariant(any(Variant.class));
     }
 
     @Test
     @DisplayName("删除版本 - 成功")
     void deleteVariant_Success() throws Exception {
-        doNothing().when(variantService).deleteVariant(1L);
+        doNothing().when(bucketService).deleteVariant(1L);
 
         mockMvc.perform(delete("/api/v1/variants/1"))
                 .andExpect(status().isNoContent());
 
-        verify(variantService).deleteVariant(1L);
+        verify(bucketService).deleteVariant(1L);
     }
 }

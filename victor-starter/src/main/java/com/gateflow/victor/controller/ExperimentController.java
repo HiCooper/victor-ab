@@ -6,7 +6,7 @@ import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Permission;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,9 +49,9 @@ public class ExperimentController {
         experiment.setCreatedBy(request.getCreatedBy());
         experiment.setAutoRampEnabled(request.getAutoRampEnabled());
 
-        List<Variant> variants = request.getVariants() != null
+        List<Bucket> variants = request.getVariants() != null
             ? request.getVariants().stream().map(vr -> {
-                Variant v = new Variant();
+                Variant v = new Bucket();
                 v.setBucketId(vr.getVariantKey());
                 v.setName(vr.getName());
                 v.setBucketStart(vr.getBucketStart());
@@ -243,9 +243,9 @@ public class ExperimentController {
     @GetMapping("/{id}/variants")
     @Operation(summary = "查询实验版本", description = "查询实验的所有版本")
     @RequirePermission(Permission.VIEW_EXPERIMENT)
-    public ResponseEntity<List<Variant>> getExperimentVariants(
+    public ResponseEntity<List<Bucket>> getExperimentVariants(
             @Parameter(description = "实验ID") @PathVariable Long id) {
-        List<Variant> variants = experimentService.getExperimentVariants(id);
+        List<Bucket> variants = experimentService.getExperimentVariants(id);
         return ResponseEntity.ok(variants);
     }
 }

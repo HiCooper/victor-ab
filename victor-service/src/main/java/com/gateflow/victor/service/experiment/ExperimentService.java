@@ -7,10 +7,10 @@ import com.gateflow.victor.common.util.ExperimentIdGenerator;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.common.exception.VictorException;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -35,9 +35,9 @@ public class ExperimentService {
 
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final ExperimentLifecycleService lifecycleService;
-    private final VariantVersionService versionService;
+    private final BucketVersionService versionService;
 
     /**
      * 创建实验
@@ -47,7 +47,7 @@ public class ExperimentService {
      * @return 创建的实验
      */
     @Transactional(rollbackFor = Exception.class)
-    public Experiment createExperiment(Experiment experiment, List<Variant> variants) {
+    public Experiment createExperiment(Experiment experiment, List<Bucket> variants) {
         // 验证层是否存在
         Layer layer = layerMapper.selectById(experiment.getLayerId());
         if (layer == null) {
@@ -55,7 +55,7 @@ public class ExperimentService {
         }
 
         // 计算变体桶边界（如果前端未提供）
-        List<Variant> processedVariants = calculateVariantBucketBoundaries(variants);
+        List<Bucket> processedVariants = calculateVariantBucketBoundaries(variants);
 
         // 验证版本桶范围
         validateVariantBucketRanges(processedVariants);
@@ -83,7 +83,7 @@ public class ExperimentService {
                 variant.setVersion(version);
                 variant.setIsActive(true);
                 variant.setCreatedAt(now);
-                variantMapper.insert(variant);
+                bucketMapper.insert(variant);
             }
             log.info("Created experiment {} with version {}", experiment.getExpId(), version);
         }
@@ -131,8 +131,8 @@ public class ExperimentService {
         List<ExperimentCreateRequest.VariantRequest> processedVariants = calculateBucketBoundaries(variantRequests);
         
         // 3. 转换VariantRequest为Variant实体
-        List<Variant> newVariants = processedVariants.stream().map(req -> {
-            Variant variant = new Variant();
+        List<Bucket> newVariants = processedVariants.stream().map(req -> {
+            Variant variant = new Bucket();
             variant.setBucketId(BucketIdGenerator.generate());
             variant.setName(req.getName());
             variant.setBucketStart(req.getBucketStart());
@@ -204,7 +204,7 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
 
-        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(experiment.getExpId());
         if (variants.isEmpty()) {
             throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
         }
@@ -371,11 +371,11 @@ public class ExperimentService {
         experimentMapper.insert(cloned);
 
         // 克隆版本
-        List<Variant> sourceVariants = variantMapper.selectByExpId(source.getExpId());
+        List<Bucket> sourceVariants = bucketMapper.selectByExpId(source.getExpId());
         if (!sourceVariants.isEmpty()) {
             LocalDateTime now = LocalDateTime.now();
             for (Variant sourceVariant : sourceVariants) {
-                Variant clonedVariant = new Variant();
+                Variant clonedVariant = new Bucket();
                 clonedVariant.setExpId(cloned.getExpId());
                 clonedVariant.setBucketId(BucketIdGenerator.generate());
                 clonedVariant.setName(sourceVariant.getName());
@@ -383,7 +383,7 @@ public class ExperimentService {
                 clonedVariant.setBucketEnd(sourceVariant.getBucketEnd());
                 clonedVariant.setParams(sourceVariant.getParams());
                 clonedVariant.setCreatedAt(now);
-                variantMapper.insert(clonedVariant);
+                bucketMapper.insert(clonedVariant);
             }
         }
 
@@ -408,7 +408,7 @@ public class ExperimentService {
         }
 
         // 先删除版本（通过业务expId）
-        variantMapper.deleteByExpId(experiment.getExpId());
+        bucketMapper.deleteByExpId(experiment.getExpId());
 
         // 删除实验
         experimentMapper.deleteById(expId);
@@ -498,12 +498,12 @@ public class ExperimentService {
      * @param expId 实验主键ID
      * @return 版本列表
      */
-    public List<Variant> getExperimentVariants(Long expId) {
+    public List<Bucket> getExperimentVariants(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             return Collections.emptyList();
         }
-        return variantMapper.selectActiveVariants(experiment.getExpId());
+        return bucketMapper.selectActiveBuckets(experiment.getExpId());
     }
 
     /**
@@ -512,12 +512,12 @@ public class ExperimentService {
      * @param expId 实验主键ID
      * @return 所有版本列表
      */
-    public List<Variant> getAllExperimentVariants(Long expId) {
+    public List<Bucket> getAllExperimentVariants(Long expId) {
         Experiment experiment = experimentMapper.selectById(expId);
         if (experiment == null) {
             return Collections.emptyList();
         }
-        return variantMapper.selectByExpId(experiment.getExpId());
+        return bucketMapper.selectByExpId(experiment.getExpId());
     }
 
     /**
@@ -527,7 +527,7 @@ public class ExperimentService {
      * @param version 版本号
      * @return 版本列表
      */
-    public List<Variant> getExperimentVariantsByVersion(Long expId, String version) {
+    public List<Bucket> getExperimentVariantsByVersion(Long expId, String version) {
         return versionService.getVariantsByVersion(expId, version);
     }
 
@@ -545,7 +545,7 @@ public class ExperimentService {
      * 计算变体桶边界（当变体未提供 bucketStart/bucketEnd 时）
      * 默认使用完整的 0-9999 桶范围
      */
-    private List<Variant> calculateVariantBucketBoundaries(List<Variant> variants) {
+    private List<Bucket> calculateVariantBucketBoundaries(List<Bucket> variants) {
         if (variants == null || variants.isEmpty()) {
             return variants;
         }
@@ -610,7 +610,7 @@ public class ExperimentService {
     /**
      * 验证版本桶范围
      */
-    private void validateVariantBucketRanges(List<Variant> variants) {
+    private void validateVariantBucketRanges(List<Bucket> variants) {
         if (variants == null || variants.isEmpty()) {
             return;
         }

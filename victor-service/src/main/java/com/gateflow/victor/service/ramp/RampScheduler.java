@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ import java.util.Map;
 public class RampScheduler {
 
     private final ExperimentMapper experimentMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final ExperimentService experimentService;
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
@@ -47,7 +47,7 @@ public class RampScheduler {
     }
 
     private int getMaxVariantBucketEnd(Experiment exp) {
-        List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
         if (variants == null || variants.isEmpty()) {
             return 0;
         }
@@ -59,11 +59,11 @@ public class RampScheduler {
     }
 
     private void updateVariantBucketEnds(Experiment exp, int newBucketEnd) {
-        List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
         if (variants != null) {
             for (Variant v : variants) {
                 v.setBucketEnd(newBucketEnd);
-                variantMapper.updateById(v);
+                bucketMapper.updateById(v);
             }
         }
     }

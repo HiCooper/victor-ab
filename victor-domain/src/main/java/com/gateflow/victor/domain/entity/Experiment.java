@@ -116,5 +116,5 @@ public class Experiment {
      * 关联的版本列表 (一对多，非数据库字段)
      */
     @TableField(exist = false)
-    private java.util.List<Variant> variants;
+    private java.util.List<Bucket> variants;
 }

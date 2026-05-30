@@ -25,7 +25,7 @@ public class ConfigService {
 
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final DomainMapper domainMapper;
     private final ConfigVersionMapper configVersionMapper;
 
@@ -83,14 +83,14 @@ public class ConfigService {
 
         // 查询关联数据
         Map<Long, Layer> layerMap = new HashMap<>();
-        Map<String, List<Variant>> variantMap = new HashMap<>();
+        Map<String, List<Bucket>> variantMap = new HashMap<>();
 
         for (Experiment exp : experiments) {
             Layer layer = layerMapper.selectById(exp.getLayerId());
             if (layer != null) {
                 layerMap.put(exp.getLayerId(), layer);
             }
-            variantMap.put(exp.getExpId(), variantMapper.selectByExpId(exp.getExpId()));
+            variantMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
         }
 
         // 构建配置
@@ -143,14 +143,14 @@ public class ConfigService {
 
         // 构建配置
         Map<Long, Layer> layerMap = new HashMap<>();
-        Map<String, List<Variant>> variantMap = new HashMap<>();
+        Map<String, List<Bucket>> variantMap = new HashMap<>();
 
         for (Experiment exp : experiments) {
             Layer layer = layerMapper.selectById(exp.getLayerId());
             if (layer != null) {
                 layerMap.put(exp.getLayerId(), layer);
             }
-            variantMap.put(exp.getExpId(), variantMapper.selectByExpId(exp.getExpId()));
+            variantMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
         }
 
         List<ConfigResponse.ExperimentConfig> expConfigs = experiments.stream()
@@ -169,10 +169,10 @@ public class ConfigService {
      * 构建实验配置
      */
     private ConfigResponse.ExperimentConfig buildExperimentConfig(
-            Experiment exp, Map<Long, Layer> layerMap, Map<String, List<Variant>> variantMap) {
+            Experiment exp, Map<Long, Layer> layerMap, Map<String, List<Bucket>> variantMap) {
 
         Layer layer = layerMap.get(exp.getLayerId());
-        List<Variant> variants = variantMap.getOrDefault(exp.getExpId(), Collections.emptyList());
+        List<Bucket> variants = variantMap.getOrDefault(exp.getExpId(), Collections.emptyList());
 
         ConfigResponse.ExperimentConfig config = new ConfigResponse.ExperimentConfig();
         config.setExpId(exp.getExpId());

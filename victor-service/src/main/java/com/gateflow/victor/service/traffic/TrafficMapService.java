@@ -5,11 +5,11 @@ import com.gateflow.victor.domain.dto.TrafficMapResponse;
 import com.gateflow.victor.domain.entity.Domain;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.DomainMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,14 +33,14 @@ public class TrafficMapService {
     private final LayerMapper layerMapper;
     private final DomainMapper domainMapper;
     private final ExperimentMapper experimentMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
 
     /**
      * 从实验的变体中推导实验的桶范围
      * 返回 [minStart, maxEnd]，如果没有变体则返回 null
      */
     private int[] deriveExperimentBucketRange(Experiment exp) {
-        List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
         if (variants == null || variants.isEmpty()) {
             return null;
         }
@@ -67,7 +67,7 @@ public class TrafficMapService {
      * 计算实验占用的桶总数（所有变体桶的并集）
      */
     private int calculateExperimentBucketCount(Experiment exp) {
-        List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
         if (variants == null || variants.isEmpty()) {
             return 0;
         }
@@ -139,7 +139,7 @@ public class TrafficMapService {
             eo.setBucketCount(bucketCount);
             eo.setTrafficPercent(bucketCount * 100.0 / TOTAL_BUCKETS);
 
-            List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
+            List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
             List<TrafficMapResponse.VariantDetail> variantDetails = new ArrayList<>();
 
             for (Variant v : variants) {
@@ -263,7 +263,7 @@ public class TrafficMapService {
             segment.setExperimentName(exp.getName());
             segment.setExperimentStatus(exp.getStatus());
 
-            List<Variant> variants = variantMapper.selectActiveVariants(exp.getExpId());
+            List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
             List<TrafficMapResponse.VariantOccupancy> variantOccupancies = new ArrayList<>();
 
             for (Variant v : variants) {

@@ -5,7 +5,7 @@ import com.gateflow.victor.domain.dto.ConfigResponse;
 import com.gateflow.victor.domain.entity.ConfigVersion;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +39,7 @@ class ConfigServiceTest {
     private LayerMapper layerMapper;
 
     @Mock
-    private VariantMapper variantMapper;
+    private BucketMapper bucketMapper;
 
     @Mock
     private DomainMapper domainMapper;
@@ -78,7 +78,7 @@ class ConfigServiceTest {
         testExperiment.setLayerId(1L);
         testExperiment.setStatus("running");
 
-        testVariant = new Variant();
+        testVariant = new Bucket();
         testVariant.setId(1L);
         testVariant.setExpId("exp_test_001");
         testVariant.setBucketId("control");
@@ -92,7 +92,7 @@ class ConfigServiceTest {
     void getFullConfig_Success() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
-        when(variantMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
+        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
 
         ConfigResponse response = configService.getFullConfig("server");
 
@@ -109,7 +109,7 @@ class ConfigServiceTest {
 
         verify(experimentMapper).selectRunningExperiments();
         verify(layerMapper).selectById(1L);
-        verify(variantMapper).selectByExpId("exp_test_001");
+        verify(bucketMapper).selectByExpId("exp_test_001");
     }
 
     @Test
@@ -131,7 +131,7 @@ class ConfigServiceTest {
     void getFullConfig_LayerNotFound() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
         when(layerMapper.selectById(1L)).thenReturn(null);
-        when(variantMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
+        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
 
         ConfigResponse response = configService.getFullConfig("server");
 

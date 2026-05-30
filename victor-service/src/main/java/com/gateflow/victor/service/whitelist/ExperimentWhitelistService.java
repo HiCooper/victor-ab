@@ -4,10 +4,10 @@ import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.ExperimentWhitelist;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.ExperimentWhitelistMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ public class ExperimentWhitelistService {
 
     private final ExperimentWhitelistMapper whitelistMapper;
     private final ExperimentMapper experimentMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
 
     /**
      * 添加白名单用户（指定分桶）
@@ -39,7 +39,7 @@ public class ExperimentWhitelistService {
         }
 
         // 验证分桶是否存在
-        List<Variant> variants = variantMapper.selectActiveVariants(expId);
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(expId);
         boolean bucketExists = variants.stream()
                 .anyMatch(v -> v.getBucketId().equals(bucketId));
         if (!bucketExists) {

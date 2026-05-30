@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.domain.dto.ExperimentCreateRequest;
 import com.gateflow.victor.domain.dto.ExperimentUpdateRequest;
 import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,7 +54,7 @@ class ExperimentControllerTest {
         testExperiment.setLayerId(1L);
         testExperiment.setStatus("draft");
 
-        testVariant = new Variant();
+        testVariant = new Bucket();
         testVariant.setId(1L);
         testVariant.setExpId("exp_test_001");
         testVariant.setBucketId("control");
@@ -267,7 +267,7 @@ class ExperimentControllerTest {
     @Test
     @DisplayName("查询实验版本列表 - 成功")
     void getExperimentVariants_Success() throws Exception {
-        List<Variant> variants = List.of(testVariant);
+        List<Bucket> variants = List.of(testVariant);
         when(experimentService.getExperimentVariants(1L)).thenReturn(variants);
 
         mockMvc.perform(get("/api/v1/experiments/1/variants"))

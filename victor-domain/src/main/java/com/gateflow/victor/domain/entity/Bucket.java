@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("victor_bucket")
-public class Variant {
+public class Bucket {
 
     /**
      * 主键ID

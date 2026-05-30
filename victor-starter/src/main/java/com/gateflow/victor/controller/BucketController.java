@@ -5,8 +5,8 @@ import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.VariantCreateRequest;
 import com.gateflow.victor.domain.dto.VariantUpdateRequest;
 import com.gateflow.victor.domain.entity.Permission;
-import com.gateflow.victor.domain.entity.Variant;
-import com.gateflow.victor.service.variant.VariantService;
+import com.gateflow.victor.domain.entity.Bucket;
+import com.gateflow.victor.service.bucket.BucketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,15 +25,15 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/variants")
 @RequiredArgsConstructor
 @Tag(name = "Variant API", description = "版本管理接口")
-public class VariantController {
+public class BucketController {
 
-    private final VariantService variantService;
+    private final BucketService bucketService;
 
     @PostMapping
     @Operation(summary = "创建版本", description = "创建单个实验版本")
     @RequirePermission(Permission.EDIT_EXPERIMENT)
-    public ResponseEntity<Variant> createVariant(@Valid @RequestBody VariantCreateRequest request) {
-        Variant variant = new Variant();
+    public ResponseEntity<Bucket> createVariant(@Valid @RequestBody VariantCreateRequest request) {
+        Variant variant = new Bucket();
         variant.setExpId(request.getExpId());
         variant.setBucketId(request.getVariantKey());
         variant.setName(request.getName());
@@ -41,16 +41,16 @@ public class VariantController {
         variant.setBucketEnd(request.getBucketEnd());
         variant.setParams(request.getParams());
 
-        Variant created = variantService.createVariant(variant);
+        Variant created = bucketService.createVariant(variant);
         return ResponseEntity.ok(created);
     }
 
     @PostMapping("/batch")
     @Operation(summary = "批量创建版本", description = "批量创建实验版本")
     @RequirePermission(Permission.EDIT_EXPERIMENT)
-    public ResponseEntity<List<Variant>> createVariants(@Valid @RequestBody List<VariantCreateRequest> requests) {
-        List<Variant> variants = requests.stream().map(req -> {
-            Variant v = new Variant();
+    public ResponseEntity<List<Bucket>> createVariants(@Valid @RequestBody List<VariantCreateRequest> requests) {
+        List<Bucket> variants = requests.stream().map(req -> {
+            Variant v = new Bucket();
             v.setExpId(req.getExpId());
             v.setBucketId(req.getVariantKey());
             v.setName(req.getName());
@@ -60,15 +60,15 @@ public class VariantController {
             return v;
         }).collect(Collectors.toList());
 
-        List<Variant> created = variantService.createVariants(variants);
+        List<Bucket> created = bucketService.createVariants(variants);
         return ResponseEntity.ok(created);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "查询版本详情", description = "根据ID查询版本信息")
-    public ResponseEntity<Variant> getVariant(
+    public ResponseEntity<Bucket> getVariant(
             @Parameter(description = "版本ID") @PathVariable Long id) {
-        Variant variant = variantService.getVariant(id);
+        Variant variant = bucketService.getVariant(id);
         if (variant == null) {
             return ResponseEntity.notFound().build();
         }
@@ -77,26 +77,26 @@ public class VariantController {
 
     @GetMapping("/experiment/{expId}")
     @Operation(summary = "查询实验版本列表", description = "查询指定实验的所有版本")
-    public ResponseEntity<List<Variant>> getVariantsByExperiment(
+    public ResponseEntity<List<Bucket>> getVariantsByExperiment(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
-        List<Variant> variants = variantService.getVariantsByExperimentId(expId);
+        List<Bucket> variants = bucketService.getVariantsByExperimentId(expId);
         return ResponseEntity.ok(variants);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "更新版本", description = "更新版本信息")
     @RequirePermission(Permission.EDIT_EXPERIMENT)
-    public ResponseEntity<Variant> updateVariant(
+    public ResponseEntity<Bucket> updateVariant(
             @Parameter(description = "版本ID") @PathVariable Long id,
             @RequestBody VariantUpdateRequest request) {
-        Variant variant = new Variant();
+        Variant variant = new Bucket();
         variant.setId(id);
         variant.setName(request.getName());
         variant.setBucketStart(request.getBucketStart());
         variant.setBucketEnd(request.getBucketEnd());
         variant.setParams(request.getParams());
 
-        Variant updated = variantService.updateVariant(variant);
+        Variant updated = bucketService.updateVariant(variant);
         return ResponseEntity.ok(updated);
     }
 
@@ -105,7 +105,7 @@ public class VariantController {
     @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Void> deleteVariant(
             @Parameter(description = "版本ID") @PathVariable Long id) {
-        variantService.deleteVariant(id);
+        bucketService.deleteVariant(id);
         return ResponseEntity.noContent().build();
     }
 }

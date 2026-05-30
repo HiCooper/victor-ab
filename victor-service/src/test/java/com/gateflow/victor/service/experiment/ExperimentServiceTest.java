@@ -3,10 +3,10 @@ package com.gateflow.victor.service.experiment;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,13 +35,13 @@ class ExperimentServiceTest {
     private LayerMapper layerMapper;
 
     @Mock
-    private VariantMapper variantMapper;
+    private BucketMapper bucketMapper;
 
     @Mock
     private ExperimentLifecycleService lifecycleService;
 
     @Mock
-    private VariantVersionService versionService;
+    private BucketVersionService versionService;
 
     @InjectMocks
     private ExperimentService experimentService;
@@ -67,14 +67,14 @@ class ExperimentServiceTest {
         testExperiment.setStatus("draft");
 
         // 两个variant覆盖完整的实验桶范围 0-999 (共1000个桶)
-        testVariant = new Variant();
+        testVariant = new Bucket();
         testVariant.setId(1L);
         testVariant.setExpId("exp_test_001");
         testVariant.setBucketId("control");
         testVariant.setBucketStart(0);
         testVariant.setBucketEnd(4999);
 
-        testVariant2 = new Variant();
+        testVariant2 = new Bucket();
         testVariant2.setId(2L);
         testVariant2.setExpId("exp_test_001");
         testVariant2.setBucketId("treatment");
@@ -87,16 +87,16 @@ class ExperimentServiceTest {
     void createExperiment_Success() {
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
         when(experimentMapper.insert(any(Experiment.class))).thenReturn(1);
-        when(variantMapper.insert(any(Variant.class))).thenReturn(1);
+        when(bucketMapper.insert(any(Variant.class))).thenReturn(1);
         when(versionService.generateVersion()).thenReturn("v1.0.0");
 
-        List<Variant> variants = List.of(testVariant, testVariant2);
+        List<Bucket> variants = List.of(testVariant, testVariant2);
         Experiment created = experimentService.createExperiment(testExperiment, variants);
 
         assertNotNull(created);
         assertEquals("draft", created.getStatus());
         verify(experimentMapper).insert(any(Experiment.class));
-        verify(variantMapper, times(2)).insert(any(Variant.class));
+        verify(bucketMapper, times(2)).insert(any(Variant.class));
     }
 
     @Test
@@ -121,7 +121,7 @@ class ExperimentServiceTest {
 
         assertNotNull(created);
         assertEquals("draft", created.getStatus());
-        verify(variantMapper, never()).insert(any(Variant.class));
+        verify(bucketMapper, never()).insert(any(Variant.class));
     }
 
     @Test
@@ -176,7 +176,7 @@ class ExperimentServiceTest {
     void startExperiment_Success() {
         testExperiment.setStatus("draft");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(variantMapper.selectActiveVariants("exp_test_001")).thenReturn(List.of(testVariant, testVariant2));
+        when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(List.of(testVariant, testVariant2));
         when(experimentMapper.updateById(any(Experiment.class))).thenReturn(1);
 
         Experiment started = experimentService.startExperiment(1L);
@@ -184,7 +184,7 @@ class ExperimentServiceTest {
         assertNotNull(started);
         assertEquals("running", started.getStatus());
         verify(experimentMapper).updateById(any(Experiment.class));
-        verify(variantMapper).selectActiveVariants("exp_test_001");
+        verify(bucketMapper).selectActiveBuckets("exp_test_001");
     }
 
     @Test
@@ -218,12 +218,12 @@ class ExperimentServiceTest {
     void deleteExperiment_Success() {
         testExperiment.setStatus("draft");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(variantMapper.deleteByExpId("exp_test_001")).thenReturn(1);
+        when(bucketMapper.deleteByExpId("exp_test_001")).thenReturn(1);
         when(experimentMapper.deleteById(1L)).thenReturn(1);
 
         experimentService.deleteExperiment(1L);
 
-        verify(variantMapper).deleteByExpId("exp_test_001");
+        verify(bucketMapper).deleteByExpId("exp_test_001");
         verify(experimentMapper).deleteById(1L);
     }
 
@@ -243,15 +243,15 @@ class ExperimentServiceTest {
     @Test
     @DisplayName("查询实验版本 - 成功")
     void getExperimentVariants_Success() {
-        List<Variant> variants = List.of(testVariant);
+        List<Bucket> variants = List.of(testVariant);
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(variantMapper.selectActiveVariants("exp_test_001")).thenReturn(variants);
+        when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(variants);
 
-        List<Variant> result = experimentService.getExperimentVariants(1L);
+        List<Bucket> result = experimentService.getExperimentVariants(1L);
 
         assertEquals(1, result.size());
         assertEquals("control", result.get(0).getBucketId());
-        verify(variantMapper).selectActiveVariants("exp_test_001");
+        verify(bucketMapper).selectActiveBuckets("exp_test_001");
     }
 
     @Test

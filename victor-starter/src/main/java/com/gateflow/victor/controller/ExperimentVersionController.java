@@ -2,9 +2,9 @@ package com.gateflow.victor.controller;
 
 import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.entity.Permission;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.service.experiment.ExperimentService;
-import com.gateflow.victor.service.experiment.VariantVersionService;
+import com.gateflow.victor.service.experiment.BucketVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,7 +25,7 @@ import java.util.Map;
 public class ExperimentVersionController {
 
     private final ExperimentService experimentService;
-    private final VariantVersionService versionService;
+    private final BucketVersionService versionService;
 
     @GetMapping
     @Operation(summary = "获取版本历史", description = "获取实验的所有版本号列表")
@@ -37,26 +37,26 @@ public class ExperimentVersionController {
 
     @GetMapping("/active")
     @Operation(summary = "获取当前活跃版本", description = "获取实验的当前活跃版本配置")
-    public ResponseEntity<List<Variant>> getActiveVariants(
+    public ResponseEntity<List<Bucket>> getActiveVariants(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
-        List<Variant> variants = experimentService.getExperimentVariants(expId);
+        List<Bucket> variants = experimentService.getExperimentVariants(expId);
         return ResponseEntity.ok(variants);
     }
 
     @GetMapping("/all")
     @Operation(summary = "获取所有历史版本", description = "获取实验的所有历史版本（包含非活跃）")
-    public ResponseEntity<List<Variant>> getAllVariants(
+    public ResponseEntity<List<Bucket>> getAllVariants(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
-        List<Variant> variants = experimentService.getAllExperimentVariants(expId);
+        List<Bucket> variants = experimentService.getAllExperimentVariants(expId);
         return ResponseEntity.ok(variants);
     }
 
     @GetMapping("/{version}")
     @Operation(summary = "获取指定版本", description = "获取实验的指定版本配置")
-    public ResponseEntity<List<Variant>> getVariantByVersion(
+    public ResponseEntity<List<Bucket>> getVariantByVersion(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "版本号") @PathVariable String version) {
-        List<Variant> variants = experimentService.getExperimentVariantsByVersion(expId, version);
+        List<Bucket> variants = experimentService.getExperimentVariantsByVersion(expId, version);
         return ResponseEntity.ok(variants);
     }
 
@@ -66,7 +66,7 @@ public class ExperimentVersionController {
     public ResponseEntity<Map<String, Object>> rollbackToVersion(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "目标版本号") @PathVariable String version) {
-        List<Variant> variants = versionService.rollbackToVersion(expId, version);
+        List<Bucket> variants = versionService.rollbackToVersion(expId, version);
         
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -78,11 +78,11 @@ public class ExperimentVersionController {
 
     @GetMapping("/compare")
     @Operation(summary = "对比两个版本", description = "对比实验的两个版本之间的差异")
-    public ResponseEntity<VariantVersionService.VersionComparison> compareVersions(
+    public ResponseEntity<BucketVersionService.VersionComparison> compareVersions(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "版本1") @RequestParam String v1,
             @Parameter(description = "版本2") @RequestParam String v2) {
-        VariantVersionService.VersionComparison comparison = versionService.compareVersions(expId, v1, v2);
+        BucketVersionService.VersionComparison comparison = versionService.compareVersions(expId, v1, v2);
         return ResponseEntity.ok(comparison);
     }
 

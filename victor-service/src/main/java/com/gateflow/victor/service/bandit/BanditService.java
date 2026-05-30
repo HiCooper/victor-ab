@@ -2,7 +2,7 @@ package com.gateflow.victor.service.bandit;
 
 import com.gateflow.victor.domain.dto.BanditRequest;
 import com.gateflow.victor.domain.dto.BanditResponse;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ public class BanditService {
      * Thompson Sampling 算法
      * 使用Beta-Bernoulli共轭进行在线学习
      */
-    public BanditResponse thompsonSampling(List<Variant> variants, Map<Long, int[]> data) {
+    public BanditResponse thompsonSampling(List<Bucket> variants, Map<Long, int[]> data) {
         Map<String, Double> allocationProbabilities = new HashMap<>();
         Map<String, Double> estimatedRates = new HashMap<>();
 
@@ -99,7 +99,7 @@ public class BanditService {
     /**
      * Epsilon-Greedy 算法
      */
-    public BanditResponse epsilonGreedy(List<Variant> variants, Map<Long, int[]> data, double epsilon) {
+    public BanditResponse epsilonGreedy(List<Bucket> variants, Map<Long, int[]> data, double epsilon) {
         Map<String, Double> estimatedRates = new HashMap<>();
 
         // 计算每个variant的转化率
@@ -150,7 +150,7 @@ public class BanditService {
     /**
      * UCB (Upper Confidence Bound) 算法
      */
-    public BanditResponse ucb(List<Variant> variants, Map<Long, int[]> data) {
+    public BanditResponse ucb(List<Bucket> variants, Map<Long, int[]> data) {
         Map<String, Double> estimatedRates = new HashMap<>();
         Map<String, Double> ucbScores = new HashMap<>();
 
@@ -210,7 +210,7 @@ public class BanditService {
     /**
      * 根据请求执行多臂老虎机算法
      */
-    public BanditResponse optimize(BanditRequest request, List<Variant> variants, Map<Long, int[]> data) {
+    public BanditResponse optimize(BanditRequest request, List<Bucket> variants, Map<Long, int[]> data) {
         String algorithm = request.getAlgorithm();
 
         return switch (algorithm) {

@@ -9,10 +9,10 @@ import com.gateflow.victor.stats.model.TestResult;
 import com.gateflow.victor.stats.repository.ReportRepository;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -31,7 +31,7 @@ public class ExperimentReportService {
     private final ReportJobService jobService;
     private final ReportRepository reportRepository;
     private final ExperimentMapper experimentMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
     private final LayerMapper layerMapper;
     private final ObjectMapper objectMapper;
 
@@ -46,7 +46,7 @@ public class ExperimentReportService {
         Layer layer = layerMapper.selectById(experiment.getLayerId());
         String layerKey = layer != null ? layer.getLayerId() : "default";
 
-        List<Variant> variants = variantMapper.selectActiveVariants(expId);
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(expId);
         if (variants.isEmpty()) {
             return buildEmptyReport(expId);
         }
@@ -188,7 +188,7 @@ public class ExperimentReportService {
     }
 
     private Map<String, Object> buildRunningReport(String expId, Experiment experiment,
-            String layerKey, List<Variant> variants,
+            String layerKey, List<Bucket> variants,
             String controlVariant, List<String> treatmentVariants,
             Map<String, Double> expectedProportions,
             Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap,

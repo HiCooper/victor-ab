@@ -4,9 +4,9 @@ import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.dto.ExperimentMetricsResponse;
 import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.LayerMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.service.experiment.ExperimentService;
 import com.gateflow.victor.stats.algorithm.ZTest;
 import com.gateflow.victor.stats.engine.StatsEngine;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 class StatisticsServiceTest {
 
     @Mock private ExperimentService experimentService;
-    @Mock private VariantMapper variantMapper;
+    @Mock private BucketMapper bucketMapper;
     @Mock private LayerMapper layerMapper;
     @Mock private StatsEngine statsEngine;
     @Mock private ReportRepository reportRepository;
@@ -50,7 +50,7 @@ class StatisticsServiceTest {
     void setUp() {
         ZTest zTest = new ZTest();
         service = new StatisticsService(
-            experimentService, variantMapper, layerMapper,
+            experimentService, bucketMapper, layerMapper,
             statsEngine, reportRepository, zTest, objectMapper
         );
     }
@@ -85,7 +85,7 @@ class StatisticsServiceTest {
     @DisplayName("getMetricResults — 正常流程返回主指标数据")
     void shouldReturnPrimaryMetricWithLift() {
         Experiment exp = buildExperiment();
-        List<Variant> variants = List.of(
+        List<Bucket> variants = List.of(
             buildVariant("control", 0, 4999, "control"),
             buildVariant("treatment", 5000, 9999, "treatment")
         );
@@ -110,7 +110,7 @@ class StatisticsServiceTest {
     @DisplayName("getMetricResults — 主指标不显著时不建议上线")
     void shouldReturnNonSignificantWhenNoEffect() {
         Experiment exp = buildExperiment();
-        List<Variant> variants = List.of(
+        List<Bucket> variants = List.of(
             buildVariant("control", 0, 4999, "control"),
             buildVariant("treatment", 5000, 9999, "treatment")
         );
@@ -145,7 +145,7 @@ class StatisticsServiceTest {
     }
 
     private Variant buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
-        Variant v = new Variant();
+        Variant v = new Bucket();
         v.setId((long) bucketStart);
         v.setName(key);
         v.setBucketId(bucketId);

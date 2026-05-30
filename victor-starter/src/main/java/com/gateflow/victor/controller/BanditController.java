@@ -4,9 +4,9 @@ import com.gateflow.victor.config.RequirePermission;
 import com.gateflow.victor.domain.dto.BanditRequest;
 import com.gateflow.victor.domain.dto.BanditResponse;
 import com.gateflow.victor.domain.entity.Permission;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.service.bandit.BanditService;
-import com.gateflow.victor.service.variant.VariantService;
+import com.gateflow.victor.service.bucket.BucketService;
 import com.gateflow.victor.stats.repository.MetricsRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,7 +30,7 @@ import java.util.Map;
 public class BanditController {
 
     private final BanditService banditService;
-    private final VariantService variantService;
+    private final BucketService bucketService;
     private final MetricsRepository metricsRepository;
 
     /**
@@ -41,7 +41,7 @@ public class BanditController {
     @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<BanditResponse> optimize(@Valid @RequestBody BanditRequest request) {
         // 获取variants (简化处理)
-        List<Variant> variants = variantService.getVariantsByExperimentId(request.getExperimentId());
+        List<Bucket> variants = bucketService.getVariantsByExperimentId(request.getExperimentId());
         if (variants == null || variants.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }

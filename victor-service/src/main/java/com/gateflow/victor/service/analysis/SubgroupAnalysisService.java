@@ -2,9 +2,9 @@ package com.gateflow.victor.service.analysis;
 
 import com.gateflow.victor.domain.dto.SubgroupAnalysisResponse;
 import com.gateflow.victor.domain.entity.Experiment;
-import com.gateflow.victor.domain.entity.Variant;
+import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
-import com.gateflow.victor.infra.mapper.VariantMapper;
+import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.stats.config.ClickHouseDataSourceConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,14 +27,14 @@ public class SubgroupAnalysisService {
 
     private final DataSource dataSource;
     private final ExperimentMapper experimentMapper;
-    private final VariantMapper variantMapper;
+    private final BucketMapper bucketMapper;
 
     public SubgroupAnalysisService(@Qualifier("clickhouseDataSource") ClickHouseDataSourceConfig.ClickHouseDataSourceFactory chFactory,
                                    ExperimentMapper experimentMapper,
-                                   VariantMapper variantMapper) {
+                                   BucketMapper bucketMapper) {
         this.dataSource = chFactory.getDataSource();
         this.experimentMapper = experimentMapper;
-        this.variantMapper = variantMapper;
+        this.bucketMapper = bucketMapper;
     }
 
     /**
@@ -68,7 +68,7 @@ public class SubgroupAnalysisService {
         response.setEndDate(endDate);
         response.setPrimaryMetric(experiment.getPrimaryMetric());
 
-        List<Variant> variants = variantMapper.selectActiveVariants(experiment.getExpId());
+        List<Bucket> variants = bucketMapper.selectActiveBuckets(experiment.getExpId());
         if (variants.size() < 2) {
             response.setSubgroups(new ArrayList<>());
             return response;
