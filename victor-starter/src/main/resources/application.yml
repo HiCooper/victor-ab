@@ -137,7 +137,7 @@ logging:
     com.gateflow.victor: INFO
     org.springframework.web: WARN
   pattern:
-    level: "%5p [${spring.application.name:}]"
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 
 # Victor配置
 victor:

@@ -80,7 +80,6 @@ public class EventRepository {
                     }
                 }
 
-                log.info("Batch inserted {} events to ClickHouse", successCount);
             } catch (SQLException e) {
                 conn.rollback();
                 log.error("Batch insert failed, rolled back", e);

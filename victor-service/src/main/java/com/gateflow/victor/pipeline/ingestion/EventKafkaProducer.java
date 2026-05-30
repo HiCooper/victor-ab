@@ -23,8 +23,6 @@ public class EventKafkaProducer {
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Failed to send event to Kafka: {}", event.getEventId(), ex);
-                    } else {
-                        log.info("Event sent to Kafka: {}", event.getEventId());
                     }
                 });
     }

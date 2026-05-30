@@ -472,10 +472,10 @@ public class MetricsRepository {
                       AND toDate(timestamp) <= ?
                     GROUP BY user_id, bucket
                 ),
-                tracker_exposure AS (
+                tracker_page_view AS (
                     SELECT user_id, count() AS pv
                     FROM gateflow_tracker.events
-                    WHERE event_type = 'exposure'
+                    WHERE event_type = 'page_view'
                       AND toDate(toDateTime(timestamp / 1000)) >= ?
                       AND toDate(toDateTime(timestamp / 1000)) <= ?
                     GROUP BY user_id
@@ -496,7 +496,7 @@ public class MetricsRepository {
                     count(DISTINCT c.user_id) AS click_uv,
                     coalesce(sum(c.pv), 0)   AS click_pv
                 FROM assignment a
-                LEFT JOIN tracker_exposure e ON a.user_id = e.user_id
+                LEFT JOIN tracker_page_view e ON a.user_id = e.user_id
                 LEFT JOIN tracker_click c ON a.user_id = c.user_id
                 GROUP BY a.bucket
                 """;
