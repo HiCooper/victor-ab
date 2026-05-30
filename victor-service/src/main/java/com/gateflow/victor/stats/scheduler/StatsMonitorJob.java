@@ -52,27 +52,27 @@ public class StatsMonitorJob {
         LocalDate startDate = endDate.minusDays(1); // last 24 hours
 
         // 1. Query aggregated stats from ClickHouse
-        Map<String, MetricsRepository.VariantStats> variantStats =
+        Map<String, MetricsRepository.BucketStats> bucketStats =
             statsEngine.getMetricsRepository().queryExperimentStats(exp.getExpId(), startDate, endDate);
 
-        if (variantStats.isEmpty()) {
+        if (bucketStats.isEmpty()) {
             return;
         }
 
         // 2. SRM check
-        ExperimentRepository.VariantInfo variants = experimentRepository.findVariants(exp.getExpId());
-        List<String> allVariants = variants.getAllVariantKeys();
+        ExperimentRepository.BucketInfo buckets = experimentRepository.findBuckets(exp.getExpId());
+        List<String> allBuckets = buckets.getAllBucketKeys();
 
-        long[] observed = new long[allVariants.size()];
-        double[] expected = new double[allVariants.size()];
+        long[] observed = new long[allBuckets.size()];
+        double[] expected = new double[allBuckets.size()];
         Map<String, Long> userCounts = new LinkedHashMap<>();
 
         long totalUsers = 0;
-        for (int i = 0; i < allVariants.size(); i++) {
-            MetricsRepository.VariantStats vs = variantStats.get(allVariants.get(i));
+        for (int i = 0; i < allBuckets.size(); i++) {
+            MetricsRepository.BucketStats vs = bucketStats.get(allBuckets.get(i));
             long users = vs != null ? vs.getTotalUsers() : 0L;
             observed[i] = users;
-            userCounts.put(allVariants.get(i), users);
+            userCounts.put(allBuckets.get(i), users);
             totalUsers += users;
         }
         Arrays.fill(expected, 1.0 / expected.length);
@@ -84,16 +84,16 @@ public class StatsMonitorJob {
             log.warn("SRM check FAILED for experiment {}: p-value={}", exp.getExpId(), srmPValue);
         }
 
-        // 3. Conversion rate snapshot per variant
-        List<Map<String, Object>> variantSnapshots = new ArrayList<>();
-        for (String variant : allVariants) {
-            MetricsRepository.VariantStats vs = variantStats.get(variant);
+        // 3. Conversion rate snapshot per bucket
+        List<Map<String, Object>> bucketSnapshots = new ArrayList<>();
+        for (String bucket : allBuckets) {
+            MetricsRepository.BucketStats vs = bucketStats.get(bucket);
             Map<String, Object> snap = new LinkedHashMap<>();
-            snap.put("variant", variant);
+            snap.put("bucket", bucket);
             snap.put("users", vs != null ? vs.getTotalUsers() : 0L);
             snap.put("conversions", vs != null ? vs.getTotalConversions() : 0L);
             snap.put("conversionRate", vs != null ? vs.getConversionRate() : 0.0);
-            variantSnapshots.add(snap);
+            bucketSnapshots.add(snap);
         }
 
         // 4. Write to Redis
@@ -104,13 +104,13 @@ public class StatsMonitorJob {
         redisData.put("srmPValue", String.format("%.6f", srmPValue));
         redisData.put("totalUsers", String.valueOf(totalUsers));
 
-        // Store variant snapshots as individual hash fields
-        for (int i = 0; i < variantSnapshots.size(); i++) {
-            Map<String, Object> snap = variantSnapshots.get(i);
-            String variantKey = (String) snap.get("variant");
-            redisData.put("variant:" + variantKey + ":users", String.valueOf(snap.get("users")));
-            redisData.put("variant:" + variantKey + ":conversions", String.valueOf(snap.get("conversions")));
-            redisData.put("variant:" + variantKey + ":conversionRate", String.format("%.4f", snap.get("conversionRate")));
+        // Store bucket snapshots as individual hash fields
+        for (int i = 0; i < bucketSnapshots.size(); i++) {
+            Map<String, Object> snap = bucketSnapshots.get(i);
+            String bucketKey = (String) snap.get("bucket");
+            redisData.put("bucket:" + bucketKey + ":users", String.valueOf(snap.get("users")));
+            redisData.put("bucket:" + bucketKey + ":conversions", String.valueOf(snap.get("conversions")));
+            redisData.put("bucket:" + bucketKey + ":conversionRate", String.format("%.4f", snap.get("conversionRate")));
         }
 
         redis.opsForHash().putAll(redisKey, redisData);

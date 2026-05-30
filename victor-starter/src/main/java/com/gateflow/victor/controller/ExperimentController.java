@@ -49,10 +49,10 @@ public class ExperimentController {
         experiment.setCreatedBy(request.getCreatedBy());
         experiment.setAutoRampEnabled(request.getAutoRampEnabled());
 
-        List<Bucket> variants = request.getVariants() != null
-            ? request.getVariants().stream().map(vr -> {
+        List<Bucket> buckets = request.getBuckets() != null
+            ? request.getBuckets().stream().map(vr -> {
                 Bucket v = new Bucket();
-                v.setBucketId(vr.getVariantKey());
+                v.setBucketId(vr.getBucketKey());
                 v.setName(vr.getName());
                 v.setBucketStart(vr.getBucketStart());
                 v.setBucketEnd(vr.getBucketEnd());
@@ -61,7 +61,7 @@ public class ExperimentController {
             }).toList()
             : null;
 
-        Experiment created = experimentService.createExperiment(experiment, variants);
+        Experiment created = experimentService.createExperiment(experiment, buckets);
         return ResponseEntity.ok(created);
     }
 
@@ -120,7 +120,7 @@ public class ExperimentController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "更新实验", description = "更新实验信息，如果包含variants则创建新版本")
+    @Operation(summary = "更新实验", description = "更新实验信息，如果包含buckets则创建新版本")
     @RequirePermission(Permission.EDIT_EXPERIMENT)
     public ResponseEntity<Experiment> updateExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id,
@@ -135,9 +135,9 @@ public class ExperimentController {
         experiment.setSecondaryMetrics(request.getSecondaryMetrics());
         experiment.setGuardrailMetrics(request.getGuardrailMetrics());
 
-        // 如果包含variants，则创建新版本
-        if (request.getVariants() != null && !request.getVariants().isEmpty()) {
-            Experiment updated = experimentService.updateExperimentWithVariants(experiment, request.getVariants());
+        // 如果包含buckets，则创建新版本
+        if (request.getBuckets() != null && !request.getBuckets().isEmpty()) {
+            Experiment updated = experimentService.updateExperimentWithBuckets(experiment, request.getBuckets());
             return ResponseEntity.ok(updated);
         }
         
@@ -240,12 +240,12 @@ public class ExperimentController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}/variants")
+    @GetMapping("/{id}/buckets")
     @Operation(summary = "查询实验版本", description = "查询实验的所有版本")
     @RequirePermission(Permission.VIEW_EXPERIMENT)
-    public ResponseEntity<List<Bucket>> getExperimentVariants(
+    public ResponseEntity<List<Bucket>> getExperimentBuckets(
             @Parameter(description = "实验ID") @PathVariable Long id) {
-        List<Bucket> variants = experimentService.getExperimentVariants(id);
-        return ResponseEntity.ok(variants);
+        List<Bucket> buckets = experimentService.getExperimentBuckets(id);
+        return ResponseEntity.ok(buckets);
     }
 }

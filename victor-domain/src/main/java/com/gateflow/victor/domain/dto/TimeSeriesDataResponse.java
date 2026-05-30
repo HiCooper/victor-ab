@@ -15,9 +15,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TimeSeriesDataResponse {
-    
+
     private List<DataPoint> data;
-    
+
     @Data
     @Builder
     @NoArgsConstructor

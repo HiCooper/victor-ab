@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS victor.events (
     device_id String,
     session_id String,
     exp_ids Array(String),
-    variants Array(String),
+    buckets Array(String),
     layers Array(String),
     properties String,
     received_at DateTime64(3) DEFAULT now64(3)

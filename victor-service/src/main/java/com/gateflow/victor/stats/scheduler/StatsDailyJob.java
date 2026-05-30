@@ -55,23 +55,23 @@ public class StatsDailyJob {
         LocalDate startDate = dateRange.getStartDate();
         LocalDate endDate = reportDate;
 
-        ExperimentRepository.VariantInfo variants = experimentRepository.findVariants(exp.getExpId());
-        if (variants.getControlVariant() == null || variants.getAllVariantKeys().size() < 2) {
-            log.warn("Skipping experiment {}: insufficient variants", exp.getExpId());
+        ExperimentRepository.BucketInfo buckets = experimentRepository.findBuckets(exp.getExpId());
+        if (buckets.getControlBucket() == null || buckets.getAllBucketKeys().size() < 2) {
+            log.warn("Skipping experiment {}: insufficient buckets", exp.getExpId());
             return;
         }
 
-        log.info("Analyzing experiment {} ({} variants, {} → {})",
-            exp.getExpId(), variants.getAllVariantKeys().size(), startDate, endDate);
+        log.info("Analyzing experiment {} ({} buckets, {} → {})",
+            exp.getExpId(), buckets.getAllBucketKeys().size(), startDate, endDate);
 
         ExperimentReport report = statsEngine.analyzeExperiment(
             exp.getExpId(),
             exp.getLayerKey(),
             startDate,
             endDate,
-            variants.getControlVariant(),
-            variants.getTreatmentVariants(),
-            variants.getBucketProportions(),
+            buckets.getControlBucket(),
+            buckets.getTreatmentBuckets(),
+            buckets.getBucketProportions(),
             Collections.emptyList()
         );
 

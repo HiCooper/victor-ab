@@ -60,7 +60,7 @@ public interface BucketMapper extends BaseMapper<Bucket> {
     int deleteByVersion(@Param("expId") String expId, @Param("version") String version);
 
     /**
-     * 批量查询多个实验的活跃变体
+     * 批量查询多个实验的活跃分桶
      */
     @Select("<script>SELECT id, exp_id, version, bucket_id, name, bucket_start, bucket_end, params, is_active, created_at FROM victor_bucket WHERE exp_id IN " +
         "<foreach item='id' collection='expIds' open='(' separator=',' close=')'>#{id}</foreach> " +

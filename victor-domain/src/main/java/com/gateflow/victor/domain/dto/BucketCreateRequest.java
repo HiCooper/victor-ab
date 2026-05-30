@@ -8,19 +8,13 @@ import lombok.Data;
  * 创建版本请求DTO
  */
 @Data
-public class VariantCreateRequest {
+public class BucketCreateRequest {
 
     /**
      * 所属实验业务ID (victor_experiment.exp_id)
      */
     @NotBlank(message = "expId不能为空")
     private String expId;
-
-    /**
-     * 版本标识
-     */
-    @NotBlank(message = "variantKey不能为空")
-    private String variantKey;
 
     /**
      * 版本名称

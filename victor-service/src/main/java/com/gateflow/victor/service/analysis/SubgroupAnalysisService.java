@@ -68,18 +68,18 @@ public class SubgroupAnalysisService {
         response.setEndDate(endDate);
         response.setPrimaryMetric(experiment.getPrimaryMetric());
 
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(experiment.getExpId());
-        if (variants.size() < 2) {
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(experiment.getExpId());
+        if (buckets.size() < 2) {
             response.setSubgroups(new ArrayList<>());
             return response;
         }
 
-        String controlVariant = variants.get(0).getBucketId();
-        String treatmentVariant = variants.size() > 1 ? variants.get(1).getBucketId() : null;
+        String controlBucket = buckets.get(0).getBucketId();
+        String treatmentBucket = buckets.size() > 1 ? buckets.get(1).getBucketId() : null;
 
         // 从 ClickHouse 查询分维度数据
         Map<String, SubgroupAnalysisResponse.SubgroupResult> subgroups = 
-            querySubgroupStats(experiment.getExpId(), dimension, startDate, endDate, controlVariant, treatmentVariant);
+            querySubgroupStats(experiment.getExpId(), dimension, startDate, endDate, controlBucket, treatmentBucket);
 
         // 计算统计检验
         for (SubgroupAnalysisResponse.SubgroupResult sg : subgroups.values()) {
@@ -112,7 +112,7 @@ public class SubgroupAnalysisService {
 
     private Map<String, SubgroupAnalysisResponse.SubgroupResult> querySubgroupStats(
             String expId, String dimension, LocalDate startDate, LocalDate endDate,
-            String controlVariant, String treatmentVariant) {
+            String controlBucket, String treatmentBucket) {
 
         Map<String, SubgroupAnalysisResponse.SubgroupResult> results = new HashMap<>();
 
@@ -120,16 +120,16 @@ public class SubgroupAnalysisService {
         String sql = """
             SELECT 
                 JSONExtractString(properties, ?) as subgroup,
-                variant,
+                bucket,
                 sum(unique_users) as total_users,
                 sum(conversions) as total_conversions
             FROM victor.experiment_metrics
             WHERE exp_id = ?
               AND metric_date >= ?
               AND metric_date <= ?
-              AND variant IN (?, ?)
-            GROUP BY subgroup, variant
-            ORDER BY subgroup, variant
+              AND bucket IN (?, ?)
+            GROUP BY subgroup, bucket
+            ORDER BY subgroup, bucket
             """;
 
         try (Connection conn = dataSource.getConnection();
@@ -139,8 +139,8 @@ public class SubgroupAnalysisService {
             ps.setString(2, expId);
             ps.setDate(3, Date.valueOf(startDate));
             ps.setDate(4, Date.valueOf(endDate));
-            ps.setString(5, controlVariant);
-            ps.setString(6, treatmentVariant);
+            ps.setString(5, controlBucket);
+            ps.setString(6, treatmentBucket);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -149,7 +149,7 @@ public class SubgroupAnalysisService {
                         subgroup = "Unknown";
                     }
 
-                    String variant = rs.getString("variant");
+                    String bucket = rs.getString("bucket");
                     long users = rs.getLong("total_users");
                     long conversions = rs.getLong("total_conversions");
                     double conversionRate = users > 0 ? (double) conversions / users : 0;
@@ -161,10 +161,10 @@ public class SubgroupAnalysisService {
                     });
 
                     SubgroupAnalysisResponse.SubgroupResult sg = results.get(subgroup);
-                    if (controlVariant.equals(variant)) {
+                    if (controlBucket.equals(bucket)) {
                         sg.setControlUsers((int) users);
                         sg.setControlConversionRate(conversionRate);
-                    } else if (treatmentVariant.equals(variant)) {
+                    } else if (treatmentBucket.equals(bucket)) {
                         sg.setTreatmentUsers((int) users);
                         sg.setTreatmentConversionRate(conversionRate);
                     }

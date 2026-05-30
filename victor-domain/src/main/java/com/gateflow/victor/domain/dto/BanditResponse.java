@@ -9,22 +9,22 @@ import lombok.Data;
 public class BanditResponse {
 
     /**
-     * 推荐variant ID
+     * 推荐bucket ID
      */
-    private Long recommendedVariantId;
+    private Long recommendedBucketId;
 
     /**
-     * 推荐variant名称
+     * 推荐bucket名称
      */
-    private String recommendedVariantName;
+    private String recommendedBucketName;
 
     /**
-     * 每个variant的分配概率
+     * 每个bucket的分配概率
      */
     private java.util.HashMap<String, Double> allocationProbabilities;
 
     /**
-     * 每个variant的估计转化率
+     * 每个bucket的估计转化率
      */
     private java.util.HashMap<String, Double> estimatedRates;
 

@@ -69,18 +69,18 @@ public class ConfigResponse {
         /**
          * 版本列表
          */
-        private List<VariantConfig> variants;
+        private List<BucketConfig> buckets;
     }
 
     /**
      * 版本配置模型
      */
     @Data
-    public static class VariantConfig {
+    public static class BucketConfig {
         /**
          * 分桶ID
          */
-        @com.fasterxml.jackson.annotation.JsonProperty("variantKey")
+        @com.fasterxml.jackson.annotation.JsonProperty("bucketKey")
         private String bucketId;
 
         /**

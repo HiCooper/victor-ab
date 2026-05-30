@@ -20,7 +20,7 @@ public class BucketingResponse {
     /**
      * 分配的版本标识 (null表示未命中实验)
      */
-    private String variant;
+    private Integer bucket;
 
     /**
      * 版本参数 (JSON格式)

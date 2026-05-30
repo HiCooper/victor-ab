@@ -39,24 +39,24 @@ class VictorClientTest {
     private SdkConfigResponse.ExperimentConfig createTestExperimentConfig(
             String expId, String layerId, String salt,
             int bucketStart, int bucketEnd,
-            List<SdkConfigResponse.VariantConfig> variants) {
+            List<SdkConfigResponse.BucketConfig> buckets) {
         SdkConfigResponse.ExperimentConfig config = new SdkConfigResponse.ExperimentConfig();
         config.setExpId(expId);
         config.setLayerId(layerId);
         config.setSalt(salt);
         config.setBucketStart(bucketStart);
         config.setBucketEnd(bucketEnd);
-        config.setVariants(variants);
+        config.setBuckets(buckets);
         return config;
     }
 
     /**
      * 创建测试用的版本配置
      */
-    private SdkConfigResponse.VariantConfig createTestVariantConfig(
-            String variantKey, int bucketStart, int bucketEnd, Map<String, Object> params) {
-        SdkConfigResponse.VariantConfig config = new SdkConfigResponse.VariantConfig();
-        config.setVariantKey(variantKey);
+    private SdkConfigResponse.BucketConfig createTestBucketConfig(
+            String bucketKey, int bucketStart, int bucketEnd, Map<String, Object> params) {
+        SdkConfigResponse.BucketConfig config = new SdkConfigResponse.BucketConfig();
+        config.setBucketKey(bucketKey);
         config.setBucketStart(bucketStart);
         config.setBucketEnd(bucketEnd);
         config.setParams(params);
@@ -115,15 +115,15 @@ class VictorClientTest {
         response.setEtag("abc123");
         response.setChangeType("FULL");
 
-        List<SdkConfigResponse.VariantConfig> variants = new ArrayList<>();
+        List<SdkConfigResponse.BucketConfig> buckets = new ArrayList<>();
         Map<String, Object> params = new HashMap<>();
         params.put("color", "blue");
         params.put("size", 10);
-        variants.add(createTestVariantConfig("control", 0, 4999, params));
-        variants.add(createTestVariantConfig("treatment", 5000, 9999, null));
+        buckets.add(createTestBucketConfig("control", 0, 4999, params));
+        buckets.add(createTestBucketConfig("treatment", 5000, 9999, null));
 
         List<SdkConfigResponse.ExperimentConfig> experiments = new ArrayList<>();
-        experiments.add(createTestExperimentConfig("exp_test", "layer_ui", "ui_salt", 0, 9999, variants));
+        experiments.add(createTestExperimentConfig("exp_test", "layer_ui", "ui_salt", 0, 9999, buckets));
 
         response.setExperiments(experiments);
         response.setDeletedExperimentIds(List.of("exp_old_1", "exp_old_2"));
@@ -141,15 +141,15 @@ class VictorClientTest {
         assertEquals("ui_salt", expConfig.getSalt());
         assertEquals(0, expConfig.getBucketStart());
         assertEquals(9999, expConfig.getBucketEnd());
-        assertEquals(2, expConfig.getVariants().size());
+        assertEquals(2, expConfig.getBuckets().size());
 
-        SdkConfigResponse.VariantConfig variantConfig = expConfig.getVariants().get(0);
-        assertEquals("control", variantConfig.getVariantKey());
-        assertEquals(0, variantConfig.getBucketStart());
-        assertEquals(4999, variantConfig.getBucketEnd());
-        assertEquals(2, variantConfig.getParams().size());
-        assertEquals("blue", variantConfig.getParams().get("color"));
-        assertEquals(10, variantConfig.getParams().get("size"));
+        SdkConfigResponse.BucketConfig bucketConfig = expConfig.getBuckets().get(0);
+        assertEquals("control", bucketConfig.getBucketKey());
+        assertEquals(0, bucketConfig.getBucketStart());
+        assertEquals(4999, bucketConfig.getBucketEnd());
+        assertEquals(2, bucketConfig.getParams().size());
+        assertEquals("blue", bucketConfig.getParams().get("color"));
+        assertEquals(10, bucketConfig.getParams().get("size"));
     }
 
     @Test
@@ -157,11 +157,11 @@ class VictorClientTest {
     void sdkExperimentTag_Construction() {
         SdkExperimentTag tag = new SdkExperimentTag();
         tag.setExpId("exp_test_001");
-        tag.setVariant("treatment");
+        tag.setBucket("treatment");
         tag.setLayer("layer_ui");
 
         assertEquals("exp_test_001", tag.getExpId());
-        assertEquals("treatment", tag.getVariant());
+        assertEquals("treatment", tag.getBucket());
         assertEquals("layer_ui", tag.getLayer());
     }
 
@@ -172,12 +172,12 @@ class VictorClientTest {
         String expId = "exp_test";
 
         // 模拟100%流量实验配置：50/50分桶 (使用10000桶)
-        List<SdkConfigResponse.VariantConfig> variants = new ArrayList<>();
-        variants.add(createTestVariantConfig("control", 0, 4999, null));
-        variants.add(createTestVariantConfig("treatment", 5000, 9999, null));
+        List<SdkConfigResponse.BucketConfig> buckets = new ArrayList<>();
+        buckets.add(createTestBucketConfig("control", 0, 4999, null));
+        buckets.add(createTestBucketConfig("treatment", 5000, 9999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig = 
-                createTestExperimentConfig(expId, "layer_ui", "test_salt", 0, 9999, variants);
+                createTestExperimentConfig(expId, "layer_ui", "test_salt", 0, 9999, buckets);
 
         // 使用BucketEngine直接计算验证一致性
         com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
@@ -187,9 +187,9 @@ class VictorClientTest {
                         expConfig.getSalt(),
                         expConfig.getBucketStart(),
                         expConfig.getBucketEnd(),
-                        variants.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -201,8 +201,8 @@ class VictorClientTest {
         com.gateflow.victor.common.bucketing.BucketResult result3 = 
                 com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
 
-        assertEquals(result1.getVariant(), result2.getVariant());
-        assertEquals(result2.getVariant(), result3.getVariant());
+        assertEquals(result1.getBucket(), result2.getBucket());
+        assertEquals(result2.getBucket(), result3.getBucket());
         assertTrue(result1.isHit()); // 100%流量实验，必定命中
     }
 
@@ -210,12 +210,12 @@ class VictorClientTest {
     @DisplayName("分桶分布测试 - 多用户应均匀分布到不同版本")
     void bucketingDistribution_MultipleUsers() {
         // 100%流量实验，50/50分配
-        List<SdkConfigResponse.VariantConfig> variants = new ArrayList<>();
-        variants.add(createTestVariantConfig("control", 0, 4999, null));
-        variants.add(createTestVariantConfig("treatment", 5000, 9999, null));
+        List<SdkConfigResponse.BucketConfig> buckets = new ArrayList<>();
+        buckets.add(createTestBucketConfig("control", 0, 4999, null));
+        buckets.add(createTestBucketConfig("treatment", 5000, 9999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig = 
-                createTestExperimentConfig("exp_dist_test", "layer_test", "dist_salt", 0, 9999, variants);
+                createTestExperimentConfig("exp_dist_test", "layer_test", "dist_salt", 0, 9999, buckets);
 
         com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
@@ -224,9 +224,9 @@ class VictorClientTest {
                         expConfig.getSalt(),
                         expConfig.getBucketStart(),
                         expConfig.getBucketEnd(),
-                        variants.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -240,9 +240,9 @@ class VictorClientTest {
             com.gateflow.victor.common.bucketing.BucketResult result = 
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
-                if ("control".equals(result.getVariant())) {
+                if ("control".equals(result.getBucket())) {
                     controlCount++;
-                } else if ("treatment".equals(result.getVariant())) {
+                } else if ("treatment".equals(result.getBucket())) {
                     treatmentCount++;
                 }
             }
@@ -252,25 +252,25 @@ class VictorClientTest {
         assertEquals(totalUsers, controlCount + treatmentCount);
 
         // 验证分布大致均匀 (允许±10%误差)
-        int expectedPerVariant = totalUsers / 2;
-        double tolerance = 0.1 * expectedPerVariant;
+        int expectedPerBucket = totalUsers / 2;
+        double tolerance = 0.1 * expectedPerBucket;
 
-        assertTrue(Math.abs(controlCount - expectedPerVariant) <= tolerance,
-                "Control count " + controlCount + " should be close to " + expectedPerVariant);
-        assertTrue(Math.abs(treatmentCount - expectedPerVariant) <= tolerance,
-                "Treatment count " + treatmentCount + " should be close to " + expectedPerVariant);
+        assertTrue(Math.abs(controlCount - expectedPerBucket) <= tolerance,
+                "Control count " + controlCount + " should be close to " + expectedPerBucket);
+        assertTrue(Math.abs(treatmentCount - expectedPerBucket) <= tolerance,
+                "Treatment count " + treatmentCount + " should be close to " + expectedPerBucket);
     }
 
     @Test
     @DisplayName("流量分配测试 - 10%流量实验")
     void trafficAllocation_TenPercent() {
         // 10%流量实验 (桶范围0-999)
-        List<SdkConfigResponse.VariantConfig> variants = new ArrayList<>();
-        variants.add(createTestVariantConfig("control", 0, 499, null));
-        variants.add(createTestVariantConfig("treatment", 500, 999, null));
+        List<SdkConfigResponse.BucketConfig> buckets = new ArrayList<>();
+        buckets.add(createTestBucketConfig("control", 0, 499, null));
+        buckets.add(createTestBucketConfig("treatment", 500, 999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig = 
-                createTestExperimentConfig("exp_10pct", "layer_test", "salt_10pct", 0, 999, variants);
+                createTestExperimentConfig("exp_10pct", "layer_test", "salt_10pct", 0, 999, buckets);
 
         com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec = 
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
@@ -279,9 +279,9 @@ class VictorClientTest {
                         expConfig.getSalt(),
                         expConfig.getBucketStart(),
                         expConfig.getBucketEnd(),
-                        variants.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -312,20 +312,20 @@ class VictorClientTest {
         String salt = "ui_salt"; // 相同盐值保证互斥
 
         // 实验1: 桶范围 0-4999 (50%流量)
-        List<SdkConfigResponse.VariantConfig> variants1 = new ArrayList<>();
-        variants1.add(createTestVariantConfig("exp1_control", 0, 2499, null));
-        variants1.add(createTestVariantConfig("exp1_treatment", 2500, 4999, null));
+        List<SdkConfigResponse.BucketConfig> buckets1 = new ArrayList<>();
+        buckets1.add(createTestBucketConfig("exp1_control", 0, 2499, null));
+        buckets1.add(createTestBucketConfig("exp1_treatment", 2500, 4999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig1 = 
-                createTestExperimentConfig("exp_1", layerId, salt, 0, 4999, variants1);
+                createTestExperimentConfig("exp_1", layerId, salt, 0, 4999, buckets1);
 
         // 实验2: 桶范围 5000-9999 (50%流量，同一层，不重叠)
-        List<SdkConfigResponse.VariantConfig> variants2 = new ArrayList<>();
-        variants2.add(createTestVariantConfig("exp2_control", 5000, 7499, null));
-        variants2.add(createTestVariantConfig("exp2_treatment", 7500, 9999, null));
+        List<SdkConfigResponse.BucketConfig> buckets2 = new ArrayList<>();
+        buckets2.add(createTestBucketConfig("exp2_control", 5000, 7499, null));
+        buckets2.add(createTestBucketConfig("exp2_treatment", 7500, 9999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig2 = 
-                createTestExperimentConfig("exp_2", layerId, salt, 5000, 9999, variants2);
+                createTestExperimentConfig("exp_2", layerId, salt, 5000, 9999, buckets2);
 
         com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 = 
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
@@ -334,9 +334,9 @@ class VictorClientTest {
                         expConfig1.getSalt(),
                         expConfig1.getBucketStart(),
                         expConfig1.getBucketEnd(),
-                        variants1.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets1.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -347,9 +347,9 @@ class VictorClientTest {
                         expConfig2.getSalt(),
                         expConfig2.getBucketStart(),
                         expConfig2.getBucketEnd(),
-                        variants2.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets2.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -371,20 +371,20 @@ class VictorClientTest {
     @DisplayName("不同层实验不互斥测试 - 不同层的用户可同时命中多个实验")
     void differentLayerNonMutualExclusion() {
         // 实验1: 层1，100%流量
-        List<SdkConfigResponse.VariantConfig> variants1 = new ArrayList<>();
-        variants1.add(createTestVariantConfig("layer1_control", 0, 4999, null));
-        variants1.add(createTestVariantConfig("layer1_treatment", 5000, 9999, null));
+        List<SdkConfigResponse.BucketConfig> buckets1 = new ArrayList<>();
+        buckets1.add(createTestBucketConfig("layer1_control", 0, 4999, null));
+        buckets1.add(createTestBucketConfig("layer1_treatment", 5000, 9999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig1 = 
-                createTestExperimentConfig("exp_layer1", "layer_1", "salt_1", 0, 9999, variants1);
+                createTestExperimentConfig("exp_layer1", "layer_1", "salt_1", 0, 9999, buckets1);
 
         // 实验2: 层2，100%流量 (不同层，不同盐值)
-        List<SdkConfigResponse.VariantConfig> variants2 = new ArrayList<>();
-        variants2.add(createTestVariantConfig("layer2_control", 0, 4999, null));
-        variants2.add(createTestVariantConfig("layer2_treatment", 5000, 9999, null));
+        List<SdkConfigResponse.BucketConfig> buckets2 = new ArrayList<>();
+        buckets2.add(createTestBucketConfig("layer2_control", 0, 4999, null));
+        buckets2.add(createTestBucketConfig("layer2_treatment", 5000, 9999, null));
 
         SdkConfigResponse.ExperimentConfig expConfig2 = 
-                createTestExperimentConfig("exp_layer2", "layer_2", "salt_2", 0, 9999, variants2);
+                createTestExperimentConfig("exp_layer2", "layer_2", "salt_2", 0, 9999, buckets2);
 
         com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec spec1 = 
                 new com.gateflow.victor.common.bucketing.BucketEngine.ExperimentSpec(
@@ -393,9 +393,9 @@ class VictorClientTest {
                         expConfig1.getSalt(),
                         expConfig1.getBucketStart(),
                         expConfig1.getBucketEnd(),
-                        variants1.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets1.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -406,9 +406,9 @@ class VictorClientTest {
                         expConfig2.getSalt(),
                         expConfig2.getBucketStart(),
                         expConfig2.getBucketEnd(),
-                        variants2.stream()
-                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.VariantSpec(
-                                        v.getVariantKey(), v.getBucketStart(), v.getBucketEnd()))
+                        buckets2.stream()
+                                .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
                                 .toList()
                 );
 
@@ -432,24 +432,24 @@ class VictorClientTest {
     }
 
     @Test
-    @DisplayName("VariantConfig参数测试 - 空参数处理")
-    void variantConfig_NullParams() {
-        SdkConfigResponse.VariantConfig config = createTestVariantConfig("test_variant", 0, 9999, null);
+    @DisplayName("BucketConfig参数测试 - 空参数处理")
+    void bucketConfig_NullParams() {
+        SdkConfigResponse.BucketConfig config = createTestBucketConfig("test_bucket", 0, 9999, null);
         
         assertNull(config.getParams());
-        assertEquals("test_variant", config.getVariantKey());
+        assertEquals("test_bucket", config.getBucketKey());
         assertEquals(0, config.getBucketStart());
         assertEquals(9999, config.getBucketEnd());
     }
 
     @Test
     @DisplayName("ExperimentConfig测试 - 空版本列表")
-    void experimentConfig_EmptyVariants() {
+    void experimentConfig_EmptyBuckets() {
         SdkConfigResponse.ExperimentConfig config = 
                 createTestExperimentConfig("exp_test", "layer_test", "salt_test", 0, 9999, new ArrayList<>());
 
         assertEquals("exp_test", config.getExpId());
-        assertTrue(config.getVariants().isEmpty());
+        assertTrue(config.getBuckets().isEmpty());
     }
 
     @Test

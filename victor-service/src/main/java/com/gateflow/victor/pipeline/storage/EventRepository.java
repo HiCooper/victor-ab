@@ -26,7 +26,7 @@ public class EventRepository {
     private static final String INSERT_SQL = """
         INSERT INTO victor.events (
             event_date, event_id, user_id, timestamp,
-            platform, device_id, session_id, exp_ids, variants, layers,
+            platform, device_id, session_id, exp_ids, buckets, layers,
             properties, received_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now64(3))
         """;
@@ -113,7 +113,7 @@ public class EventRepository {
             ps.setArray(8, conn.createArrayOf("String",
                 event.getExperimentTags().stream().map(t -> t.getExpId()).toArray()));
             ps.setArray(9, conn.createArrayOf("String",
-                event.getExperimentTags().stream().map(t -> t.getVariant()).toArray()));
+                event.getExperimentTags().stream().map(t -> t.getBucket()).toArray()));
             ps.setArray(10, conn.createArrayOf("String",
                 event.getExperimentTags().stream().map(t -> t.getLayer()).toArray()));
         } else {
@@ -133,7 +133,7 @@ public class EventRepository {
         String sql = """
             INSERT INTO gateflow_tracker.events
                 (event_id, event_type, user_id, timestamp, page_url,
-                 element_id, element_text, properties, exp_ids, variants)
+                 element_id, element_text, properties, exp_ids, buckets)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
@@ -151,7 +151,7 @@ public class EventRepository {
             ps.setArray(9, conn.createArrayOf("String",
                 ((List<String>) trackerEvent.getOrDefault("expIds", List.of())).toArray(new String[0])));
             ps.setArray(10, conn.createArrayOf("String",
-                ((List<String>) trackerEvent.getOrDefault("variants", List.of())).toArray(new String[0])));
+                ((List<String>) trackerEvent.getOrDefault("buckets", List.of())).toArray(new String[0])));
             ps.executeUpdate();
         } catch (Exception e) {
             log.error("Failed to insert tracker event", e);

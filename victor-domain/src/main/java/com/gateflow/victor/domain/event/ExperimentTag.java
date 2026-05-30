@@ -19,7 +19,7 @@ public class ExperimentTag {
     /**
      * 版本标识
      */
-    private String variant;
+    private String bucket;
 
     /**
      * 层标识

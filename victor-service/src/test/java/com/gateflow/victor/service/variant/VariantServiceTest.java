@@ -1,4 +1,4 @@
-package com.gateflow.victor.service.variant;
+package com.gateflow.victor.service.bucket;
 
 import com.gateflow.victor.common.exception.VictorException;
 import com.gateflow.victor.domain.entity.Experiment;
@@ -36,7 +36,7 @@ class BucketServiceTest {
     private BucketService bucketService;
 
     private Experiment testExperiment;
-    private Bucket testVariant;
+    private Bucket testBucket;
 
     @BeforeEach
     void setUp() {
@@ -46,88 +46,88 @@ class BucketServiceTest {
         testExperiment.setName("测试实验");
         testExperiment.setStatus("draft");
 
-        testVariant = new Bucket();
-        testVariant.setId(1L);
-        testVariant.setExpId("exp_test_001");
-        testVariant.setBucketId("control");
-        testVariant.setName("对照组");
-        testVariant.setBucketStart(0);
-        testVariant.setBucketEnd(499);
+        testBucket = new Bucket();
+        testBucket.setId(1L);
+        testBucket.setExpId("exp_test_001");
+        testBucket.setBucketId("control");
+        testBucket.setName("对照组");
+        testBucket.setBucketStart(0);
+        testBucket.setBucketEnd(499);
     }
 
     @Test
     @DisplayName("创建版本 - 成功")
-    void createVariant_Success() {
+    void createBucket_Success() {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
-        when(bucketMapper.insert(any(Variant.class))).thenReturn(1);
+        when(bucketMapper.insert(any(Bucket.class))).thenReturn(1);
 
-        Bucket created = bucketService.createVariant(testVariant);
+        Bucket created = bucketService.createBucket(testBucket);
 
         assertNotNull(created);
         assertEquals("control", created.getBucketId());
-        verify(bucketMapper).insert(any(Variant.class));
+        verify(bucketMapper).insert(any(Bucket.class));
     }
 
     @Test
     @DisplayName("创建版本 - 实验不存在")
-    void createVariant_ExperimentNotFound() {
+    void createBucket_ExperimentNotFound() {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(null);
 
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.createVariant(testVariant));
+                () -> bucketService.createBucket(testBucket));
 
         assertTrue(exception.getMessage().contains("实验不存在"));
-        verify(bucketMapper, never()).insert(any(Variant.class));
+        verify(bucketMapper, never()).insert(any(Bucket.class));
     }
 
     @Test
     @DisplayName("创建版本 - 实验非草稿状态")
-    void createVariant_NotDraftExperiment() {
+    void createBucket_NotDraftExperiment() {
         testExperiment.setStatus("running");
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
 
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.createVariant(testVariant));
+                () -> bucketService.createBucket(testBucket));
 
         assertTrue(exception.getMessage().contains("草稿"));
-        verify(bucketMapper, never()).insert(any(Variant.class));
+        verify(bucketMapper, never()).insert(any(Bucket.class));
     }
 
     @Test
     @DisplayName("批量创建版本 - 成功")
-    void createVariants_Success() {
+    void createBuckets_Success() {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
-        when(bucketMapper.insert(any(Variant.class))).thenReturn(1);
+        when(bucketMapper.insert(any(Bucket.class))).thenReturn(1);
 
-        Bucket variant2 = new Bucket();
-        variant2.setExpId("exp_test_001");
-        variant2.setBucketId("treatment");
-        variant2.setBucketStart(500);
-        variant2.setBucketEnd(999);
+        Bucket bucket2 = new Bucket();
+        bucket2.setExpId("exp_test_001");
+        bucket2.setBucketId("treatment");
+        bucket2.setBucketStart(500);
+        bucket2.setBucketEnd(999);
 
-        List<Bucket> variants = List.of(testVariant, variant2);
-        List<Bucket> created = bucketService.createVariants(variants);
+        List<Bucket> buckets = List.of(testBucket, bucket2);
+        List<Bucket> created = bucketService.createBuckets(buckets);
 
         assertEquals(2, created.size());
-        verify(bucketMapper, times(2)).insert(any(Variant.class));
+        verify(bucketMapper, times(2)).insert(any(Bucket.class));
     }
 
     @Test
     @DisplayName("批量创建版本 - 空列表")
-    void createVariants_EmptyList() {
+    void createBuckets_EmptyList() {
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.createVariants(Collections.emptyList()));
+                () -> bucketService.createBuckets(Collections.emptyList()));
 
         assertTrue(exception.getMessage().contains("不能为空"));
-        verify(bucketMapper, never()).insert(any(Variant.class));
+        verify(bucketMapper, never()).insert(any(Bucket.class));
     }
 
     @Test
     @DisplayName("查询版本 - 成功")
-    void getVariant_Success() {
-        when(bucketMapper.selectById(1L)).thenReturn(testVariant);
+    void getBucket_Success() {
+        when(bucketMapper.selectById(1L)).thenReturn(testBucket);
 
-        Bucket found = bucketService.getVariant(1L);
+        Bucket found = bucketService.getBucket(1L);
 
         assertNotNull(found);
         assertEquals("control", found.getBucketId());
@@ -136,10 +136,10 @@ class BucketServiceTest {
 
     @Test
     @DisplayName("查询版本 - 不存在")
-    void getVariant_NotFound() {
+    void getBucket_NotFound() {
         when(bucketMapper.selectById(999L)).thenReturn(null);
 
-        Bucket found = bucketService.getVariant(999L);
+        Bucket found = bucketService.getBucket(999L);
 
         assertNull(found);
         verify(bucketMapper).selectById(999L);
@@ -147,11 +147,11 @@ class BucketServiceTest {
 
     @Test
     @DisplayName("查询实验版本列表 - 成功")
-    void getVariantsByExperiment_Success() {
-        List<Bucket> variants = List.of(testVariant);
-        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(variants);
+    void getBucketsByExperiment_Success() {
+        List<Bucket> buckets = List.of(testBucket);
+        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(buckets);
 
-        List<Bucket> result = bucketService.getVariantsByExperiment("exp_test_001");
+        List<Bucket> result = bucketService.getBucketsByExperiment("exp_test_001");
 
         assertEquals(1, result.size());
         verify(bucketMapper).selectByExpId("exp_test_001");
@@ -159,7 +159,7 @@ class BucketServiceTest {
 
     @Test
     @DisplayName("更新版本 - 成功")
-    void updateVariant_Success() {
+    void updateBucket_Success() {
         Bucket existing = new Bucket();
         existing.setId(1L);
         existing.setExpId("exp_test_001");
@@ -168,7 +168,7 @@ class BucketServiceTest {
 
         when(bucketMapper.selectById(1L)).thenReturn(existing);
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
-        when(bucketMapper.updateById(any(Variant.class))).thenReturn(1);
+        when(bucketMapper.updateById(any(Bucket.class))).thenReturn(1);
 
         Bucket update = new Bucket();
         update.setId(1L);
@@ -176,15 +176,15 @@ class BucketServiceTest {
         update.setBucketEnd(499);
         update.setName("更新后的名称");
 
-        Bucket result = bucketService.updateVariant(update);
+        Bucket result = bucketService.updateBucket(update);
 
         assertNotNull(result);
-        verify(bucketMapper).updateById(any(Variant.class));
+        verify(bucketMapper).updateById(any(Bucket.class));
     }
 
     @Test
     @DisplayName("更新版本 - 版本不存在")
-    void updateVariant_NotFound() {
+    void updateBucket_NotFound() {
         when(bucketMapper.selectById(999L)).thenReturn(null);
 
         Bucket update = new Bucket();
@@ -192,15 +192,15 @@ class BucketServiceTest {
         update.setName("更新后的名称");
 
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.updateVariant(update));
+                () -> bucketService.updateBucket(update));
 
-        assertTrue(exception.getMessage().contains("变体不存在"));
-        verify(bucketMapper, never()).updateById(any(Variant.class));
+        assertTrue(exception.getMessage().contains("分桶不存在"));
+        verify(bucketMapper, never()).updateById(any(Bucket.class));
     }
 
     @Test
     @DisplayName("更新版本 - 实验非草稿状态")
-    void updateVariant_NotDraftExperiment() {
+    void updateBucket_NotDraftExperiment() {
         Bucket existing = new Bucket();
         existing.setId(1L);
         existing.setExpId("exp_test_001");
@@ -214,15 +214,15 @@ class BucketServiceTest {
         update.setName("更新后的名称");
 
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.updateVariant(update));
+                () -> bucketService.updateBucket(update));
 
         assertTrue(exception.getMessage().contains("草稿"));
-        verify(bucketMapper, never()).updateById(any(Variant.class));
+        verify(bucketMapper, never()).updateById(any(Bucket.class));
     }
 
     @Test
     @DisplayName("删除版本 - 成功")
-    void deleteVariant_Success() {
+    void deleteBucket_Success() {
         Bucket existing = new Bucket();
         existing.setId(1L);
         existing.setExpId("exp_test_001");
@@ -231,42 +231,42 @@ class BucketServiceTest {
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
         when(bucketMapper.deleteById(1L)).thenReturn(1);
 
-        bucketService.deleteVariant(1L);
+        bucketService.deleteBucket(1L);
 
         verify(bucketMapper).deleteById(1L);
     }
 
     @Test
     @DisplayName("删除版本 - 版本不存在")
-    void deleteVariant_NotFound() {
+    void deleteBucket_NotFound() {
         when(bucketMapper.selectById(999L)).thenReturn(null);
 
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.deleteVariant(999L));
+                () -> bucketService.deleteBucket(999L));
 
-        assertTrue(exception.getMessage().contains("变体不存在"));
+        assertTrue(exception.getMessage().contains("分桶不存在"));
         verify(bucketMapper, never()).deleteById(999L);
     }
 
     @Test
     @DisplayName("桶范围验证 - 超出实验范围")
     void validateBucketRange_OutOfExperimentRange() {
-        Bucket variant = new Bucket();
-        variant.setExpId("exp_test_001");
-        variant.setBucketId("control");
-        variant.setBucketStart(0);
-        variant.setBucketEnd(9999); // 超出 0-9999
+        Bucket bucket = new Bucket();
+        bucket.setExpId("exp_test_001");
+        bucket.setBucketId("control");
+        bucket.setBucketStart(0);
+        bucket.setBucketEnd(9999); // 超出 0-9999
 
         when(experimentMapper.selectByExpId("exp_test_001")).thenReturn(testExperiment);
 
         // BucketService.validateBucketRange checks 0-9999 bounds
         // 9999 is within range, but let's test 10000 which is out of range
-        variant.setBucketEnd(10000);
+        bucket.setBucketEnd(10000);
 
         VictorException exception = assertThrows(VictorException.class,
-                () -> bucketService.createVariant(variant));
+                () -> bucketService.createBucket(bucket));
 
         assertTrue(exception.getMessage().contains("超出"));
-        verify(bucketMapper, never()).insert(any(Variant.class));
+        verify(bucketMapper, never()).insert(any(Bucket.class));
     }
 }

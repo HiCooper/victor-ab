@@ -45,5 +45,5 @@ public class ExperimentUpdateRequest {
     /**
      * 版本配置列表（更新时创建新版本）
      */
-    private List<ExperimentCreateRequest.VariantRequest> variants;
+    private List<ExperimentCreateRequest.BucketRequest> buckets;
 }

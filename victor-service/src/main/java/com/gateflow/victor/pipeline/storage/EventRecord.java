@@ -17,7 +17,7 @@ public class EventRecord {
     private String deviceId;
     private String sessionId;
     private List<String> expIds;
-    private List<String> variants;
+    private List<String> buckets;
     private List<String> layers;
     private String properties;
     private LocalDateTime receivedAt;

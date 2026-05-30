@@ -52,15 +52,15 @@ class ConfigControllerTest {
         expConfig.setBucketStart(0);
         expConfig.setBucketEnd(999);
 
-        ConfigResponse.VariantConfig variantConfig = new ConfigResponse.VariantConfig();
-        variantConfig.setBucketId("control");
-        variantConfig.setBucketStart(0);
-        variantConfig.setBucketEnd(499);
+        ConfigResponse.BucketConfig bucketConfig = new ConfigResponse.BucketConfig();
+        bucketConfig.setBucketId("control");
+        bucketConfig.setBucketStart(0);
+        bucketConfig.setBucketEnd(499);
         Map<String, Object> params = new HashMap<>();
         params.put("color", "blue");
-        variantConfig.setParams(params);
+        bucketConfig.setParams(params);
 
-        expConfig.setVariants(List.of(variantConfig));
+        expConfig.setBuckets(List.of(bucketConfig));
         testConfigResponse.setExperiments(List.of(expConfig));
     }
 

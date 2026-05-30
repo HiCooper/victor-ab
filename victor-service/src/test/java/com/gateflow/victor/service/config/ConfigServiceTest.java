@@ -61,7 +61,7 @@ class ConfigServiceTest {
 
     private Experiment testExperiment;
     private Layer testLayer;
-    private Bucket testVariant;
+    private Bucket testBucket;
 
     @BeforeEach
     void setUp() {
@@ -78,13 +78,13 @@ class ConfigServiceTest {
         testExperiment.setLayerId(1L);
         testExperiment.setStatus("running");
 
-        testVariant = new Bucket();
-        testVariant.setId(1L);
-        testVariant.setExpId("exp_test_001");
-        testVariant.setBucketId("control");
-        testVariant.setBucketStart(0);
-        testVariant.setBucketEnd(499);
-        testVariant.setParams("{\"color\":\"blue\"}");
+        testBucket = new Bucket();
+        testBucket.setId(1L);
+        testBucket.setExpId("exp_test_001");
+        testBucket.setBucketId("control");
+        testBucket.setBucketStart(0);
+        testBucket.setBucketEnd(499);
+        testBucket.setParams("{\"color\":\"blue\"}");
     }
 
     @Test
@@ -92,7 +92,7 @@ class ConfigServiceTest {
     void getFullConfig_Success() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
-        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
+        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testBucket));
 
         ConfigResponse response = configService.getFullConfig("server");
 
@@ -105,7 +105,7 @@ class ConfigServiceTest {
         assertEquals("exp_test_001", expConfig.getExpId());
         assertEquals("layer_ui", expConfig.getLayerId());
         assertEquals("ui_salt", expConfig.getSalt());
-        assertEquals(1, expConfig.getVariants().size());
+        assertEquals(1, expConfig.getBuckets().size());
 
         verify(experimentMapper).selectRunningExperiments();
         verify(layerMapper).selectById(1L);
@@ -131,7 +131,7 @@ class ConfigServiceTest {
     void getFullConfig_LayerNotFound() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
         when(layerMapper.selectById(1L)).thenReturn(null);
-        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testVariant));
+        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testBucket));
 
         ConfigResponse response = configService.getFullConfig("server");
 

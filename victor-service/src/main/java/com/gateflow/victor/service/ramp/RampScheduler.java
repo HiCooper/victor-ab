@@ -46,22 +46,22 @@ public class RampScheduler {
         DEFAULT_STAGE_HOURS.put(RampStage.STAGE_50, 24L);
     }
 
-    private int getMaxVariantBucketEnd(Experiment exp) {
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
-        if (variants == null || variants.isEmpty()) {
+    private int getMaxBucketBucketEnd(Experiment exp) {
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
+        if (buckets == null || buckets.isEmpty()) {
             return 0;
         }
-        return variants.stream()
+        return buckets.stream()
             .filter(v -> v.getBucketEnd() != null)
-            .mapToInt(Variant::getBucketEnd)
+            .mapToInt(Bucket::getBucketEnd)
             .max()
             .orElse(0);
     }
 
-    private void updateVariantBucketEnds(Experiment exp, int newBucketEnd) {
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
-        if (variants != null) {
-            for (Bucket v : variants) {
+    private void updateBucketBucketEnds(Experiment exp, int newBucketEnd) {
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
+        if (buckets != null) {
+            for (Bucket v : buckets) {
                 v.setBucketEnd(newBucketEnd);
                 bucketMapper.updateById(v);
             }
@@ -129,7 +129,7 @@ public class RampScheduler {
     }
 
     private void processRampExperiment(Experiment exp) {
-        int maxBucketEnd = getMaxVariantBucketEnd(exp);
+        int maxBucketEnd = getMaxBucketBucketEnd(exp);
         RampStage currentStage = RampStage.fromBucketEnd(maxBucketEnd);
 
         if (currentStage == RampStage.STAGE_100) {
@@ -140,7 +140,7 @@ public class RampScheduler {
 
         if (checkResult.isPassed() && shouldAdvance(exp, currentStage)) {
             RampStage nextStage = currentStage.next();
-            updateVariantBucketEnds(exp, nextStage.getBucketEnd());
+            updateBucketBucketEnds(exp, nextStage.getBucketEnd());
 
             log.info("Experiment {} advanced from {} to {}",
                 exp.getExpId(), currentStage.getLabel(), nextStage.getLabel());
@@ -256,7 +256,7 @@ public class RampScheduler {
             throw new IllegalArgumentException("Experiment is not running");
         }
 
-        RampStage currentStage = RampStage.fromBucketEnd(getMaxVariantBucketEnd(exp));
+        RampStage currentStage = RampStage.fromBucketEnd(getMaxBucketBucketEnd(exp));
         RampStage nextStage = currentStage.next();
 
         Map<String, Object> status = new HashMap<>();
@@ -275,13 +275,13 @@ public class RampScheduler {
             throw new IllegalArgumentException("Invalid experiment or status");
         }
 
-        RampStage currentStage = RampStage.fromBucketEnd(getMaxVariantBucketEnd(exp));
+        RampStage currentStage = RampStage.fromBucketEnd(getMaxBucketBucketEnd(exp));
         if (currentStage == RampStage.STAGE_100) {
             throw new IllegalStateException("Experiment is already at 100%");
         }
 
         RampStage nextStage = currentStage.next();
-        updateVariantBucketEnds(exp, nextStage.getBucketEnd());
+        updateBucketBucketEnds(exp, nextStage.getBucketEnd());
 
         log.info("Manually advanced experiment {} to {}", exp.getExpId(), nextStage.getLabel());
     }

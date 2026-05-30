@@ -66,12 +66,12 @@ class StatisticsServiceTest {
     }
 
     @Test
-    @DisplayName("getMetricResults — 无变体时返回空指标")
-    void shouldReturnEmptyMetricsWhenNoVariants() {
+    @DisplayName("getMetricResults — 无分桶时返回空指标")
+    void shouldReturnEmptyMetricsWhenNoBuckets() {
         Experiment exp = buildExperiment();
         when(experimentService.getExperiment(EXP_ID)).thenReturn(exp);
         when(reportRepository.findLatestCupedValues(BUSINESS_EXP_ID)).thenReturn(Map.of());
-        when(experimentService.getExperimentVariants(EXP_ID)).thenReturn(List.of());
+        when(experimentService.getExperimentBuckets(EXP_ID)).thenReturn(List.of());
         when(layerMapper.selectById(anyLong())).thenReturn(null);
 
         ExperimentMetricsResponse result = service.getMetricResults(EXP_ID);
@@ -85,14 +85,14 @@ class StatisticsServiceTest {
     @DisplayName("getMetricResults — 正常流程返回主指标数据")
     void shouldReturnPrimaryMetricWithLift() {
         Experiment exp = buildExperiment();
-        List<Bucket> variants = List.of(
-            buildVariant("control", 0, 4999, "control"),
-            buildVariant("treatment", 5000, 9999, "treatment")
+        List<Bucket> buckets = List.of(
+            buildBucket("control", 0, 4999, "control"),
+            buildBucket("treatment", 5000, 9999, "treatment")
         );
 
         when(experimentService.getExperiment(EXP_ID)).thenReturn(exp);
         when(reportRepository.findLatestCupedValues(BUSINESS_EXP_ID)).thenReturn(Map.of());
-        when(experimentService.getExperimentVariants(EXP_ID)).thenReturn(variants);
+        when(experimentService.getExperimentBuckets(EXP_ID)).thenReturn(buckets);
         when(layerMapper.selectById(anyLong())).thenReturn(null);
 
         ExperimentReport report = buildReport();
@@ -110,14 +110,14 @@ class StatisticsServiceTest {
     @DisplayName("getMetricResults — 主指标不显著时不建议上线")
     void shouldReturnNonSignificantWhenNoEffect() {
         Experiment exp = buildExperiment();
-        List<Bucket> variants = List.of(
-            buildVariant("control", 0, 4999, "control"),
-            buildVariant("treatment", 5000, 9999, "treatment")
+        List<Bucket> buckets = List.of(
+            buildBucket("control", 0, 4999, "control"),
+            buildBucket("treatment", 5000, 9999, "treatment")
         );
 
         when(experimentService.getExperiment(EXP_ID)).thenReturn(exp);
         when(reportRepository.findLatestCupedValues(BUSINESS_EXP_ID)).thenReturn(Map.of());
-        when(experimentService.getExperimentVariants(EXP_ID)).thenReturn(variants);
+        when(experimentService.getExperimentBuckets(EXP_ID)).thenReturn(buckets);
         when(layerMapper.selectById(anyLong())).thenReturn(null);
 
         ExperimentReport report = buildNonSignificantReport();
@@ -144,7 +144,7 @@ class StatisticsServiceTest {
         return exp;
     }
 
-    private Bucket buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
+    private Bucket buildBucket(String key, int bucketStart, int bucketEnd, String bucketId) {
         Bucket v = new Bucket();
         v.setId((long) bucketStart);
         v.setName(key);
@@ -169,12 +169,12 @@ class StatisticsServiceTest {
                 .build())
             .secondaryMetrics(List.of())
             .guardrailMetrics(List.of())
-            .variantSummaries(Map.of(
-                "control", ExperimentReport.VariantSummary.builder()
-                    .variant("control").totalUsers(5000).totalConversions(115)
+            .bucketSummaries(Map.of(
+                "control", ExperimentReport.BucketSummary.builder()
+                    .bucket("control").totalUsers(5000).totalConversions(115)
                     .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
-                "treatment", ExperimentReport.VariantSummary.builder()
-                    .variant("treatment").totalUsers(5000).totalConversions(145)
+                "treatment", ExperimentReport.BucketSummary.builder()
+                    .bucket("treatment").totalUsers(5000).totalConversions(145)
                     .conversionRate(0.029).avgRevenuePerUser(2.5).isControl(false).build()
             ))
             .dailyTrends(Map.of())
@@ -199,12 +199,12 @@ class StatisticsServiceTest {
                 .build())
             .secondaryMetrics(List.of())
             .guardrailMetrics(List.of())
-            .variantSummaries(Map.of(
-                "control", ExperimentReport.VariantSummary.builder()
-                    .variant("control").totalUsers(5000).totalConversions(115)
+            .bucketSummaries(Map.of(
+                "control", ExperimentReport.BucketSummary.builder()
+                    .bucket("control").totalUsers(5000).totalConversions(115)
                     .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
-                "treatment", ExperimentReport.VariantSummary.builder()
-                    .variant("treatment").totalUsers(5000).totalConversions(118)
+                "treatment", ExperimentReport.BucketSummary.builder()
+                    .bucket("treatment").totalUsers(5000).totalConversions(118)
                     .conversionRate(0.0236).avgRevenuePerUser(2.5).isControl(false).build()
             ))
             .dailyTrends(Map.of())

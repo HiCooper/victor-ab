@@ -48,8 +48,8 @@ class ExperimentServiceTest {
 
     private Experiment testExperiment;
     private Layer testLayer;
-    private Bucket testVariant;
-    private Bucket testVariant2;
+    private Bucket testBucket;
+    private Bucket testBucket2;
 
     @BeforeEach
     void setUp() {
@@ -66,20 +66,20 @@ class ExperimentServiceTest {
         testExperiment.setLayerId(1L);
         testExperiment.setStatus("draft");
 
-        // 两个variant覆盖完整的实验桶范围 0-999 (共1000个桶)
-        testVariant = new Bucket();
-        testVariant.setId(1L);
-        testVariant.setExpId("exp_test_001");
-        testVariant.setBucketId("control");
-        testVariant.setBucketStart(0);
-        testVariant.setBucketEnd(4999);
+        // 两个bucket覆盖完整的实验桶范围 0-999 (共1000个桶)
+        testBucket = new Bucket();
+        testBucket.setId(1L);
+        testBucket.setExpId("exp_test_001");
+        testBucket.setBucketId("control");
+        testBucket.setBucketStart(0);
+        testBucket.setBucketEnd(4999);
 
-        testVariant2 = new Bucket();
-        testVariant2.setId(2L);
-        testVariant2.setExpId("exp_test_001");
-        testVariant2.setBucketId("treatment");
-        testVariant2.setBucketStart(5000);
-        testVariant2.setBucketEnd(9999);
+        testBucket2 = new Bucket();
+        testBucket2.setId(2L);
+        testBucket2.setExpId("exp_test_001");
+        testBucket2.setBucketId("treatment");
+        testBucket2.setBucketStart(5000);
+        testBucket2.setBucketEnd(9999);
     }
 
     @Test
@@ -87,16 +87,16 @@ class ExperimentServiceTest {
     void createExperiment_Success() {
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
         when(experimentMapper.insert(any(Experiment.class))).thenReturn(1);
-        when(bucketMapper.insert(any(Variant.class))).thenReturn(1);
+        when(bucketMapper.insert(any(Bucket.class))).thenReturn(1);
         when(versionService.generateVersion()).thenReturn("v1.0.0");
 
-        List<Bucket> variants = List.of(testVariant, testVariant2);
-        Experiment created = experimentService.createExperiment(testExperiment, variants);
+        List<Bucket> buckets = List.of(testBucket, testBucket2);
+        Experiment created = experimentService.createExperiment(testExperiment, buckets);
 
         assertNotNull(created);
         assertEquals("draft", created.getStatus());
         verify(experimentMapper).insert(any(Experiment.class));
-        verify(bucketMapper, times(2)).insert(any(Variant.class));
+        verify(bucketMapper, times(2)).insert(any(Bucket.class));
     }
 
     @Test
@@ -113,7 +113,7 @@ class ExperimentServiceTest {
 
     @Test
     @DisplayName("创建实验 - 无版本")
-    void createExperiment_NoVariants() {
+    void createExperiment_NoBuckets() {
         when(layerMapper.selectById(1L)).thenReturn(testLayer);
         when(experimentMapper.insert(any(Experiment.class))).thenReturn(1);
 
@@ -121,7 +121,7 @@ class ExperimentServiceTest {
 
         assertNotNull(created);
         assertEquals("draft", created.getStatus());
-        verify(bucketMapper, never()).insert(any(Variant.class));
+        verify(bucketMapper, never()).insert(any(Bucket.class));
     }
 
     @Test
@@ -176,7 +176,7 @@ class ExperimentServiceTest {
     void startExperiment_Success() {
         testExperiment.setStatus("draft");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(List.of(testVariant, testVariant2));
+        when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(List.of(testBucket, testBucket2));
         when(experimentMapper.updateById(any(Experiment.class))).thenReturn(1);
 
         Experiment started = experimentService.startExperiment(1L);
@@ -242,12 +242,12 @@ class ExperimentServiceTest {
 
     @Test
     @DisplayName("查询实验版本 - 成功")
-    void getExperimentVariants_Success() {
-        List<Bucket> variants = List.of(testVariant);
+    void getExperimentBuckets_Success() {
+        List<Bucket> buckets = List.of(testBucket);
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
-        when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(variants);
+        when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(buckets);
 
-        List<Bucket> result = experimentService.getExperimentVariants(1L);
+        List<Bucket> result = experimentService.getExperimentBuckets(1L);
 
         assertEquals(1, result.size());
         assertEquals("control", result.get(0).getBucketId());

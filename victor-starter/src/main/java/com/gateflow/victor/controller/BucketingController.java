@@ -31,17 +31,17 @@ public class BucketingController {
      * @param experimentKey 实验标识
      * @return 分桶结果
      */
-    @GetMapping("/variant")
+    @GetMapping("/bucket")
     @Operation(summary = "获取用户实验版本", description = "查询用户在指定实验中的分配版本")
-    public BucketingResponse getVariant(
+    public BucketingResponse getBucket(
             @Parameter(description = "用户ID") @RequestParam String userId,
             @Parameter(description = "实验标识") @RequestParam String experimentKey) {
 
-        BucketResult result = bucketingService.getVariant(userId, experimentKey);
+        BucketResult result = bucketingService.getBucket(userId, experimentKey);
 
         BucketingResponse response = new BucketingResponse();
         response.setExperimentKey(experimentKey);
-        response.setVariant(result.getVariantOrNull());
+        response.setBucket(result.getBucketOrNull());
 
         return response;
     }
@@ -52,15 +52,15 @@ public class BucketingController {
      * @param userId 用户ID
      * @return 所有实验的分桶结果
      */
-    @GetMapping("/all-variants")
+    @GetMapping("/all-buckets")
     @Operation(summary = "获取用户所有实验版本", description = "查询用户在所有运行中实验的分配结果")
-    public List<BucketingResponse> getAllVariants(
+    public List<BucketingResponse> getAllBuckets(
             @Parameter(description = "用户ID") @RequestParam String userId) {
 
-        List<BucketResult> results = bucketingService.getAllVariants(userId);
+        List<BucketResult> results = bucketingService.getAllBuckets(userId);
 
         return results.stream()
-                .map(r -> new BucketingResponse(r.getExperimentKey(), r.getVariantOrNull(), null))
+                .map(r -> new BucketingResponse(r.getExperimentKey(), r.getBucketOrNull(), null))
                 .collect(Collectors.toList());
     }
 }

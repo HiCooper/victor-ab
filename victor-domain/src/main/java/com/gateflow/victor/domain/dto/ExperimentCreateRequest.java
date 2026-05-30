@@ -70,19 +70,19 @@ public class ExperimentCreateRequest {
     /**
      * 版本配置列表
      */
-    private List<VariantRequest> variants;
+    private List<BucketRequest> buckets;
 
     /**
      * 版本请求DTO
      */
     @Data
-    public static class VariantRequest {
+    public static class BucketRequest {
 
         /**
          * 版本标识
          */
-        @NotBlank(message = "variantKey不能为空")
-        private String variantKey;
+        @NotBlank(message = "bucketKey不能为空")
+        private String bucketKey;
 
         /**
          * 版本名称

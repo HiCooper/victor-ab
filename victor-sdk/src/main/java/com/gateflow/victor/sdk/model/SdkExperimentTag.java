@@ -18,7 +18,7 @@ public class SdkExperimentTag {
     /**
      * 分配的版本
      */
-    private String variant;
+    private String bucket;
 
     /**
      * 所属层标识

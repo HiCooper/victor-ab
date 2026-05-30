@@ -25,7 +25,7 @@ public class ExperimentWhitelist {
     private String expId;
 
     /**
-     * 分桶ID (victor_variant.bucket_id)
+     * 分桶ID (victor_bucket.bucket_id)
      */
     @TableField("bucket_id")
     private String bucketId;

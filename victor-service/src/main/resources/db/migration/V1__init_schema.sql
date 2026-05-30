@@ -69,18 +69,18 @@ CREATE TABLE IF NOT EXISTS victor_experiment (
 -- ============================================
 -- 4. 版本配置表 (唯一版本数据源)
 -- ============================================
-CREATE TABLE IF NOT EXISTS victor_variant (
+CREATE TABLE IF NOT EXISTS victor_bucket (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     exp_id VARCHAR(64) NOT NULL COMMENT '实验业务ID (victor_experiment.exp_id)',
     version VARCHAR(32) NOT NULL DEFAULT '00000000000000' COMMENT '版本号: 时间戳格式 20260506143000',
-    variant_key VARCHAR(64) NOT NULL COMMENT '版本标识',
+    bucket_key VARCHAR(64) NOT NULL COMMENT '版本标识',
     name VARCHAR(128) COMMENT '版本名称',
     bucket_start INT COMMENT '桶起始位置',
     bucket_end INT COMMENT '桶结束位置',
     params TEXT COMMENT '版本参数',
     is_active BOOLEAN DEFAULT TRUE COMMENT '当前活跃版本',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_exp_version_variant (exp_id, version, variant_key),
+    UNIQUE KEY uk_exp_version_bucket (exp_id, version, bucket_key),
     INDEX idx_exp_id (exp_id),
     INDEX idx_exp_version (exp_id, version),
     INDEX idx_exp_active (exp_id, is_active)
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS victor_experiment_report (
     cuped_applied TINYINT(1) DEFAULT 0 COMMENT '是否应用CUPED方差缩减',
     secondary_results_json JSON DEFAULT NULL COMMENT '次指标结果JSON',
     guardrail_results_json JSON DEFAULT NULL COMMENT '护栏指标结果JSON',
-    variant_summaries_json JSON DEFAULT NULL COMMENT '变体摘要JSON',
+    bucket_summaries_json JSON DEFAULT NULL COMMENT '分桶摘要JSON',
     daily_trends_json JSON DEFAULT NULL COMMENT '每日趋势JSON',
     recommendation VARCHAR(32) DEFAULT NULL COMMENT '建议: LAUNCH/DO_NOT_LAUNCH/CONTINUE_EXPERIMENT/INCONCLUSIVE',
     recommendation_reason VARCHAR(512) DEFAULT NULL COMMENT '建议理由',
@@ -168,11 +168,11 @@ CREATE TABLE IF NOT EXISTS victor_cuped_values (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     exp_id VARCHAR(64) NOT NULL COMMENT '实验ID',
     report_date DATE NOT NULL COMMENT '计算日期',
-    variant VARCHAR(64) NOT NULL COMMENT '变体标识',
+    bucket VARCHAR(64) NOT NULL COMMENT '分桶标识',
     cuped_adjusted_mean DOUBLE DEFAULT NULL COMMENT 'CUPED调整后均值',
     cuped_adjusted_variance DOUBLE DEFAULT NULL COMMENT 'CUPED调整后方差',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_exp_variant_date (exp_id, variant, report_date),
+    UNIQUE KEY uk_exp_bucket_date (exp_id, bucket, report_date),
     INDEX idx_exp_id (exp_id),
     INDEX idx_exp_date (exp_id, report_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='CUPED方差缩减值表';

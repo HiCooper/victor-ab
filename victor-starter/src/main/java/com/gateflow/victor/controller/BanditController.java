@@ -40,23 +40,23 @@ public class BanditController {
     @Operation(summary = "流量优化建议", description = "基于多臂老虎机算法给出流量分配建议")
     @RequirePermission(Permission.VIEW_ANALYSIS)
     public ResponseEntity<BanditResponse> optimize(@Valid @RequestBody BanditRequest request) {
-        // 获取variants (简化处理)
-        List<Bucket> variants = bucketService.getVariantsByExperimentId(request.getExperimentId());
-        if (variants == null || variants.isEmpty()) {
+        // 获取buckets (简化处理)
+        List<Bucket> buckets = bucketService.getBucketsByExperimentId(request.getExperimentId());
+        if (buckets == null || buckets.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        // Query real conversion data from ClickHouse per variant
-        String businessExpId = variants.get(0).getExpId();
+        // Query real conversion data from ClickHouse per bucket
+        String businessExpId = buckets.get(0).getExpId();
         Map<Long, int[]> data = new HashMap<>();
-        Map<String, MetricsRepository.VariantStats> variantStats =
+        Map<String, MetricsRepository.BucketStats> bucketStats =
             metricsRepository.queryExperimentStats(
                 businessExpId, LocalDate.now().minusDays(7), LocalDate.now());
 
-        for (Bucket v : variants) {
-            // Match MySQL variant key (bucketId) to ClickHouse variant name
-            String variantKey = v.getBucketId() != null ? v.getBucketId() : v.getName();
-            MetricsRepository.VariantStats stats = variantStats.get(variantKey);
+        for (Bucket v : buckets) {
+            // Match MySQL bucket key (bucketId) to ClickHouse bucket name
+            String bucketKey = v.getBucketId() != null ? v.getBucketId() : v.getName();
+            MetricsRepository.BucketStats stats = bucketStats.get(bucketKey);
             if (stats != null && stats.getTotalUsers() > 0) {
                 data.put(v.getId(), new int[]{
                     (int) stats.getTotalUsers(),
@@ -67,7 +67,7 @@ public class BanditController {
             }
         }
 
-        BanditResponse response = banditService.optimize(request, variants, data);
+        BanditResponse response = banditService.optimize(request, buckets, data);
         return ResponseEntity.ok(response);
     }
 

@@ -35,7 +35,7 @@ public class BucketingService {
      * @param experimentKey 实验标识
      * @return 分桶结果
      */
-    public BucketResult getVariant(String userId, String experimentKey) {
+    public BucketResult getBucket(String userId, String experimentKey) {
         // 查询实验
         Experiment experiment = experimentMapper.selectByExpId(experimentKey);
         if (experiment == null || !isBucketable(experiment.getStatus())) {
@@ -49,7 +49,7 @@ public class BucketingService {
         }
 
         // 查询版本
-        List<Bucket> variants = bucketMapper.selectByExpId(experiment.getExpId());
+        List<Bucket> buckets = bucketMapper.selectByExpId(experiment.getExpId());
 
         // 先检查白名单
         String whitelistBucketId = whitelistService.getBucketIdForWhitelistedUser(experiment.getExpId(), userId);
@@ -58,7 +58,7 @@ public class BucketingService {
         }
 
         // 构建实验规格
-        BucketEngine.ExperimentSpec spec = buildExperimentSpec(experiment, layer, variants);
+        BucketEngine.ExperimentSpec spec = buildExperimentSpec(experiment, layer, buckets);
 
         // 计算分桶
         return BucketEngine.computeBucketResult(userId, spec);
@@ -70,7 +70,7 @@ public class BucketingService {
      * @param userId 用户ID
      * @return 分桶结果列表
      */
-    public List<BucketResult> getAllVariants(String userId) {
+    public List<BucketResult> getAllBuckets(String userId) {
         List<Experiment> experiments = experimentMapper.selectRunningExperiments();
 
         if (experiments.isEmpty()) {
@@ -89,7 +89,7 @@ public class BucketingService {
                 .map(Experiment::getExpId)
                 .distinct()
                 .toList();
-        Map<String, List<Bucket>> variantMap = bucketMapper.selectActiveBucketsByExpIds(expIds).stream()
+        Map<String, List<Bucket>> bucketMap = bucketMapper.selectActiveBucketsByExpIds(expIds).stream()
                 .collect(Collectors.groupingBy(Bucket::getExpId));
 
         List<BucketEngine.ExperimentSpec> specs = experiments.stream()
@@ -97,7 +97,7 @@ public class BucketingService {
                 .map(exp -> buildExperimentSpec(
                         exp,
                         layerMap.get(exp.getLayerId()),
-                        variantMap.getOrDefault(exp.getExpId(), Collections.emptyList())
+                        bucketMap.getOrDefault(exp.getExpId(), Collections.emptyList())
                 ))
                 .toList();
 
@@ -108,10 +108,10 @@ public class BucketingService {
      * 构建实验规格
      */
     private BucketEngine.ExperimentSpec buildExperimentSpec(
-            Experiment experiment, Layer layer, List<Bucket> variants) {
+            Experiment experiment, Layer layer, List<Bucket> buckets) {
 
-        List<BucketEngine.VariantSpec> variantSpecs = variants.stream()
-                .map(v -> new BucketEngine.VariantSpec(
+        List<BucketEngine.BucketSpec> bucketSpecs = buckets.stream()
+                .map(v -> new BucketEngine.BucketSpec(
                         v.getBucketId(),
                         v.getBucketStart(),
                         v.getBucketEnd(),
@@ -126,7 +126,7 @@ public class BucketingService {
                 layer.getSalt(),
                 0,  // 默认从 0 开始
                 9999, // 默认到 9999
-                variantSpecs
+                bucketSpecs
         );
     }
 

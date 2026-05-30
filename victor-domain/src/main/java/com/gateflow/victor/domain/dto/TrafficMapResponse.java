@@ -52,13 +52,13 @@ public class TrafficMapResponse {
         private String experimentKey;
         private String experimentName;
         private String experimentStatus;
-        private List<VariantOccupancy> variants;
+        private List<BucketOccupancy> buckets;
     }
 
     @Data
-    public static class VariantOccupancy {
-        private String variantKey;
-        private String variantName;
+    public static class BucketOccupancy {
+        private String bucketKey;
+        private String bucketName;
         private int bucketStart;
         private int bucketEnd;
         private double percent;
@@ -101,13 +101,13 @@ public class TrafficMapResponse {
         private int bucketEnd;
         private int bucketCount;
         private double trafficPercent;
-        private List<VariantDetail> variants;
+        private List<BucketDetail> buckets;
     }
 
     @Data
-    public static class VariantDetail {
-        private String variantKey;
-        private String variantName;
+    public static class BucketDetail {
+        private String bucketKey;
+        private String bucketName;
         private int bucketStart;
         private int bucketEnd;
         private int bucketCount;

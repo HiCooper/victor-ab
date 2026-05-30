@@ -11,7 +11,7 @@ public class SdkEvent {
     private String eventId;
     private String userId;
     private String experimentKey;
-    private String variant;
+    private String bucket;
     private String layerId;
     private long timestamp;
     private Map<String, Object> properties;
@@ -21,11 +21,11 @@ public class SdkEvent {
         this.timestamp = System.currentTimeMillis();
     }
 
-    public static SdkEvent assignment(String userId, String experimentKey, String variant, String layerId) {
+    public static SdkEvent assignment(String userId, String experimentKey, String bucket, String layerId) {
         SdkEvent e = new SdkEvent();
         e.userId = userId;
         e.experimentKey = experimentKey;
-        e.variant = variant;
+        e.bucket = bucket;
         e.layerId = layerId;
         return e;
     }
@@ -39,8 +39,8 @@ public class SdkEvent {
     public String getExperimentKey() { return experimentKey; }
     public void setExperimentKey(String experimentKey) { this.experimentKey = experimentKey; }
 
-    public String getVariant() { return variant; }
-    public void setVariant(String variant) { this.variant = variant; }
+    public String getBucket() { return bucket; }
+    public void setBucket(String bucket) { this.bucket = bucket; }
 
     public String getLayerId() { return layerId; }
     public void setLayerId(String layerId) { this.layerId = layerId; }

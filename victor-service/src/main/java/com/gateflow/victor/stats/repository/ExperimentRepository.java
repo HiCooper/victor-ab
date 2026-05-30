@@ -59,10 +59,10 @@ public class ExperimentRepository {
     }
 
     /**
-     * Find active variants for an experiment by its business exp_id.
-     * Returns control variant (lowest bucket_start) and treatment variants.
+     * Find active buckets for an experiment by its business exp_id.
+     * Returns control bucket (lowest bucket_start) and treatment buckets.
      */
-    public VariantInfo findVariants(String expId) {
+    public BucketInfo findBuckets(String expId) {
         String sql = """
             SELECT v.bucket_id, v.name, v.bucket_start, v.bucket_end, v.is_active
             FROM victor_bucket v
@@ -70,9 +70,9 @@ public class ExperimentRepository {
             WHERE e.exp_id = ? AND v.is_active = TRUE
             ORDER BY v.bucket_start ASC
             """;
-        List<VariantRow> rows = jdbc.query(sql, (rs, rowNum) -> {
-            VariantRow row = new VariantRow();
-            row.variantKey = rs.getString("bucket_id");
+        List<BucketRow> rows = jdbc.query(sql, (rs, rowNum) -> {
+            BucketRow row = new BucketRow();
+            row.bucketKey = rs.getString("bucket_id");
             row.name = rs.getString("name");
             row.bucketStart = rs.getInt("bucket_start");
             row.bucketEnd = rs.getInt("bucket_end");
@@ -80,22 +80,22 @@ public class ExperimentRepository {
         }, expId);
 
         if (rows.isEmpty()) {
-            return new VariantInfo();
+            return new BucketInfo();
         }
 
-        VariantInfo info = new VariantInfo();
-        info.controlVariant = rows.get(0).variantKey;
-        info.treatmentVariants = new ArrayList<>();
+        BucketInfo info = new BucketInfo();
+        info.controlBucket = rows.get(0).bucketKey;
+        info.treatmentBuckets = new ArrayList<>();
         info.bucketProportions = new LinkedHashMap<>();
         for (int i = 1; i < rows.size(); i++) {
-            info.treatmentVariants.add(rows.get(i).variantKey);
+            info.treatmentBuckets.add(rows.get(i).bucketKey);
         }
-        info.allVariantKeys = rows.stream().map(r -> r.variantKey).toList();
+        info.allBucketKeys = rows.stream().map(r -> r.bucketKey).toList();
 
         // Compute expected traffic proportions from bucket ranges (0-9999)
-        for (VariantRow row : rows) {
+        for (BucketRow row : rows) {
             int bucketSize = row.bucketEnd - row.bucketStart + 1;
-            info.bucketProportions.put(row.variantKey, bucketSize / 10000.0);
+            info.bucketProportions.put(row.bucketKey, bucketSize / 10000.0);
         }
         return info;
     }
@@ -151,10 +151,10 @@ public class ExperimentRepository {
     }
 
     @Data
-    public static class VariantInfo {
-        private String controlVariant;
-        private List<String> treatmentVariants = List.of();
-        private List<String> allVariantKeys = List.of();
+    public static class BucketInfo {
+        private String controlBucket;
+        private List<String> treatmentBuckets = List.of();
+        private List<String> allBucketKeys = List.of();
         private Map<String, Double> bucketProportions = Map.of();
     }
 
@@ -164,8 +164,8 @@ public class ExperimentRepository {
         private LocalDate endDate;
     }
 
-    private static class VariantRow {
-        String variantKey;
+    private static class BucketRow {
+        String bucketKey;
         String name;
         Integer bucketStart;
         Integer bucketEnd;

@@ -10,7 +10,7 @@ import lombok.Builder;
 @Builder
 public class AggregatedMetric {
     private String expId;
-    private String variant;
+    private String bucket;
     private String layer;
     
     // 时间信息

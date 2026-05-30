@@ -11,6 +11,6 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class ExperimentTagDTO {
     private String expId;
-    private String variant;
+    private String bucket;
     private String layer;
 }

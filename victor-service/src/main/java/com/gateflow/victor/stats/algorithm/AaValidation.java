@@ -5,7 +5,7 @@ package com.gateflow.victor.stats.algorithm;
  * 
  * Analyzes historical A/A tests to validate that the experiment platform
  * has no systematic bias. In a properly functioning platform, A/A tests
- * (where both variants are identical) should show significant differences
+ * (where both buckets are identical) should show significant differences
  * only 5% of the time (at alpha=0.05).
  * 
  * If the false positive rate is significantly higher than 5%, it indicates

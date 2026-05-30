@@ -71,18 +71,18 @@ public class SdkConfigResponse {
         /**
          * 版本列表
          */
-        private List<VariantConfig> variants;
+        private List<BucketConfig> buckets;
     }
 
     /**
      * 版本配置模型
      */
     @Data
-    public static class VariantConfig {
+    public static class BucketConfig {
         /**
          * 版本标识
          */
-        private String variantKey;
+        private String bucketKey;
 
         /**
          * 桶起始位置

@@ -6,7 +6,7 @@ import lombok.Data;
  * 更新版本请求DTO
  */
 @Data
-public class VariantUpdateRequest {
+public class BucketUpdateRequest {
 
     /**
      * 版本名称

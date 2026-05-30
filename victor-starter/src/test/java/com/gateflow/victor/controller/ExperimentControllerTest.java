@@ -42,7 +42,7 @@ class ExperimentControllerTest {
     private ExperimentService experimentService;
 
     private Experiment testExperiment;
-    private Bucket testVariant;
+    private Bucket testBucket;
 
     @BeforeEach
     void setUp() {
@@ -54,13 +54,13 @@ class ExperimentControllerTest {
         testExperiment.setLayerId(1L);
         testExperiment.setStatus("draft");
 
-        testVariant = new Bucket();
-        testVariant.setId(1L);
-        testVariant.setExpId("exp_test_001");
-        testVariant.setBucketId("control");
-        testVariant.setName("对照组");
-        testVariant.setBucketStart(0);
-        testVariant.setBucketEnd(499);
+        testBucket = new Bucket();
+        testBucket.setId(1L);
+        testBucket.setExpId("exp_test_001");
+        testBucket.setBucketId("control");
+        testBucket.setName("对照组");
+        testBucket.setBucketStart(0);
+        testBucket.setBucketEnd(499);
     }
 
     @Test
@@ -73,12 +73,12 @@ class ExperimentControllerTest {
         request.setDescription("测试实验描述");
         request.setLayerId(1L);
 
-        ExperimentCreateRequest.VariantRequest variantRequest = new ExperimentCreateRequest.VariantRequest();
-        variantRequest.setVariantKey("control");
-        variantRequest.setName("对照组");
-        variantRequest.setBucketStart(0);
-        variantRequest.setBucketEnd(499);
-        request.setVariants(List.of(variantRequest));
+        ExperimentCreateRequest.BucketRequest bucketRequest = new ExperimentCreateRequest.BucketRequest();
+        bucketRequest.setBucketKey("control");
+        bucketRequest.setName("对照组");
+        bucketRequest.setBucketStart(0);
+        bucketRequest.setBucketEnd(499);
+        request.setBuckets(List.of(bucketRequest));
 
         // Mock service
         when(experimentService.createExperiment(any(Experiment.class), anyList()))
@@ -266,27 +266,27 @@ class ExperimentControllerTest {
 
     @Test
     @DisplayName("查询实验版本列表 - 成功")
-    void getExperimentVariants_Success() throws Exception {
-        List<Bucket> variants = List.of(testVariant);
-        when(experimentService.getExperimentVariants(1L)).thenReturn(variants);
+    void getExperimentBuckets_Success() throws Exception {
+        List<Bucket> buckets = List.of(testBucket);
+        when(experimentService.getExperimentBuckets(1L)).thenReturn(buckets);
 
-        mockMvc.perform(get("/api/v1/experiments/1/variants"))
+        mockMvc.perform(get("/api/v1/experiments/1/buckets"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bucketId").value("control"));
 
-        verify(experimentService).getExperimentVariants(1L);
+        verify(experimentService).getExperimentBuckets(1L);
     }
 
     @Test
     @DisplayName("查询实验版本列表 - 空列表")
-    void getExperimentVariants_EmptyList() throws Exception {
-        when(experimentService.getExperimentVariants(1L)).thenReturn(Collections.emptyList());
+    void getExperimentBuckets_EmptyList() throws Exception {
+        when(experimentService.getExperimentBuckets(1L)).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/v1/experiments/1/variants"))
+        mockMvc.perform(get("/api/v1/experiments/1/buckets"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
 
-        verify(experimentService).getExperimentVariants(1L);
+        verify(experimentService).getExperimentBuckets(1L);
     }
 }

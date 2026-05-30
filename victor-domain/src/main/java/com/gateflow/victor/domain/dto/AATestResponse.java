@@ -15,11 +15,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AATestResponse {
-    
+
     private List<AATestResult> results;
     private boolean aaTestPassed;
     private String message;
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -27,7 +27,7 @@ public class AATestResponse {
     public static class AATestResult {
         private String metric;
         private double controlMean;
-        private double variantMean;
+        private double bucketMean;
         private double pValue;
         private boolean significant;
     }

@@ -46,29 +46,29 @@ public class ExperimentReportService {
         Layer layer = layerMapper.selectById(experiment.getLayerId());
         String layerKey = layer != null ? layer.getLayerId() : "default";
 
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(expId);
-        if (variants.isEmpty()) {
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(expId);
+        if (buckets.isEmpty()) {
             return buildEmptyReport(expId);
         }
 
         // Classify control vs treatment and compute expected proportions
-        String controlVariant = null;
-        List<String> treatmentVariants = new ArrayList<>();
+        String controlBucket = null;
+        List<String> treatmentBuckets = new ArrayList<>();
         Map<String, Double> expectedProportions = new HashMap<>();
-        int totalBucketSpan = variants.stream()
+        int totalBucketSpan = buckets.stream()
             .mapToInt(v -> v.getBucketEnd() - v.getBucketStart() + 1).sum();
 
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
             double proportion = totalBucketSpan > 0
                 ? (double) (v.getBucketEnd() - v.getBucketStart() + 1) / totalBucketSpan
-                : 1.0 / variants.size();
+                : 1.0 / buckets.size();
             expectedProportions.put(key, proportion);
 
-            if ("control".equalsIgnoreCase(key) || controlVariant == null) {
-                controlVariant = key;
+            if ("control".equalsIgnoreCase(key) || controlBucket == null) {
+                controlBucket = key;
             } else {
-                treatmentVariants.add(key);
+                treatmentBuckets.add(key);
             }
         }
 
@@ -82,34 +82,34 @@ public class ExperimentReportService {
         List<String> guardrailMetricNames = parseGuardrailMetrics(experiment.getGuardrailMetrics());
 
         // Query behavior metrics from tracker (cross-database JOIN, may be slow)
-        List<String> allVariantKeys = new ArrayList<>();
-        allVariantKeys.add(controlVariant);
-        allVariantKeys.addAll(treatmentVariants);
+        List<String> allBucketKeys = new ArrayList<>();
+        allBucketKeys.add(controlBucket);
+        allBucketKeys.addAll(treatmentBuckets);
         Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap = new LinkedHashMap<>();
         try {
-            behaviorMap = statsEngine.getMetricsRepository().queryBehaviorMetrics(expId, startDate, endDate, allVariantKeys);
-            log.info("Behavior metrics for {}: {} variants, start={}, end={}",
+            behaviorMap = statsEngine.getMetricsRepository().queryBehaviorMetrics(expId, startDate, endDate, allBucketKeys);
+            log.info("Behavior metrics for {}: {} buckets, start={}, end={}",
                 expId, behaviorMap.size(), startDate, endDate);
         } catch (Exception e) {
             log.warn("Behavior metrics query failed for {}: {}", expId, e.getMessage());
-            for (String vk : allVariantKeys) behaviorMap.put(vk, new com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics(vk));
+            for (String vk : allBucketKeys) behaviorMap.put(vk, new com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics(vk));
         }
 
         // For running experiments, build lightweight report without full stats pipeline
         if ("running".equals(experiment.getStatus())) {
-            return buildRunningReport(expId, experiment, layerKey, variants, controlVariant,
-                treatmentVariants, expectedProportions, behaviorMap, startDate, endDate);
+            return buildRunningReport(expId, experiment, layerKey, buckets, controlBucket,
+                treatmentBuckets, expectedProportions, behaviorMap, startDate, endDate);
         }
 
         ExperimentReport report = statsEngine.analyzeExperiment(
             expId, layerKey, startDate, endDate,
-            controlVariant, treatmentVariants, expectedProportions,
+            controlBucket, treatmentBuckets, expectedProportions,
             guardrailMetricNames
         );
 
-        if (report.getVariantSummaries() != null && !behaviorMap.isEmpty()) {
-            for (ExperimentReport.VariantSummary vs : report.getVariantSummaries().values()) {
-                var bm = behaviorMap.get(vs.getVariant());
+        if (report.getBucketSummaries() != null && !behaviorMap.isEmpty()) {
+            for (ExperimentReport.BucketSummary vs : report.getBucketSummaries().values()) {
+                var bm = behaviorMap.get(vs.getBucket());
                 if (bm != null) {
                     vs.setBehaviorMetrics(bm);
                 }
@@ -188,8 +188,8 @@ public class ExperimentReportService {
     }
 
     private Map<String, Object> buildRunningReport(String expId, Experiment experiment,
-            String layerKey, List<Bucket> variants,
-            String controlVariant, List<String> treatmentVariants,
+            String layerKey, List<Bucket> buckets,
+            String controlBucket, List<String> treatmentBuckets,
             Map<String, Double> expectedProportions,
             Map<String, com.gateflow.victor.stats.repository.MetricsRepository.BehaviorMetrics> behaviorMap,
             LocalDate startDate, LocalDate endDate) {
@@ -201,18 +201,18 @@ public class ExperimentReportService {
         report.put("generatedAt", LocalDateTime.now().toString());
         report.put("timeRange", Map.of("start", startDate.toString(), "end", endDate.toString()));
 
-        // Per-variant user counts from ClickHouse experiment_metrics
-        var variantStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, startDate, endDate);
+        // Per-bucket user counts from ClickHouse experiment_metrics
+        var bucketStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, startDate, endDate);
 
         // SRM check
-        int n = variants.size();
+        int n = buckets.size();
         long[] observedArr = new long[n];
         double[] expectedArr = new double[n];
         Map<String, Long> observedMap = new LinkedHashMap<>();
         for (int i = 0; i < n; i++) {
-            Bucket v = variants.get(i);
+            Bucket v = buckets.get(i);
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
-            var vs = variantStats.get(key);
+            var vs = bucketStats.get(key);
             observedArr[i] = vs != null ? vs.getTotalUsers() : 0;
             expectedArr[i] = expectedProportions.getOrDefault(key, 1.0 / n);
             observedMap.put(key, observedArr[i]);
@@ -229,13 +229,13 @@ public class ExperimentReportService {
 
         // Bucket summaries with behavior metrics
         List<Map<String, Object>> summaries = new ArrayList<>();
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             String key = v.getBucketId() != null ? v.getBucketId() : v.getName();
-            var vs = variantStats.get(key);
+            var vs = bucketStats.get(key);
             Map<String, Object> s = new LinkedHashMap<>();
-            s.put("variant", key);
+            s.put("bucket", key);
             s.put("totalUsers", vs != null ? vs.getTotalUsers() : 0);
-            s.put("isControl", key.equals(controlVariant));
+            s.put("isControl", key.equals(controlBucket));
 
             var bm = behaviorMap.get(key);
             if (bm != null) {
@@ -249,7 +249,7 @@ public class ExperimentReportService {
             }
             summaries.add(s);
         }
-        report.put("variantSummaries", summaries);
+        report.put("bucketSummaries", summaries);
 
         return report;
     }
@@ -327,11 +327,11 @@ public class ExperimentReportService {
         }
 
         // Bucket summaries
-        if (report.getVariantSummaries() != null) {
+        if (report.getBucketSummaries() != null) {
             List<Map<String, Object>> summaries = new ArrayList<>();
-            for (ExperimentReport.VariantSummary vs : report.getVariantSummaries().values()) {
+            for (ExperimentReport.BucketSummary vs : report.getBucketSummaries().values()) {
                 Map<String, Object> s = new LinkedHashMap<>();
-                s.put("variant", vs.getVariant());
+                s.put("bucket", vs.getBucket());
                 s.put("totalUsers", vs.getTotalUsers());
                 s.put("totalConversions", vs.getTotalConversions());
                 s.put("conversionRate", vs.getConversionRate());
@@ -349,7 +349,7 @@ public class ExperimentReportService {
                 }
                 summaries.add(s);
             }
-            map.put("variantSummaries", summaries);
+            map.put("bucketSummaries", summaries);
         }
 
         // Daily trends

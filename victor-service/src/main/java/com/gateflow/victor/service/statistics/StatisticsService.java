@@ -18,6 +18,7 @@ import com.gateflow.victor.stats.model.ConfidenceInterval;
 import com.gateflow.victor.stats.model.ExperimentReport;
 import com.gateflow.victor.stats.model.LiftEstimate;
 import com.gateflow.victor.stats.model.TestResult;
+import com.gateflow.victor.stats.repository.MetricsRepository;
 import com.gateflow.victor.stats.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,18 +70,18 @@ public class StatisticsService {
             applyCupedToReport(report, cupedValues);
         }
 
-        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
-        if (variants.isEmpty()) {
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
+        if (buckets.isEmpty()) {
             return buildEmptyMetricsResponse();
         }
 
-        String controlVariant = variants.get(0).getBucketId();
-        List<String> treatmentVariants = variants.stream()
+        String controlBucket = buckets.get(0).getBucketId();
+        List<String> treatmentBuckets = buckets.stream()
             .skip(1)
-            .map(Variant::getBucketId)
+            .map(Bucket::getBucketId)
             .toList();
 
-        return buildMetricsResponse(report, controlVariant, treatmentVariants);
+        return buildMetricsResponse(report, controlBucket, treatmentBuckets);
     }
 
     /**
@@ -96,23 +97,23 @@ public class StatisticsService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(d - 1);
 
-        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
-        if (variants.isEmpty()) {
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
+        if (buckets.isEmpty()) {
             return TimeSeriesDataResponse.builder().data(List.of()).build();
         }
 
         String expId = experiment.getExpId();
         List<TimeSeriesDataResponse.DataPoint> dataPoints = new ArrayList<>();
 
-        String controlVariant = variants.get(0).getBucketId();
-        String treatmentVariant = variants.size() > 1 ? variants.get(1).getBucketId() : null;
+        String controlBucket = buckets.get(0).getBucketId();
+        String treatmentBucket = buckets.size() > 1 ? buckets.get(1).getBucketId() : null;
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> controlDaily =
-            statsEngine.getMetricsRepository().queryDailyTrend(expId, controlVariant, startDate, endDate);
+            statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> treatmentDaily =
-            treatmentVariant != null
-                ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentVariant, startDate, endDate)
+            treatmentBucket != null
+                ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate)
                 : Map.of();
 
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
@@ -141,12 +142,12 @@ public class StatisticsService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
-        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
-        if (variants.isEmpty()) {
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
+        if (buckets.isEmpty()) {
             return BucketStatisticsResponse.builder()
                 .buckets(List.of())
                 .srmPassed(false)
-                .srmMessage("实验无变体数据")
+                .srmMessage("实验无分桶数据")
                 .build();
         }
 
@@ -156,33 +157,13 @@ public class StatisticsService {
         LocalDate endDate = LocalDate.now();
 
         String expId = experiment.getExpId();
-        Map<String, com.gateflow.victor.stats.repository.MetricsRepository.VariantStats> variantStats =
+        Map<String, MetricsRepository.BucketStats> bucketStats =
             statsEngine.getMetricsRepository().queryExperimentStats(expId, startDate, endDate);
 
-        List<BucketStatisticsResponse.BucketStat> buckets = new ArrayList<>();
-        long[] observed = new long[variants.size()];
-        double[] expected = new double[variants.size()];
-        int idx = 0;
+        List<BucketStatisticsResponse.BucketStat> bucketStatList = new ArrayList<>();
+        long[] observed = new long[bucketStats.size()];
+        double[] expected = new double[bucketStats.size()];
         long totalUsers = 0;
-
-        for (Bucket variant : variants) {
-            String key = variant.getBucketId();
-            var stats = variantStats.get(key);
-            long users = stats != null ? stats.getTotalUsers() : 0;
-            totalUsers += users;
-            observed[idx] = users;
-            expected[idx] = 1.0 / variants.size();
-            idx++;
-
-            buckets.add(BucketStatisticsResponse.BucketStat.builder()
-                .bucket(key)
-                .dailyEntries(stats != null ? stats.getTotalEvents() : 0)
-                .dailySamples(stats != null ? stats.getTotalUsers() : 0)
-                .chiSquarePValue(0)
-                .cumulativeSamples(users)
-                .cumulativeChiSquarePValue(0)
-                .build());
-        }
 
         double srmPValue = totalUsers > 0 ? SrmTest.chiSquareTest(observed, expected) : 1.0;
         boolean srmPassed = srmPValue >= 0.01;
@@ -192,7 +173,7 @@ public class StatisticsService {
             : "SRM检验未通过（p=" + String.format("%.3f", srmPValue) + "），分流比例可能存在偏差，请排查原因。";
 
         return BucketStatisticsResponse.builder()
-            .buckets(buckets)
+            .buckets(bucketStatList)
             .srmPassed(srmPassed)
             .srmMessage(srmMessage)
             .build();
@@ -207,12 +188,12 @@ public class StatisticsService {
             throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
         }
 
-        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
-        if (variants.size() < 2) {
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
+        if (buckets.size() < 2) {
             return AATestResponse.builder()
                 .results(List.of())
                 .aaTestPassed(false)
-                .message("实验变体数量不足，无法进行AA测试")
+                .message("实验分桶数量不足，无法进行AA测试")
                 .build();
         }
 
@@ -223,12 +204,12 @@ public class StatisticsService {
         LocalDate aaEnd = experimentStart.minusDays(1);
 
         String expId = experiment.getExpId();
-        String controlKey = variants.get(0).getBucketId();
+        String controlKey = buckets.get(0).getBucketId();
 
         List<AATestResponse.AATestResult> results = new ArrayList<>();
 
-        for (int i = 1; i < variants.size(); i++) {
-            String treatmentKey = variants.get(i).getBucketId();
+        for (int i = 1; i < buckets.size(); i++) {
+            String treatmentKey = buckets.get(i).getBucketId();
 
             var controlStats = statsEngine.getMetricsRepository().queryExperimentStats(expId, aaStart, aaEnd)
                 .get(controlKey);
@@ -248,7 +229,7 @@ public class StatisticsService {
             results.add(AATestResponse.AATestResult.builder()
                 .metric("转化率")
                 .controlMean(controlStats.getConversionRate())
-                .variantMean(treatmentStats.getConversionRate())
+                .bucketMean(treatmentStats.getConversionRate())
                 .pValue(testResult.getPValue())
                 .significant(testResult.isSignificant())
                 .build());
@@ -257,7 +238,7 @@ public class StatisticsService {
                 results.add(AATestResponse.AATestResult.builder()
                     .metric("每用户收入")
                     .controlMean(controlStats.getAvgRevenue())
-                    .variantMean(treatmentStats.getAvgRevenue())
+                    .bucketMean(treatmentStats.getAvgRevenue())
                     .pValue(0.5)
                     .significant(false)
                     .build());
@@ -289,21 +270,21 @@ public class StatisticsService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(d - 1);
 
-        List<Bucket> variants = experimentService.getExperimentVariants(experimentId);
-        if (variants.isEmpty()) {
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
+        if (buckets.isEmpty()) {
             return TrafficDataResponse.builder().data(List.of()).build();
         }
 
         String expId = experiment.getExpId();
-        String controlVariant = variants.get(0).getBucketId();
-        String treatmentVariant = variants.size() > 1 ? variants.get(1).getBucketId() : null;
+        String controlBucket = buckets.get(0).getBucketId();
+        String treatmentBucket = buckets.size() > 1 ? buckets.get(1).getBucketId() : null;
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> controlDaily =
-            statsEngine.getMetricsRepository().queryDailyTrend(expId, controlVariant, startDate, endDate);
+            statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
 
         Map<LocalDate, com.gateflow.victor.stats.repository.MetricsRepository.DailyStats> treatmentDaily =
-            treatmentVariant != null
-                ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentVariant, startDate, endDate)
+            treatmentBucket != null
+                ? statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate)
                 : Map.of();
 
         List<TrafficDataResponse.DataPoint> dataPoints = new ArrayList<>();
@@ -342,26 +323,26 @@ public class StatisticsService {
         Layer layer = layerMapper.selectById(experiment.getLayerId());
         String layerName = layer != null ? layer.getName() : "default";
 
-        List<Bucket> variants = experimentService.getExperimentVariants(experiment.getId());
-        if (variants.isEmpty()) {
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experiment.getId());
+        if (buckets.isEmpty()) {
             return ExperimentReport.builder()
                 .expId(experiment.getExpId())
                 .layer(layerName)
                 .startDate(startDate)
                 .endDate(endDate)
                 .recommendation(com.gateflow.victor.stats.model.Recommendation.INCONCLUSIVE)
-                .recommendationReason("实验无变体数据")
+                .recommendationReason("实验无分桶数据")
                 .build();
         }
 
-        String controlVariant = variants.get(0).getBucketId();
-        List<String> treatmentVariants = variants.stream()
+        String controlBucket = buckets.get(0).getBucketId();
+        List<String> treatmentBuckets = buckets.stream()
             .skip(1)
-            .map(Variant::getBucketId)
+            .map(Bucket::getBucketId)
             .toList();
 
         Map<String, Double> expectedProportions = new LinkedHashMap<>();
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             int bucketSize = v.getBucketEnd() - v.getBucketStart() + 1;
             expectedProportions.put(v.getBucketId(), bucketSize / 10000.0);
         }
@@ -373,8 +354,8 @@ public class StatisticsService {
             layerName,
             startDate,
             endDate,
-            controlVariant,
-            treatmentVariants,
+            controlBucket,
+            treatmentBuckets,
             expectedProportions,
             guardrailMetricNames
         );
@@ -382,18 +363,18 @@ public class StatisticsService {
 
     /**
      * Apply CUPED-adjusted values from MySQL to a real-time report.
-     * Replaces raw means/variances in variant summaries with CUPED-adjusted values,
+     * Replaces raw means/variances in bucket summaries with CUPED-adjusted values,
      * and recomputes lift/p-value/CI using the adjusted statistics.
      */
     private void applyCupedToReport(
             ExperimentReport report,
             Map<String, ReportRepository.CupedValueDto> cupedValues
     ) {
-        if (report.getVariantSummaries() == null) return;
+        if (report.getBucketSummaries() == null) return;
 
-        // Inject CUPED-adjusted mean/variance into each variant summary
+        // Inject CUPED-adjusted mean/variance into each bucket summary
         for (Map.Entry<String, ReportRepository.CupedValueDto> entry : cupedValues.entrySet()) {
-            ExperimentReport.VariantSummary summary = report.getVariantSummaries().get(entry.getKey());
+            ExperimentReport.BucketSummary summary = report.getBucketSummaries().get(entry.getKey());
             if (summary != null) {
                 summary.setCupedAdjustedMean(entry.getValue().getCupedAdjustedMean());
                 summary.setCupedAdjustedVariance(entry.getValue().getCupedAdjustedVariance());
@@ -401,9 +382,9 @@ public class StatisticsService {
         }
 
         // Recompute primary metric using CUPED-adjusted values
-        ExperimentReport.VariantSummary ctrl = null;
-        ExperimentReport.VariantSummary treat = null;
-        for (ExperimentReport.VariantSummary vs : report.getVariantSummaries().values()) {
+        ExperimentReport.BucketSummary ctrl = null;
+        ExperimentReport.BucketSummary treat = null;
+        for (ExperimentReport.BucketSummary vs : report.getBucketSummaries().values()) {
             if (vs.getCupedAdjustedMean() == null) continue;
             if (vs.isControl() && ctrl == null) {
                 ctrl = vs;
@@ -445,15 +426,15 @@ public class StatisticsService {
 
     private ExperimentMetricsResponse buildMetricsResponse(
         ExperimentReport report,
-        String controlVariant,
-        List<String> treatmentVariants
+        String controlBucket,
+        List<String> treatmentBuckets
     ) {
         TestResult primary = report.getPrimaryMetric();
         if (primary == null) {
             return buildEmptyMetricsResponse();
         }
 
-        var controlSummary = report.getVariantSummaries().get(controlVariant);
+        var controlSummary = report.getBucketSummaries().get(controlBucket);
         double controlRate = controlSummary != null
             ? (report.isCupedApplied() && controlSummary.getCupedAdjustedMean() != null
                 ? controlSummary.getCupedAdjustedMean()

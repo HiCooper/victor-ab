@@ -18,22 +18,22 @@ public enum ErrorCode {
     LAYER_NOT_FOUND("LYR_001", "层不存在"),
     LAYER_HAS_EXPERIMENTS("LYR_002", "层下存在实验，无法删除"),
 
-    // ========== 变体管理 (VAR) ==========
-    VARIANT_NOT_FOUND("VAR_001", "变体不存在"),
-    VARIANT_EMPTY_LIST("VAR_002", "变体列表不能为空"),
-    VARIANT_BUCKET_OUT_OF_RANGE("VAR_003", "变体桶范围超出实验桶范围"),
-    VARIANT_BUCKET_INVALID("VAR_004", "变体桶起始值必须小于结束值"),
-    VARIANT_BUCKET_MUST_COVER("VAR_005", "变体桶范围必须覆盖整个实验桶范围"),
-    VARIANT_ONLY_DRAFT_ADD("VAR_006", "只有草稿状态的实验可以添加变体"),
-    VARIANT_ONLY_DRAFT_MODIFY("VAR_007", "只有草稿状态的实验可以修改变体"),
-    VARIANT_ONLY_DRAFT_DELETE("VAR_008", "只有草稿状态的实验可以删除变体"),
-    VARIANT_DUPLICATE_KEY("VAR_009", "变体标识重复"),
+    // ========== 分桶管理 (VAR) ==========
+    VARIANT_NOT_FOUND("VAR_001", "分桶不存在"),
+    VARIANT_EMPTY_LIST("VAR_002", "分桶列表不能为空"),
+    VARIANT_BUCKET_OUT_OF_RANGE("VAR_003", "分桶桶范围超出实验桶范围"),
+    VARIANT_BUCKET_INVALID("VAR_004", "分桶桶起始值必须小于结束值"),
+    VARIANT_BUCKET_MUST_COVER("VAR_005", "分桶桶范围必须覆盖整个实验桶范围"),
+    VARIANT_ONLY_DRAFT_ADD("VAR_006", "只有草稿状态的实验可以添加分桶"),
+    VARIANT_ONLY_DRAFT_MODIFY("VAR_007", "只有草稿状态的实验可以修改分桶"),
+    VARIANT_ONLY_DRAFT_DELETE("VAR_008", "只有草稿状态的实验可以删除分桶"),
+    VARIANT_DUPLICATE_KEY("VAR_009", "分桶标识重复"),
 
     // ========== 分桶 (BKT) ==========
     BKT_OUT_OF_RANGE("BKT_001", "桶范围必须在 [0, 9999] 范围内"),
     BKT_TRAFFIC_PERCENTAGE("BKT_002", "流量比例总和必须为100%"),
     BKT_OVERLAP("BKT_003", "桶范围与同层其他实验重叠"),
-    BKT_LAST_END_MUST_9999("BKT_004", "最后一个变体的桶结束值必须为9999"),
+    BKT_LAST_END_MUST_9999("BKT_004", "最后一个分桶的桶结束值必须为9999"),
     BKT_INVALID_END("BKT_005", "无效的桶结束值"),
 
     // ========== 版本管理 (VER) ==========

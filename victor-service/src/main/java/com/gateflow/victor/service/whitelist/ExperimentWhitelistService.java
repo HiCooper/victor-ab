@@ -39,8 +39,8 @@ public class ExperimentWhitelistService {
         }
 
         // 验证分桶是否存在
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(expId);
-        boolean bucketExists = variants.stream()
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(expId);
+        boolean bucketExists = buckets.stream()
                 .anyMatch(v -> v.getBucketId().equals(bucketId));
         if (!bucketExists) {
             throw new VictorException(ErrorCode.VER_NOT_FOUND, bucketId);

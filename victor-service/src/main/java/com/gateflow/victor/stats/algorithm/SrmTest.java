@@ -16,7 +16,7 @@ public class SrmTest {
     /**
      * Perform Chi-Square test for Sample Ratio Mismatch
      *
-     * @param observed Actual impression counts per variant
+     * @param observed Actual impression counts per bucket
      * @param expected Expected traffic ratios (should sum to 1.0)
      * @return p-value - if < 0.01, indicates significant mismatch
      */

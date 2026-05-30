@@ -29,20 +29,20 @@ public class MetricsService {
     public List<Map<String, Object>> getRealtimeMetrics(String expId, Integer windowMinutes) {
         log.info("Getting realtime metrics for experiment: {}, window: {} minutes", expId, windowMinutes);
 
-        Map<String, MetricsRepository.VariantStats> stats = metricsRepository.queryRealtimeStats(expId, windowMinutes);
+        Map<String, MetricsRepository.BucketStats> stats = metricsRepository.queryRealtimeStats(expId, windowMinutes);
 
         List<Map<String, Object>> metrics = new ArrayList<>();
-        for (Map.Entry<String, MetricsRepository.VariantStats> entry : stats.entrySet()) {
-            MetricsRepository.VariantStats variantStats = entry.getValue();
+        for (Map.Entry<String, MetricsRepository.BucketStats> entry : stats.entrySet()) {
+            MetricsRepository.BucketStats bucketStats = entry.getValue();
             Map<String, Object> metric = new LinkedHashMap<>();
             metric.put("expId", expId);
-            metric.put("variant", variantStats.getVariant());
+            metric.put("bucket", bucketStats.getBucket());
             metric.put("timestamp", LocalDateTime.now().toString());
-            metric.put("totalEvents", variantStats.getTotalEvents());
-            metric.put("uniqueUsers", variantStats.getTotalUsers());
-            metric.put("conversions", variantStats.getTotalConversions());
-            metric.put("conversionRate", variantStats.getConversionRate());
-            metric.put("totalRevenue", variantStats.getTotalRevenue());
+            metric.put("totalEvents", bucketStats.getTotalEvents());
+            metric.put("uniqueUsers", bucketStats.getTotalUsers());
+            metric.put("conversions", bucketStats.getTotalConversions());
+            metric.put("conversionRate", bucketStats.getConversionRate());
+            metric.put("totalRevenue", bucketStats.getTotalRevenue());
             metrics.add(metric);
         }
 
@@ -70,21 +70,21 @@ public class MetricsService {
             ? LocalDate.parse(endDateStr)
             : LocalDate.now();
 
-        // Discover variants from experiment stats
-        Map<String, MetricsRepository.VariantStats> variantStats =
+        // Discover buckets from experiment stats
+        Map<String, MetricsRepository.BucketStats> bucketStats =
             metricsRepository.queryExperimentStats(expId, start, end);
 
         List<Map<String, Object>> dailyMetrics = new ArrayList<>();
-        for (String variant : variantStats.keySet()) {
+        for (String bucket : bucketStats.keySet()) {
             Map<LocalDate, MetricsRepository.DailyStats> trend =
-                metricsRepository.queryDailyTrend(expId, variant, start, end);
+                metricsRepository.queryDailyTrend(expId, bucket, start, end);
 
             for (Map.Entry<LocalDate, MetricsRepository.DailyStats> entry : trend.entrySet()) {
                 MetricsRepository.DailyStats ds = entry.getValue();
                 Map<String, Object> metric = new LinkedHashMap<>();
                 metric.put("date", entry.getKey().toString());
                 metric.put("expId", expId);
-                metric.put("variant", variant);
+                metric.put("bucket", bucket);
                 metric.put("sampleSize", ds.getTotalUsers());
                 metric.put("conversions", ds.getTotalConversions());
                 metric.put("conversionRate", ds.getConversionRate());

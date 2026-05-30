@@ -36,18 +36,18 @@ public class TrafficMapService {
     private final BucketMapper bucketMapper;
 
     /**
-     * 从实验的变体中推导实验的桶范围
-     * 返回 [minStart, maxEnd]，如果没有变体则返回 null
+     * 从实验的分桶中推导实验的桶范围
+     * 返回 [minStart, maxEnd]，如果没有分桶则返回 null
      */
     private int[] deriveExperimentBucketRange(Experiment exp) {
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
-        if (variants == null || variants.isEmpty()) {
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
+        if (buckets == null || buckets.isEmpty()) {
             return null;
         }
 
         int minStart = Integer.MAX_VALUE;
         int maxEnd = Integer.MIN_VALUE;
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             if (v.getBucketStart() != null && v.getBucketStart() < minStart) {
                 minStart = v.getBucketStart();
             }
@@ -64,16 +64,16 @@ public class TrafficMapService {
     }
 
     /**
-     * 计算实验占用的桶总数（所有变体桶的并集）
+     * 计算实验占用的桶总数（所有分桶桶的并集）
      */
     private int calculateExperimentBucketCount(Experiment exp) {
-        List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
-        if (variants == null || variants.isEmpty()) {
+        List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
+        if (buckets == null || buckets.isEmpty()) {
             return 0;
         }
 
         int total = 0;
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             if (v.getBucketStart() != null && v.getBucketEnd() != null) {
                 total += (v.getBucketEnd() - v.getBucketStart() + 1);
             }
@@ -139,18 +139,18 @@ public class TrafficMapService {
             eo.setBucketCount(bucketCount);
             eo.setTrafficPercent(bucketCount * 100.0 / TOTAL_BUCKETS);
 
-            List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
-            List<TrafficMapResponse.VariantDetail> variantDetails = new ArrayList<>();
+            List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
+            List<TrafficMapResponse.BucketDetail> bucketDetails = new ArrayList<>();
 
-            for (Bucket v : variants) {
-                TrafficMapResponse.VariantDetail vd = new TrafficMapResponse.VariantDetail();
-                vd.setVariantKey(v.getBucketId());
-                vd.setVariantName(v.getName());
+            for (Bucket v : buckets) {
+                TrafficMapResponse.BucketDetail vd = new TrafficMapResponse.BucketDetail();
+                vd.setBucketKey(v.getBucketId());
+                vd.setBucketName(v.getName());
                 vd.setBucketStart(v.getBucketStart());
                 vd.setBucketEnd(v.getBucketEnd());
                 vd.setBucketCount(v.getBucketEnd() - v.getBucketStart() + 1);
                 vd.setTrafficPercent(vd.getBucketCount() * 100.0 / TOTAL_BUCKETS);
-                variantDetails.add(vd);
+                bucketDetails.add(vd);
 
                 // 采样记录 bucketMap (每 100 桶记录一次)
                 for (int b = v.getBucketStart(); b <= v.getBucketEnd(); b += 100) {
@@ -158,7 +158,7 @@ public class TrafficMapService {
                 }
             }
 
-            eo.setVariants(variantDetails);
+            eo.setBuckets(bucketDetails);
             expOccupancies.add(eo);
             usedBuckets += eo.getBucketCount();
         }
@@ -263,20 +263,20 @@ public class TrafficMapService {
             segment.setExperimentName(exp.getName());
             segment.setExperimentStatus(exp.getStatus());
 
-            List<Bucket> variants = bucketMapper.selectActiveBuckets(exp.getExpId());
-            List<TrafficMapResponse.VariantOccupancy> variantOccupancies = new ArrayList<>();
+            List<Bucket> buckets = bucketMapper.selectActiveBuckets(exp.getExpId());
+            List<TrafficMapResponse.BucketOccupancy> bucketOccupancies = new ArrayList<>();
 
-            for (Bucket v : variants) {
-                TrafficMapResponse.VariantOccupancy vo = new TrafficMapResponse.VariantOccupancy();
-                vo.setVariantKey(v.getBucketId());
-                vo.setVariantName(v.getName());
+            for (Bucket v : buckets) {
+                TrafficMapResponse.BucketOccupancy vo = new TrafficMapResponse.BucketOccupancy();
+                vo.setBucketKey(v.getBucketId());
+                vo.setBucketName(v.getName());
                 vo.setBucketStart(v.getBucketStart());
                 vo.setBucketEnd(v.getBucketEnd());
                 vo.setPercent((v.getBucketEnd() - v.getBucketStart() + 1) * 100.0 / TOTAL_BUCKETS);
-                variantOccupancies.add(vo);
+                bucketOccupancies.add(vo);
             }
 
-            segment.setVariants(variantOccupancies);
+            segment.setBuckets(bucketOccupancies);
             segments.add(segment);
             usedBuckets += segment.getBucketCount();
         }

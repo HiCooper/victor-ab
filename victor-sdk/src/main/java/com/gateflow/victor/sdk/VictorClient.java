@@ -177,7 +177,7 @@ public class VictorClient {
      * @param experimentKey 实验标识
      * @return 版本标识 (null表示未命中)
      */
-    public String getVariant(String userId, String experimentKey) {
+    public String getBucket(String userId, String experimentKey) {
         SdkConfigResponse.ExperimentConfig expConfig = experimentCache.getIfPresent(experimentKey);
         if (expConfig == null) {
             LOGGER.fine("Experiment config not found: " + experimentKey);
@@ -189,8 +189,8 @@ public class VictorClient {
         BucketResult result = BucketEngine.computeBucketResult(userId, spec);
 
         if (result.isHit()) {
-            trackAssignment(userId, experimentKey, result.getVariant(), expConfig.getLayerId());
-            return result.getVariant();
+            trackAssignment(userId, experimentKey, result.getBucketId(), expConfig.getLayerId());
+            return result.getBucketId();
         }
         return null;
     }
@@ -199,9 +199,9 @@ public class VictorClient {
      * 获取用户所有实验的分桶结果
      *
      * @param userId 用户ID
-     * @return Map<expId, variant>
+     * @return Map<expId, bucket>
      */
-    public Map<String, String> getAllVariants(String userId) {
+    public Map<String, String> getAllBuckets(String userId) {
         Map<String, SdkConfigResponse.ExperimentConfig> allConfigs = experimentCache.asMap();
         if (allConfigs.isEmpty()) {
             return Collections.emptyMap();
@@ -212,8 +212,8 @@ public class VictorClient {
             BucketEngine.ExperimentSpec spec = buildExperimentSpec(entry.getValue());
             BucketResult result = BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
-                results.put(entry.getKey(), result.getVariant());
-                trackAssignment(userId, entry.getKey(), result.getVariant(), entry.getValue().getLayerId());
+                results.put(entry.getKey(), result.getBucketId());
+                trackAssignment(userId, entry.getKey(), result.getBucketId(), entry.getValue().getLayerId());
             }
         }
 
@@ -223,11 +223,11 @@ public class VictorClient {
     /**
      * 记录分流分配结果到异步队列
      */
-    private void trackAssignment(String userId, String experimentKey, String variant, String layerId) {
+    private void trackAssignment(String userId, String experimentKey, String bucket, String layerId) {
         if (!config.isEventTrackingEnabled()) {
             return;
         }
-        SdkEvent event = SdkEvent.assignment(userId, experimentKey, variant, layerId);
+        SdkEvent event = SdkEvent.assignment(userId, experimentKey, bucket, layerId);
         if (!eventQueue.offer(event)) {
             LOGGER.warning("Event queue full, dropping assignment: " + experimentKey);
         }
@@ -256,7 +256,7 @@ public class VictorClient {
                 eventMap.put("eventId", e.getEventId());
                 eventMap.put("userId", e.getUserId());
                 eventMap.put("experimentKey", e.getExperimentKey());
-                eventMap.put("variant", e.getVariant());
+                eventMap.put("bucket", e.getBucket());
                 eventMap.put("timestamp", e.getTimestamp());
                 if (e.getProperties() != null) {
                     eventMap.put("properties", e.getProperties());
@@ -298,18 +298,18 @@ public class VictorClient {
      */
     @SuppressWarnings("unchecked")
     public <T> T getParam(String userId, String experimentKey, String paramKey, T defaultValue) {
-        String variant = getVariant(userId, experimentKey);
-        if (variant == null) {
+        String bucket = getBucket(userId, experimentKey);
+        if (bucket == null) {
             return defaultValue;
         }
 
         SdkConfigResponse.ExperimentConfig expConfig = experimentCache.getIfPresent(experimentKey);
-        if (expConfig == null || expConfig.getVariants() == null) {
+        if (expConfig == null || expConfig.getBuckets() == null) {
             return defaultValue;
         }
 
-        for (SdkConfigResponse.VariantConfig vc : expConfig.getVariants()) {
-            if (vc.getVariantKey().equals(variant) && vc.getParams() != null) {
+        for (SdkConfigResponse.BucketConfig vc : expConfig.getBuckets()) {
+            if (vc.getBucketKey().equals(bucket) && vc.getParams() != null) {
                 Object value = vc.getParams().get(paramKey);
                 if (value != null) {
                     return (T) value;
@@ -327,15 +327,15 @@ public class VictorClient {
      * @return 实验标签列表
      */
     public List<SdkExperimentTag> getExperimentTags(String userId) {
-        Map<String, String> variants = getAllVariants(userId);
+        Map<String, String> buckets = getAllBuckets(userId);
         List<SdkExperimentTag> tags = new ArrayList<>();
 
-        for (Map.Entry<String, String> entry : variants.entrySet()) {
+        for (Map.Entry<String, String> entry : buckets.entrySet()) {
             SdkConfigResponse.ExperimentConfig expConfig = experimentCache.getIfPresent(entry.getKey());
             if (expConfig != null) {
                 SdkExperimentTag tag = new SdkExperimentTag();
                 tag.setExpId(entry.getKey());
-                tag.setVariant(entry.getValue());
+                tag.setBucket(entry.getValue());
                 tag.setLayer(expConfig.getLayerId());
                 tags.add(tag);
             }
@@ -436,11 +436,11 @@ public class VictorClient {
      * 构建实验规格
      */
     private BucketEngine.ExperimentSpec buildExperimentSpec(SdkConfigResponse.ExperimentConfig config) {
-        List<BucketEngine.VariantSpec> variants = new ArrayList<>();
-        if (config.getVariants() != null) {
-            for (SdkConfigResponse.VariantConfig vc : config.getVariants()) {
-                variants.add(new BucketEngine.VariantSpec(
-                        vc.getVariantKey(),
+        List<BucketEngine.BucketSpec> buckets = new ArrayList<>();
+        if (config.getBuckets() != null) {
+            for (SdkConfigResponse.BucketConfig vc : config.getBuckets()) {
+                buckets.add(new BucketEngine.BucketSpec(
+                        vc.getBucketKey(),
                         vc.getBucketStart(),
                         vc.getBucketEnd(),
                         null
@@ -454,7 +454,7 @@ public class VictorClient {
                 config.getSalt(),
                 config.getBucketStart(),
                 config.getBucketEnd(),
-                variants
+                buckets
         );
     }
 

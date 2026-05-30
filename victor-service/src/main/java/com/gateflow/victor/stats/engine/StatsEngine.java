@@ -56,8 +56,8 @@ public class StatsEngine {
      * @param layer 层名称
      * @param startDate 分析开始日期
      * @param endDate 分析结束日期
-     * @param controlVariantName 对照组变体名称
-     * @param treatmentVariants 治疗组变体名称列表
+     * @param controlBucketName 对照组分桶名称
+     * @param treatmentBuckets 治疗组分桶名称列表
      * @param expectedProportions 期望分流比例
      * @param guardrailMetricNames 护栏指标名称列表（从实验配置读取，null 则默认使用 avgRevenue）
      * @return 完整的实验报告
@@ -67,8 +67,8 @@ public class StatsEngine {
             String layer,
             LocalDate startDate,
             LocalDate endDate,
-            String controlVariantName,
-            List<String> treatmentVariants,
+            String controlBucketName,
+            List<String> treatmentBuckets,
             Map<String, Double> expectedProportions,
             List<String> guardrailMetricNames
     ) {
@@ -77,47 +77,47 @@ public class StatsEngine {
 
         long startTime = System.currentTimeMillis();
 
-        // Step 1: 查询所有变体的统计数据
-        Map<String, MetricsRepository.VariantStats> variantStats =
+        // Step 1: 查询所有分桶的统计数据
+        Map<String, MetricsRepository.BucketStats> bucketStats =
             metricsRepository.queryExperimentStats(expId, startDate, endDate);
 
-        if (variantStats.isEmpty()) {
+        if (bucketStats.isEmpty()) {
             return buildEmptyReport(expId, layer, startDate, endDate);
         }
 
         // Step 2: SRM 检验 - 验证分流比例
-        ExperimentReport.SrmCheckResult srmResult = runSRMCheck(variantStats, controlVariantName, treatmentVariants, expectedProportions);
+        ExperimentReport.SrmCheckResult srmResult = runSRMCheck(bucketStats, controlBucketName, treatmentBuckets, expectedProportions);
 
         // Step 3: 获取对照组统计
-        MetricsRepository.VariantStats controlStats = variantStats.get(controlVariantName);
+        MetricsRepository.BucketStats controlStats = bucketStats.get(controlBucketName);
         if (controlStats == null) {
             return buildEmptyReport(expId, layer, startDate, endDate);
         }
 
         // Step 3.5: CUPED 方差缩减（使用实验前数据）
         Map<String, SampleStatistics> cupedAdjusted = applyCUPED(
-            expId, controlVariantName, treatmentVariants, startDate, endDate);
+            expId, controlBucketName, treatmentBuckets, startDate, endDate);
 
         // Step 4: 主指标检验 - Z-Test（CUPED 增强）
-        TestResult primaryResult = runPrimaryMetricTest(controlStats, variantStats, treatmentVariants, cupedAdjusted);
+        TestResult primaryResult = runPrimaryMetricTest(controlStats, bucketStats, treatmentBuckets, cupedAdjusted);
 
         // Step 5: 辅助指标检验 - BH 校正
-        List<TestResult> secondaryResults = runSecondaryMetricsTest(controlStats, variantStats, treatmentVariants);
+        List<TestResult> secondaryResults = runSecondaryMetricsTest(controlStats, bucketStats, treatmentBuckets);
 
         // Step 6: 护栏指标序贯检验 - mSPRT
-        List<SequentialTestResult> guardrailResults = runGuardrailTests(controlStats, variantStats, guardrailMetricNames);
+        List<SequentialTestResult> guardrailResults = runGuardrailTests(controlStats, bucketStats, guardrailMetricNames);
         
         // Step 7: 生成决策建议
         Recommendation recommendation = generateRecommendation(
             srmResult, primaryResult, secondaryResults, guardrailResults
         );
         
-        // Step 8: 构建变体摘要
-        Map<String, ExperimentReport.VariantSummary> summaries = buildVariantSummaries(variantStats, controlVariantName);
+        // Step 8: 构建分桶摘要
+        Map<String, ExperimentReport.BucketSummary> summaries = buildBucketSummaries(bucketStats, controlBucketName);
         
         // Step 9: 每日趋势数据
         Map<String, List<ExperimentReport.DailyMetric>> dailyTrends = buildDailyTrends(
-            expId, controlVariantName, treatmentVariants, startDate, endDate
+            expId, controlBucketName, treatmentBuckets, startDate, endDate
         );
         
         long endTime = System.currentTimeMillis();
@@ -131,7 +131,7 @@ public class StatsEngine {
             .primaryMetric(primaryResult)
             .secondaryMetrics(secondaryResults)
             .guardrailMetrics(guardrailResults)
-            .variantSummaries(summaries)
+            .bucketSummaries(summaries)
             .dailyTrends(dailyTrends)
             .recommendation(recommendation)
             .recommendationReason(buildRecommendationReason(recommendation, srmResult, primaryResult, guardrailResults))
@@ -143,32 +143,32 @@ public class StatsEngine {
      * SRM 检验
      */
     private ExperimentReport.SrmCheckResult runSRMCheck(
-            Map<String, MetricsRepository.VariantStats> stats,
-            String controlVariant,
-            List<String> treatmentVariants,
+            Map<String, MetricsRepository.BucketStats> stats,
+            String controlBucket,
+            List<String> treatmentBuckets,
             Map<String, Double> expectedProportions
     ) {
-        List<String> allVariants = new ArrayList<>();
-        allVariants.add(controlVariant);
-        allVariants.addAll(treatmentVariants);
+        List<String> allBuckets = new ArrayList<>();
+        allBuckets.add(controlBucket);
+        allBuckets.addAll(treatmentBuckets);
         
-        long[] observed = new long[allVariants.size()];
-        double[] expected = new double[allVariants.size()];
+        long[] observed = new long[allBuckets.size()];
+        double[] expected = new double[allBuckets.size()];
         Map<String, Long> observedCounts = new HashMap<>();
         
         long totalUsers = 0;
-        for (int i = 0; i < allVariants.size(); i++) {
-            MetricsRepository.VariantStats variantStats = stats.get(allVariants.get(i));
-            long users = variantStats != null ? variantStats.getTotalUsers() : 0;
+        for (int i = 0; i < allBuckets.size(); i++) {
+            MetricsRepository.BucketStats bucketStats = stats.get(allBuckets.get(i));
+            long users = bucketStats != null ? bucketStats.getTotalUsers() : 0;
             observed[i] = users;
-            observedCounts.put(allVariants.get(i), users);
+            observedCounts.put(allBuckets.get(i), users);
             totalUsers += users;
         }
         
         // Use actual bucket proportions if available, fall back to equal split
         if (expectedProportions != null && !expectedProportions.isEmpty()) {
-            for (int i = 0; i < allVariants.size(); i++) {
-                expected[i] = expectedProportions.getOrDefault(allVariants.get(i), 1.0 / expected.length);
+            for (int i = 0; i < allBuckets.size(); i++) {
+                expected[i] = expectedProportions.getOrDefault(allBuckets.get(i), 1.0 / expected.length);
             }
         } else {
             for (int i = 0; i < expected.length; i++) {
@@ -180,8 +180,8 @@ public class StatsEngine {
         boolean passed = srmResult.pValue() >= 0.01; // SRM 阈值 1%
 
         Map<String, Double> expectedRatios = new HashMap<>();
-        for (int i = 0; i < allVariants.size(); i++) {
-            expectedRatios.put(allVariants.get(i), expected[i]);
+        for (int i = 0; i < allBuckets.size(); i++) {
+            expectedRatios.put(allBuckets.get(i), expected[i]);
         }
 
         return ExperimentReport.SrmCheckResult.builder()
@@ -196,12 +196,12 @@ public class StatsEngine {
     
     /**
      * CUPED 方差缩减 — 使用实验前数据降低方差，提高检验灵敏度。
-     * 返回 variant → adjusted SampleStatistics 映射，失败时返回 null。
+     * 返回 bucket → adjusted SampleStatistics 映射，失败时返回 null。
      */
     private Map<String, SampleStatistics> applyCUPED(
             String expId,
-            String controlVariantName,
-            List<String> treatmentVariants,
+            String controlBucketName,
+            List<String> treatmentBuckets,
             LocalDate expStart,
             LocalDate expEnd
     ) {
@@ -210,22 +210,22 @@ public class StatsEngine {
         LocalDate preEnd = expStart.minusDays(1);
         LocalDate preStart = preEnd.minusDays(expDays);
 
-        List<String> allVariants = new ArrayList<>();
-        allVariants.add(controlVariantName);
-        allVariants.addAll(treatmentVariants);
+        List<String> allBuckets = new ArrayList<>();
+        allBuckets.add(controlBucketName);
+        allBuckets.addAll(treatmentBuckets);
 
         // Collect all user-level data and compute overall pre-experiment mean
         List<Double> allPreValues = new ArrayList<>();
-        Map<String, List<MetricsRepository.UserMetric>> userDataByVariant = new LinkedHashMap<>();
+        Map<String, List<MetricsRepository.UserMetric>> userDataByBucket = new LinkedHashMap<>();
 
-        for (String variant : allVariants) {
+        for (String bucket : allBuckets) {
             List<MetricsRepository.UserMetric> userData =
-                metricsRepository.queryUserLevelData(expId, variant, expStart, expEnd, preStart, preEnd);
+                metricsRepository.queryUserLevelData(expId, bucket, expStart, expEnd, preStart, preEnd);
             if (userData.isEmpty()) {
-                log.debug("CUPED: no user-level data for variant={}, falling back to aggregate", variant);
+                log.debug("CUPED: no user-level data for bucket={}, falling back to aggregate", bucket);
                 return null;
             }
-            userDataByVariant.put(variant, userData);
+            userDataByBucket.put(bucket, userData);
             userData.forEach(m -> allPreValues.add(m.getPreExperimentValue()));
         }
 
@@ -235,13 +235,13 @@ public class StatsEngine {
         log.debug("CUPED: overall pre-experiment mean={}, n={}", overallMeanX, allPreValues.size());
 
         Map<String, SampleStatistics> adjusted = new LinkedHashMap<>();
-        for (String variant : allVariants) {
-            List<MetricsRepository.UserMetric> userData = userDataByVariant.get(variant);
+        for (String bucket : allBuckets) {
+            List<MetricsRepository.UserMetric> userData = userDataByBucket.get(bucket);
             List<Double> y = userData.stream().map(m -> m.getExperimentValue()).toList();
             List<Double> x = userData.stream().map(m -> m.getPreExperimentValue()).toList();
 
             SampleStatistics cupedStats = cuped.adjust(y, x, overallMeanX);
-            adjusted.put(variant, cupedStats);
+            adjusted.put(bucket, cupedStats);
         }
 
         return adjusted;
@@ -251,17 +251,17 @@ public class StatsEngine {
      * 主指标检验 — 优先使用 CUPED 调整后的统计量
      */
     private TestResult runPrimaryMetricTest(
-            MetricsRepository.VariantStats controlStats,
-            Map<String, MetricsRepository.VariantStats> variantStats,
-            List<String> treatmentVariants,
+            MetricsRepository.BucketStats controlStats,
+            Map<String, MetricsRepository.BucketStats> bucketStats,
+            List<String> treatmentBuckets,
             Map<String, SampleStatistics> cupedAdjusted
     ) {
-        if (treatmentVariants.isEmpty()) {
+        if (treatmentBuckets.isEmpty()) {
             return null;
         }
 
-        String treatmentVariant = treatmentVariants.get(0);
-        MetricsRepository.VariantStats treatmentStats = variantStats.get(treatmentVariant);
+        String treatmentBucket = treatmentBuckets.get(0);
+        MetricsRepository.BucketStats treatmentStats = bucketStats.get(treatmentBucket);
 
         if (treatmentStats == null) {
             return null;
@@ -269,9 +269,9 @@ public class StatsEngine {
 
         // Use CUPED-adjusted statistics when available for higher precision
         if (cupedAdjusted != null && cupedAdjusted.containsKey("control")
-            && cupedAdjusted.containsKey(treatmentVariant)) {
+            && cupedAdjusted.containsKey(treatmentBucket)) {
             SampleStatistics cCuped = cupedAdjusted.get("control");
-            SampleStatistics tCuped = cupedAdjusted.get(treatmentVariant);
+            SampleStatistics tCuped = cupedAdjusted.get(treatmentBucket);
             log.debug("Using CUPED-adjusted stats: cMean={}, tMean={}, cVar={}, tVar={}",
                 cCuped.getMean(), tCuped.getMean(), cCuped.getVariance(), tCuped.getVariance());
             return zTest.executeWithStats(cCuped, tCuped);
@@ -290,14 +290,14 @@ public class StatsEngine {
      * 辅助指标检验（多治疗组）
      */
     private List<TestResult> runSecondaryMetricsTest(
-            MetricsRepository.VariantStats controlStats,
-            Map<String, MetricsRepository.VariantStats> variantStats,
-            List<String> treatmentVariants
+            MetricsRepository.BucketStats controlStats,
+            Map<String, MetricsRepository.BucketStats> bucketStats,
+            List<String> treatmentBuckets
     ) {
         List<TestResult> results = new ArrayList<>();
         
-        for (String treatmentVariant : treatmentVariants) {
-            MetricsRepository.VariantStats treatmentStats = variantStats.get(treatmentVariant);
+        for (String treatmentBucket : treatmentBuckets) {
+            MetricsRepository.BucketStats treatmentStats = bucketStats.get(treatmentBucket);
             if (treatmentStats == null) continue;
             
             TestResult result = zTest.executeProportion(
@@ -306,7 +306,7 @@ public class StatsEngine {
                 treatmentStats.getTotalConversions(),
                 treatmentStats.getTotalUsers()
             );
-            result.setTestName("secondary_" + treatmentVariant);
+            result.setTestName("secondary_" + treatmentBucket);
             results.add(result);
         }
         
@@ -322,8 +322,8 @@ public class StatsEngine {
      *                             为 null 或空时默认使用 avgRevenue。
      */
     private List<SequentialTestResult> runGuardrailTests(
-            MetricsRepository.VariantStats controlStats,
-            Map<String, MetricsRepository.VariantStats> variantStats,
+            MetricsRepository.BucketStats controlStats,
+            Map<String, MetricsRepository.BucketStats> bucketStats,
             List<String> guardrailMetricNames
     ) {
         List<String> metrics = (guardrailMetricNames != null && !guardrailMetricNames.isEmpty())
@@ -333,10 +333,10 @@ public class StatsEngine {
         List<SequentialTestResult> results = new ArrayList<>();
 
         for (String metricName : metrics) {
-            for (Map.Entry<String, MetricsRepository.VariantStats> entry : variantStats.entrySet()) {
+            for (Map.Entry<String, MetricsRepository.BucketStats> entry : bucketStats.entrySet()) {
                 if (entry.getKey().equals("control")) continue;
 
-                MetricsRepository.VariantStats treatmentStats = entry.getValue();
+                MetricsRepository.BucketStats treatmentStats = entry.getValue();
 
                 double ctrlMean, treatMean, ctrlVar, treatVar;
 
@@ -447,25 +447,25 @@ public class StatsEngine {
     }
     
     /**
-     * 构建变体摘要
+     * 构建分桶摘要
      */
-    private Map<String, ExperimentReport.VariantSummary> buildVariantSummaries(
-            Map<String, MetricsRepository.VariantStats> stats,
-            String controlVariant
+    private Map<String, ExperimentReport.BucketSummary> buildBucketSummaries(
+            Map<String, MetricsRepository.BucketStats> stats,
+            String controlBucket
     ) {
-        Map<String, ExperimentReport.VariantSummary> summaries = new HashMap<>();
+        Map<String, ExperimentReport.BucketSummary> summaries = new HashMap<>();
         
-        for (Map.Entry<String, MetricsRepository.VariantStats> entry : stats.entrySet()) {
-            MetricsRepository.VariantStats variantStats = entry.getValue();
+        for (Map.Entry<String, MetricsRepository.BucketStats> entry : stats.entrySet()) {
+            MetricsRepository.BucketStats bucketStats = entry.getValue();
             
-            summaries.put(entry.getKey(), ExperimentReport.VariantSummary.builder()
-                .variant(entry.getKey())
-                .totalUsers(variantStats.getTotalUsers())
-                .totalConversions(variantStats.getTotalConversions())
-                .conversionRate(variantStats.getConversionRate())
-                .totalRevenue(variantStats.getTotalRevenue())
-                .avgRevenuePerUser(variantStats.getAvgRevenue())
-                .isControl(entry.getKey().equals(controlVariant))
+            summaries.put(entry.getKey(), ExperimentReport.BucketSummary.builder()
+                .bucket(entry.getKey())
+                .totalUsers(bucketStats.getTotalUsers())
+                .totalConversions(bucketStats.getTotalConversions())
+                .conversionRate(bucketStats.getConversionRate())
+                .totalRevenue(bucketStats.getTotalRevenue())
+                .avgRevenuePerUser(bucketStats.getAvgRevenue())
+                .isControl(entry.getKey().equals(controlBucket))
                 .build());
         }
         
@@ -477,21 +477,21 @@ public class StatsEngine {
      */
     private Map<String, List<ExperimentReport.DailyMetric>> buildDailyTrends(
             String expId,
-            String controlVariant,
-            List<String> treatmentVariants,
+            String controlBucket,
+            List<String> treatmentBuckets,
             LocalDate startDate,
             LocalDate endDate
     ) {
         Map<String, List<ExperimentReport.DailyMetric>> trends = new HashMap<>();
         
-        // 查询各变体每日趋势
-        List<String> allVariants = new ArrayList<>();
-        allVariants.add(controlVariant);
-        allVariants.addAll(treatmentVariants);
+        // 查询各分桶每日趋势
+        List<String> allBuckets = new ArrayList<>();
+        allBuckets.add(controlBucket);
+        allBuckets.addAll(treatmentBuckets);
         
-        for (String variant : allVariants) {
+        for (String bucket : allBuckets) {
             Map<LocalDate, MetricsRepository.DailyStats> dailyStats = 
-                metricsRepository.queryDailyTrend(expId, variant, startDate, endDate);
+                metricsRepository.queryDailyTrend(expId, bucket, startDate, endDate);
             
             List<ExperimentReport.DailyMetric> dailyMetrics = new ArrayList<>();
             for (Map.Entry<LocalDate, MetricsRepository.DailyStats> entry : dailyStats.entrySet()) {
@@ -506,7 +506,7 @@ public class StatsEngine {
             }
             
             if (!dailyMetrics.isEmpty()) {
-                trends.put(variant, dailyMetrics);
+                trends.put(bucket, dailyMetrics);
             }
         }
         

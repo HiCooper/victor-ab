@@ -15,11 +15,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ExperimentMetricsResponse {
-    
+
     private MetricResult primary;
     private List<MetricResult> secondary;
     private List<MetricResult> guardrail;
-    
+
     @Data
     @Builder
     @NoArgsConstructor

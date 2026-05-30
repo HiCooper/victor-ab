@@ -15,9 +15,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TrafficDataResponse {
-    
+
     private List<DataPoint> data;
-    
+
     @Data
     @Builder
     @NoArgsConstructor

@@ -42,8 +42,8 @@ public class ReportRepository {
                 ? objectMapper.writeValueAsString(report.getSecondaryMetrics()) : null;
             String guardrailJson = report.getGuardrailMetrics() != null
                 ? objectMapper.writeValueAsString(report.getGuardrailMetrics()) : null;
-            String summariesJson = report.getVariantSummaries() != null
-                ? objectMapper.writeValueAsString(report.getVariantSummaries()) : null;
+            String summariesJson = report.getBucketSummaries() != null
+                ? objectMapper.writeValueAsString(report.getBucketSummaries()) : null;
             String trendsJson = report.getDailyTrends() != null
                 ? objectMapper.writeValueAsString(report.getDailyTrends()) : null;
 
@@ -55,7 +55,7 @@ public class ReportRepository {
                      primary_lift, primary_lift_ci_lower, primary_lift_ci_upper,
                      primary_significant,
                      secondary_results_json, guardrail_results_json,
-                     variant_summaries_json, daily_trends_json,
+                     bucket_summaries_json, daily_trends_json,
                      recommendation, recommendation_reason,
                      cuped_applied, generated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -70,7 +70,7 @@ public class ReportRepository {
                     primary_significant = VALUES(primary_significant),
                     secondary_results_json = VALUES(secondary_results_json),
                     guardrail_results_json = VALUES(guardrail_results_json),
-                    variant_summaries_json = VALUES(variant_summaries_json),
+                    bucket_summaries_json = VALUES(bucket_summaries_json),
                     daily_trends_json = VALUES(daily_trends_json),
                     recommendation = VALUES(recommendation),
                     recommendation_reason = VALUES(recommendation_reason),
@@ -133,7 +133,7 @@ public class ReportRepository {
                    primary_lift, primary_lift_ci_lower, primary_lift_ci_upper,
                    primary_significant,
                    secondary_results_json, guardrail_results_json,
-                   variant_summaries_json, daily_trends_json,
+                   bucket_summaries_json, daily_trends_json,
                    recommendation, recommendation_reason,
                    cuped_applied, generated_at
             FROM victor_experiment_report
@@ -169,9 +169,9 @@ public class ReportRepository {
                     new TypeReference<List<TestResult>>() {});
                 List<SequentialTestResult> guardrail = parseJson(rs.getString("guardrail_results_json"),
                     new TypeReference<List<SequentialTestResult>>() {});
-                Map<String, ExperimentReport.VariantSummary> summaries = parseJson(
-                    rs.getString("variant_summaries_json"),
-                    new TypeReference<Map<String, ExperimentReport.VariantSummary>>() {});
+                Map<String, ExperimentReport.BucketSummary> summaries = parseJson(
+                    rs.getString("bucket_summaries_json"),
+                    new TypeReference<Map<String, ExperimentReport.BucketSummary>>() {});
                 Map<String, List<ExperimentReport.DailyMetric>> trends = parseJson(
                     rs.getString("daily_trends_json"),
                     new TypeReference<Map<String, List<ExperimentReport.DailyMetric>>>() {});
@@ -187,7 +187,7 @@ public class ReportRepository {
                     .primaryMetric(primary)
                     .secondaryMetrics(secondary != null ? secondary : List.of())
                     .guardrailMetrics(guardrail != null ? guardrail : List.of())
-                    .variantSummaries(summaries != null ? summaries : Map.of())
+                    .bucketSummaries(summaries != null ? summaries : Map.of())
                     .dailyTrends(trends != null ? trends : Map.of())
                     .recommendation(recommendation)
                     .recommendationReason(rs.getString("recommendation_reason"))
@@ -213,26 +213,26 @@ public class ReportRepository {
     }
 
     /**
-     * Save CUPED-adjusted values per variant for a given date.
+     * Save CUPED-adjusted values per bucket for a given date.
      * Uses ON DUPLICATE KEY UPDATE for idempotent daily writes.
      */
     public void saveCupedValues(String expId, LocalDate reportDate,
-            Map<String, ExperimentReport.VariantSummary> cupedSummaries) {
+            Map<String, ExperimentReport.BucketSummary> cupedSummaries) {
         String sql = """
             INSERT INTO victor_cuped_values
-                (exp_id, report_date, variant, cuped_adjusted_mean, cuped_adjusted_variance)
+                (exp_id, report_date, bucket, cuped_adjusted_mean, cuped_adjusted_variance)
             VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 cuped_adjusted_mean = VALUES(cuped_adjusted_mean),
                 cuped_adjusted_variance = VALUES(cuped_adjusted_variance)
             """;
 
-        for (Map.Entry<String, ExperimentReport.VariantSummary> entry : cupedSummaries.entrySet()) {
-            ExperimentReport.VariantSummary s = entry.getValue();
+        for (Map.Entry<String, ExperimentReport.BucketSummary> entry : cupedSummaries.entrySet()) {
+            ExperimentReport.BucketSummary s = entry.getValue();
             jdbc.update(sql, expId, reportDate, entry.getKey(),
                 s.getCupedAdjustedMean(), s.getCupedAdjustedVariance());
         }
-        log.debug("Saved CUPED values for experiment {} on date {}: {} variants",
+        log.debug("Saved CUPED values for experiment {} on date {}: {} buckets",
             expId, reportDate, cupedSummaries.size());
     }
 
@@ -242,7 +242,7 @@ public class ReportRepository {
      */
     public Map<String, CupedValueDto> findLatestCupedValues(String expId) {
         String sql = """
-            SELECT variant, cuped_adjusted_mean, cuped_adjusted_variance
+            SELECT bucket, cuped_adjusted_mean, cuped_adjusted_variance
             FROM victor_cuped_values
             WHERE exp_id = ?
               AND report_date = (SELECT MAX(report_date) FROM victor_cuped_values WHERE exp_id = ?)
@@ -250,9 +250,9 @@ public class ReportRepository {
 
         Map<String, CupedValueDto> results = new LinkedHashMap<>();
         jdbc.query(sql, rs -> {
-            results.put(rs.getString("variant"),
+            results.put(rs.getString("bucket"),
                 new CupedValueDto(
-                    rs.getString("variant"),
+                    rs.getString("bucket"),
                     rs.getDouble("cuped_adjusted_mean"),
                     rs.getDouble("cuped_adjusted_variance")
                 ));
@@ -268,7 +268,7 @@ public class ReportRepository {
                    primary_lift, primary_lift_ci_lower, primary_lift_ci_upper,
                    primary_significant,
                    secondary_results_json, guardrail_results_json,
-                   variant_summaries_json, daily_trends_json,
+                   bucket_summaries_json, daily_trends_json,
                    recommendation, recommendation_reason,
                    cuped_applied, generated_at
             FROM victor_experiment_report
@@ -310,7 +310,7 @@ public class ReportRepository {
     @Data
     @AllArgsConstructor
     public static class CupedValueDto {
-        private String variant;
+        private String bucket;
         private Double cupedAdjustedMean;
         private Double cupedAdjustedVariance;
     }

@@ -65,8 +65,8 @@ class ExperimentReportServiceTest {
     }
 
     @Test
-    @DisplayName("getReport — 无变体时返回空报告")
-    void shouldReturnEmptyReportWhenNoVariants() {
+    @DisplayName("getReport — 无分桶时返回空报告")
+    void shouldReturnEmptyReportWhenNoBuckets() {
         Experiment exp = buildExperiment(EXP_ID, "running");
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(buildLayer("web"));
@@ -83,8 +83,8 @@ class ExperimentReportServiceTest {
     void shouldGenerateAndPersistReport() {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         Layer layer = buildLayer("web");
-        Bucket ctrl = buildVariant("control", 0, 4999, "control");
-        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildBucket("control", 0, 4999, "control");
+        Bucket treat = buildBucket("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -117,8 +117,8 @@ class ExperimentReportServiceTest {
     void shouldReturnReportEvenWhenPersistFails() {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         Layer layer = buildLayer("web");
-        Bucket ctrl = buildVariant("control", 0, 4999, "control");
-        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildBucket("control", 0, 4999, "control");
+        Bucket treat = buildBucket("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -191,8 +191,8 @@ class ExperimentReportServiceTest {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         exp.setGuardrailMetrics(json);
         Layer layer = buildLayer("web");
-        Bucket ctrl = buildVariant("control", 0, 4999, "control");
-        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildBucket("control", 0, 4999, "control");
+        Bucket treat = buildBucket("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -211,8 +211,8 @@ class ExperimentReportServiceTest {
     void shouldReportSrmFailure() {
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         Layer layer = buildLayer("web");
-        Bucket ctrl = buildVariant("control", 0, 4999, "control");
-        Bucket treat = buildVariant("treatment", 5000, 9999, "treatment");
+        Bucket ctrl = buildBucket("control", 0, 4999, "control");
+        Bucket treat = buildBucket("treatment", 5000, 9999, "treatment");
 
         when(experimentMapper.selectByExpId(EXP_ID)).thenReturn(exp);
         when(layerMapper.selectById(anyLong())).thenReturn(layer);
@@ -253,7 +253,7 @@ class ExperimentReportServiceTest {
         return layer;
     }
 
-    private Bucket buildVariant(String key, int bucketStart, int bucketEnd, String bucketId) {
+    private Bucket buildBucket(String key, int bucketStart, int bucketEnd, String bucketId) {
         Bucket v = new Bucket();
         v.setId((long) bucketStart);
         v.setName(key);
@@ -287,12 +287,12 @@ class ExperimentReportServiceTest {
                 .build())
             .secondaryMetrics(List.of())
             .guardrailMetrics(List.of())
-            .variantSummaries(Map.of(
-                "control", ExperimentReport.VariantSummary.builder()
-                    .variant("control").totalUsers(5000).totalConversions(115)
+            .bucketSummaries(Map.of(
+                "control", ExperimentReport.BucketSummary.builder()
+                    .bucket("control").totalUsers(5000).totalConversions(115)
                     .conversionRate(0.023).avgRevenuePerUser(2.5).isControl(true).build(),
-                "treatment", ExperimentReport.VariantSummary.builder()
-                    .variant("treatment").totalUsers(5000).totalConversions(145)
+                "treatment", ExperimentReport.BucketSummary.builder()
+                    .bucket("treatment").totalUsers(5000).totalConversions(145)
                     .conversionRate(0.029).avgRevenuePerUser(2.5).isControl(false).build()
             ))
             .dailyTrends(Map.of())

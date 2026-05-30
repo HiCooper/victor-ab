@@ -15,11 +15,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BucketStatisticsResponse {
-    
+
     private List<BucketStat> buckets;
     private boolean srmPassed;
     private String srmMessage;
-    
+
     @Data
     @Builder
     @NoArgsConstructor

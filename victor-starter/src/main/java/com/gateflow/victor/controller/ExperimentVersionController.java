@@ -37,27 +37,27 @@ public class ExperimentVersionController {
 
     @GetMapping("/active")
     @Operation(summary = "获取当前活跃版本", description = "获取实验的当前活跃版本配置")
-    public ResponseEntity<List<Bucket>> getActiveVariants(
+    public ResponseEntity<List<Bucket>> getActiveBuckets(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
-        List<Bucket> variants = experimentService.getExperimentVariants(expId);
-        return ResponseEntity.ok(variants);
+        List<Bucket> buckets = experimentService.getExperimentBuckets(expId);
+        return ResponseEntity.ok(buckets);
     }
 
     @GetMapping("/all")
     @Operation(summary = "获取所有历史版本", description = "获取实验的所有历史版本（包含非活跃）")
-    public ResponseEntity<List<Bucket>> getAllVariants(
+    public ResponseEntity<List<Bucket>> getAllBuckets(
             @Parameter(description = "实验ID") @PathVariable Long expId) {
-        List<Bucket> variants = experimentService.getAllExperimentVariants(expId);
-        return ResponseEntity.ok(variants);
+        List<Bucket> buckets = experimentService.getAllExperimentBuckets(expId);
+        return ResponseEntity.ok(buckets);
     }
 
     @GetMapping("/{version}")
     @Operation(summary = "获取指定版本", description = "获取实验的指定版本配置")
-    public ResponseEntity<List<Bucket>> getVariantByVersion(
+    public ResponseEntity<List<Bucket>> getBucketByVersion(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "版本号") @PathVariable String version) {
-        List<Bucket> variants = experimentService.getExperimentVariantsByVersion(expId, version);
-        return ResponseEntity.ok(variants);
+        List<Bucket> buckets = experimentService.getExperimentBucketsByVersion(expId, version);
+        return ResponseEntity.ok(buckets);
     }
 
     @PostMapping("/rollback/{version}")
@@ -66,13 +66,13 @@ public class ExperimentVersionController {
     public ResponseEntity<Map<String, Object>> rollbackToVersion(
             @Parameter(description = "实验ID") @PathVariable Long expId,
             @Parameter(description = "目标版本号") @PathVariable String version) {
-        List<Bucket> variants = versionService.rollbackToVersion(expId, version);
+        List<Bucket> buckets = versionService.rollbackToVersion(expId, version);
         
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "Successfully rolled back to version " + version,
             "version", version,
-            "variantCount", variants.size()
+            "bucketCount", buckets.size()
         ));
     }
 

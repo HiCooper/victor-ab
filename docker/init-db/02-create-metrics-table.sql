@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS victor.experiment_metrics (
     metric_date Date DEFAULT toDate(minute_bucket),
     minute_bucket DateTime,
     exp_id String,
-    variant String,
+    bucket String,
     layer String,
     total_events UInt64 DEFAULT 0,
     unique_users UInt64 DEFAULT 0,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS victor.experiment_metrics (
 )
 ENGINE = SummingMergeTree()
 PARTITION BY toYYYYMMDD(metric_date)
-ORDER BY (metric_date, exp_id, variant, layer, minute_bucket)
+ORDER BY (metric_date, exp_id, bucket, layer, minute_bucket)
 SETTINGS index_granularity = 8192;
 
 -- --------------------------------------------------------
@@ -27,7 +27,7 @@ TO victor.experiment_metrics
 AS SELECT
     toStartOfMinute(timestamp) AS minute_bucket,
     exp_id,
-    variant,
+    bucket,
     layer,
     count() AS total_events,
     uniqExact(user_id) AS unique_users,
@@ -35,18 +35,18 @@ AS SELECT
 FROM victor.events
 ARRAY JOIN
     exp_ids AS exp_id,
-    variants AS variant,
+    buckets AS bucket,
     layers AS layer
 WHERE length(exp_ids) > 0
 GROUP BY
     minute_bucket,
     exp_id,
-    variant,
+    bucket,
     layer;
 CREATE TABLE IF NOT EXISTS victor.user_experiment_stats (
     stat_date Date DEFAULT toDate(created_at),
     exp_id String,
-    variant String,
+    bucket String,
     layer String,
     user_id String,
     
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS victor.user_experiment_stats (
 )
 ENGINE = ReplacingMergeTree(last_seen_at)
 PARTITION BY toYYYYMMDD(stat_date)
-ORDER BY (stat_date, exp_id, variant, user_id)
+ORDER BY (stat_date, exp_id, bucket, user_id)
 SETTINGS index_granularity = 8192;
 
 -- --------------------------------------------------------
@@ -82,7 +82,7 @@ SETTINGS index_granularity = 8192;
 CREATE TABLE IF NOT EXISTS victor.experiment_daily_summary (
     summary_date Date,
     exp_id String,
-    variant String,
+    bucket String,
     layer String,
     
     -- User counts
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS victor.experiment_daily_summary (
 )
 ENGINE = SummingMergeTree()
 PARTITION BY toYYYYMMDD(summary_date)
-ORDER BY (summary_date, exp_id, variant, layer)
+ORDER BY (summary_date, exp_id, bucket, layer)
 SETTINGS index_granularity = 8192;
 
 -- --------------------------------------------------------
@@ -122,7 +122,7 @@ TO victor.experiment_metrics
 AS SELECT
     toStartOfMinute(timestamp) AS minute_bucket,
     exp_id,
-    variant,
+    bucket,
     layer,
     count() AS total_events,
     uniqExact(user_id) AS unique_users,
@@ -134,13 +134,13 @@ AS SELECT
 FROM victor.events
 ARRAY JOIN
     exp_ids AS exp_id,
-    variants AS variant,
+    buckets AS bucket,
     layers AS layer
 WHERE length(exp_ids) > 0
 GROUP BY
     minute_bucket,
     exp_id,
-    variant,
+    bucket,
     layer;
 
 -- --------------------------------------------------------
@@ -153,7 +153,7 @@ TO victor.experiment_metrics
 AS SELECT
     toStartOfMinute(timestamp) AS minute_bucket,
     exp_id,
-    variant,
+    bucket,
     layer,
     count() AS conversions,
     uniqExact(user_id) AS conversion_users,
@@ -162,14 +162,14 @@ AS SELECT
 FROM victor.events
 ARRAY JOIN
     exp_ids AS exp_id,
-    variants AS variant,
+    buckets AS bucket,
     layers AS layer
 WHERE length(exp_ids) > 0
   AND event_type = 'conversion'
 GROUP BY
     minute_bucket,
     exp_id,
-    variant,
+    bucket,
     layer;
 
 -- --------------------------------------------------------
@@ -181,7 +181,7 @@ AS
 SELECT 
     e.minute_bucket,
     e.exp_id,
-    e.variant,
+    e.bucket,
     e.layer,
     e.total_events,
     e.unique_users,
@@ -198,5 +198,5 @@ FROM victor.mv_experiment_metrics e
 LEFT JOIN victor.mv_conversion_metrics c
     ON e.minute_bucket = c.minute_bucket
     AND e.exp_id = c.exp_id
-    AND e.variant = c.variant
+    AND e.bucket = c.bucket
     AND e.layer = c.layer;

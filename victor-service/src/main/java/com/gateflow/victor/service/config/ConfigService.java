@@ -83,19 +83,19 @@ public class ConfigService {
 
         // 查询关联数据
         Map<Long, Layer> layerMap = new HashMap<>();
-        Map<String, List<Bucket>> variantMap = new HashMap<>();
+        Map<String, List<Bucket>> bucketMap = new HashMap<>();
 
         for (Experiment exp : experiments) {
             Layer layer = layerMapper.selectById(exp.getLayerId());
             if (layer != null) {
                 layerMap.put(exp.getLayerId(), layer);
             }
-            variantMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
+            bucketMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
         }
 
         // 构建配置
         List<ConfigResponse.ExperimentConfig> expConfigs = experiments.stream()
-                .map(exp -> buildExperimentConfig(exp, layerMap, variantMap))
+                .map(exp -> buildExperimentConfig(exp, layerMap, bucketMap))
                 .toList();
 
         ConfigResponse response = new ConfigResponse();
@@ -143,18 +143,18 @@ public class ConfigService {
 
         // 构建配置
         Map<Long, Layer> layerMap = new HashMap<>();
-        Map<String, List<Bucket>> variantMap = new HashMap<>();
+        Map<String, List<Bucket>> bucketMap = new HashMap<>();
 
         for (Experiment exp : experiments) {
             Layer layer = layerMapper.selectById(exp.getLayerId());
             if (layer != null) {
                 layerMap.put(exp.getLayerId(), layer);
             }
-            variantMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
+            bucketMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
         }
 
         List<ConfigResponse.ExperimentConfig> expConfigs = experiments.stream()
-                .map(exp -> buildExperimentConfig(exp, layerMap, variantMap))
+                .map(exp -> buildExperimentConfig(exp, layerMap, bucketMap))
                 .toList();
 
         ConfigResponse response = new ConfigResponse();
@@ -169,10 +169,10 @@ public class ConfigService {
      * 构建实验配置
      */
     private ConfigResponse.ExperimentConfig buildExperimentConfig(
-            Experiment exp, Map<Long, Layer> layerMap, Map<String, List<Bucket>> variantMap) {
+            Experiment exp, Map<Long, Layer> layerMap, Map<String, List<Bucket>> bucketMap) {
 
         Layer layer = layerMap.get(exp.getLayerId());
-        List<Bucket> variants = variantMap.getOrDefault(exp.getExpId(), Collections.emptyList());
+        List<Bucket> buckets = bucketMap.getOrDefault(exp.getExpId(), Collections.emptyList());
 
         ConfigResponse.ExperimentConfig config = new ConfigResponse.ExperimentConfig();
         config.setExpId(exp.getExpId());
@@ -184,9 +184,9 @@ public class ConfigService {
             config.setSalt(layer.getSalt());
         }
 
-        List<ConfigResponse.VariantConfig> variantConfigs = variants.stream()
+        List<ConfigResponse.BucketConfig> bucketConfigs = buckets.stream()
                 .map(v -> {
-                    ConfigResponse.VariantConfig vc = new ConfigResponse.VariantConfig();
+                    ConfigResponse.BucketConfig vc = new ConfigResponse.BucketConfig();
                     vc.setBucketId(v.getBucketId());
                     vc.setBucketStart(v.getBucketStart());
                     vc.setBucketEnd(v.getBucketEnd());
@@ -195,7 +195,7 @@ public class ConfigService {
                 })
                 .toList();
 
-        config.setVariants(variantConfigs);
+        config.setBuckets(bucketConfigs);
 
         return config;
     }

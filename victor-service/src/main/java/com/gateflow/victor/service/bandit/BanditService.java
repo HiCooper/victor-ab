@@ -21,13 +21,13 @@ public class BanditService {
      * Thompson Sampling 算法
      * 使用Beta-Bernoulli共轭进行在线学习
      */
-    public BanditResponse thompsonSampling(List<Bucket> variants, Map<Long, int[]> data) {
+    public BanditResponse thompsonSampling(List<Bucket> buckets, Map<Long, int[]> data) {
         Map<String, Double> allocationProbabilities = new HashMap<>();
         Map<String, Double> estimatedRates = new HashMap<>();
 
-        // 对每个variant计算后验Beta分布
+        // 对每个bucket计算后验Beta分布
         Map<Long, double[]> posteriors = new HashMap<>();
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             int[] stats = data.getOrDefault(v.getId(), new int[]{0, 0});
             int samples = stats[0];
             int conversions = stats[1];
@@ -44,7 +44,7 @@ public class BanditService {
         // 采样并计算选择概率
         int simulations = 10000;
         Map<Long, Integer> wins = new HashMap<>();
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             wins.put(v.getId(), 0);
         }
 
@@ -53,7 +53,7 @@ public class BanditService {
             double bestRate = -1;
             Long bestBucket = null;
 
-            for (Bucket v : variants) {
+            for (Bucket v : buckets) {
                 double[] post = posteriors.get(v.getId());
                 double sample = sampleBeta(post[0], post[1], random);
                 if (sample > bestRate) {
@@ -67,31 +67,31 @@ public class BanditService {
         }
 
         // 计算分配概率
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             double prob = (double) wins.get(v.getId()) / simulations;
             allocationProbabilities.put(v.getName(), prob);
         }
 
-        // 找到最佳variant
+        // 找到最佳bucket
         String bestName = estimatedRates.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .orElse(variants.get(0).getName());
+                .orElse(buckets.get(0).getName());
 
-        Long bestId = variants.stream()
+        Long bestId = buckets.stream()
                 .filter(v -> v.getName().equals(bestName))
                 .findFirst()
                 .map(Bucket::getId)
                 .orElse(null);
 
         BanditResponse response = new BanditResponse();
-        response.setRecommendedVariantId(bestId);
-        response.setRecommendedVariantName(bestName);
+        response.setRecommendedBucketId(bestId);
+        response.setRecommendedBucketName(bestName);
         response.setAllocationProbabilities((HashMap<String, Double>) allocationProbabilities);
         response.setEstimatedRates((HashMap<String, Double>) estimatedRates);
         response.setExpectedLift(calculateExpectedLift(estimatedRates));
-        response.setAlgorithmInfo("Thompson Sampling: 每次决策从Beta后验分布中采样，选择预期转化率最高的variant");
-        response.setReasoning("基于历史数据，使用贝叶斯方法计算各variant的转化率分布，直接给出最优选择");
+        response.setAlgorithmInfo("Thompson Sampling: 每次决策从Beta后验分布中采样，选择预期转化率最高的bucket");
+        response.setReasoning("基于历史数据，使用贝叶斯方法计算各bucket的转化率分布，直接给出最优选择");
 
         return response;
     }
@@ -99,24 +99,24 @@ public class BanditService {
     /**
      * Epsilon-Greedy 算法
      */
-    public BanditResponse epsilonGreedy(List<Bucket> variants, Map<Long, int[]> data, double epsilon) {
+    public BanditResponse epsilonGreedy(List<Bucket> buckets, Map<Long, int[]> data, double epsilon) {
         Map<String, Double> estimatedRates = new HashMap<>();
 
-        // 计算每个variant的转化率
-        for (Bucket v : variants) {
+        // 计算每个bucket的转化率
+        for (Bucket v : buckets) {
             int[] stats = data.getOrDefault(v.getId(), new int[]{0, 0});
             int samples = stats[0];
             int conversions = stats[1];
             estimatedRates.put(v.getName(), samples > 0 ? (double) conversions / samples : 0.0);
         }
 
-        // 找到最佳variant
+        // 找到最佳bucket
         String bestName = estimatedRates.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .orElse(variants.get(0).getName());
+                .orElse(buckets.get(0).getName());
 
-        Long bestId = variants.stream()
+        Long bestId = buckets.stream()
                 .filter(v -> v.getName().equals(bestName))
                 .findFirst()
                 .map(Bucket::getId)
@@ -124,10 +124,10 @@ public class BanditService {
 
         // 分配概率: epsilon用于探索，1-epsilon用于利用
         Map<String, Double> allocationProbabilities = new HashMap<>();
-        double exploreProb = epsilon / variants.size();
+        double exploreProb = epsilon / buckets.size();
         double exploitProb = 1 - epsilon;
 
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             if (v.getName().equals(bestName)) {
                 allocationProbabilities.put(v.getName(), exploitProb + exploreProb);
             } else {
@@ -136,8 +136,8 @@ public class BanditService {
         }
 
         BanditResponse response = new BanditResponse();
-        response.setRecommendedVariantId(bestId);
-        response.setRecommendedVariantName(bestName);
+        response.setRecommendedBucketId(bestId);
+        response.setRecommendedBucketName(bestName);
         response.setAllocationProbabilities((HashMap<String, Double>) allocationProbabilities);
         response.setEstimatedRates((HashMap<String, Double>) estimatedRates);
         response.setExpectedLift(calculateExpectedLift(estimatedRates));
@@ -150,7 +150,7 @@ public class BanditService {
     /**
      * UCB (Upper Confidence Bound) 算法
      */
-    public BanditResponse ucb(List<Bucket> variants, Map<Long, int[]> data) {
+    public BanditResponse ucb(List<Bucket> buckets, Map<Long, int[]> data) {
         Map<String, Double> estimatedRates = new HashMap<>();
         Map<String, Double> ucbScores = new HashMap<>();
 
@@ -158,7 +158,7 @@ public class BanditService {
                 .mapToInt(arr -> arr[0])
                 .sum();
 
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             int[] stats = data.getOrDefault(v.getId(), new int[]{0, 0});
             int samples = stats[0];
             int conversions = stats[1];
@@ -178,16 +178,16 @@ public class BanditService {
         String bestName = ucbScores.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .orElse(variants.get(0).getName());
+                .orElse(buckets.get(0).getName());
 
-        Long bestId = variants.stream()
+        Long bestId = buckets.stream()
                 .filter(v -> v.getName().equals(bestName))
                 .findFirst()
                 .map(Bucket::getId)
                 .orElse(null);
 
         Map<String, Double> allocationProbabilities = new HashMap<>();
-        for (Bucket v : variants) {
+        for (Bucket v : buckets) {
             if (v.getName().equals(bestName)) {
                 allocationProbabilities.put(v.getName(), 1.0);
             } else {
@@ -196,8 +196,8 @@ public class BanditService {
         }
 
         BanditResponse response = new BanditResponse();
-        response.setRecommendedVariantId(bestId);
-        response.setRecommendedVariantName(bestName);
+        response.setRecommendedBucketId(bestId);
+        response.setRecommendedBucketName(bestName);
         response.setAllocationProbabilities((HashMap<String, Double>) allocationProbabilities);
         response.setEstimatedRates((HashMap<String, Double>) estimatedRates);
         response.setExpectedLift(calculateExpectedLift(estimatedRates));
@@ -210,13 +210,13 @@ public class BanditService {
     /**
      * 根据请求执行多臂老虎机算法
      */
-    public BanditResponse optimize(BanditRequest request, List<Bucket> variants, Map<Long, int[]> data) {
+    public BanditResponse optimize(BanditRequest request, List<Bucket> buckets, Map<Long, int[]> data) {
         String algorithm = request.getAlgorithm();
 
         return switch (algorithm) {
-            case "THOMPSON_SAMPLING" -> thompsonSampling(variants, data);
-            case "UCB" -> ucb(variants, data);
-            default -> epsilonGreedy(variants, data, request.getEpsilon());
+            case "THOMPSON_SAMPLING" -> thompsonSampling(buckets, data);
+            case "UCB" -> ucb(buckets, data);
+            default -> epsilonGreedy(buckets, data, request.getEpsilon());
         };
     }
 

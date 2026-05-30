@@ -1,8 +1,8 @@
 package com.gateflow.victor.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gateflow.victor.domain.dto.VariantCreateRequest;
-import com.gateflow.victor.domain.dto.VariantUpdateRequest;
+import com.gateflow.victor.domain.dto.BucketCreateRequest;
+import com.gateflow.victor.domain.dto.BucketUpdateRequest;
 import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.service.bucket.BucketService;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,140 +38,140 @@ class BucketControllerTest {
     @MockBean
     private BucketService bucketService;
 
-    private Bucket testVariant;
+    private Bucket testBucket;
 
     @BeforeEach
     void setUp() {
-        testVariant = new Bucket();
-        testVariant.setId(1L);
-        testVariant.setExpId("exp_test_001");
-        testVariant.setBucketId("control");
-        testVariant.setName("对照组");
-        testVariant.setBucketStart(0);
-        testVariant.setBucketEnd(499);
-        testVariant.setParams("{\"color\": \"blue\"}");
+        testBucket = new Bucket();
+        testBucket.setId(1L);
+        testBucket.setExpId("exp_test_001");
+        testBucket.setBucketId("control");
+        testBucket.setName("对照组");
+        testBucket.setBucketStart(0);
+        testBucket.setBucketEnd(499);
+        testBucket.setParams("{\"color\": \"blue\"}");
     }
 
     @Test
     @DisplayName("创建版本 - 成功")
-    void createVariant_Success() throws Exception {
-        VariantCreateRequest request = new VariantCreateRequest();
+    void createBucket_Success() throws Exception {
+        BucketCreateRequest request = new BucketCreateRequest();
         request.setExpId("exp_test_001");
-        request.setVariantKey("control");
+        request.setBucketKey("control");
         request.setName("对照组");
         request.setBucketStart(0);
         request.setBucketEnd(499);
 
-        when(bucketService.createVariant(any(Variant.class))).thenReturn(testVariant);
+        when(bucketService.createBucket(any(Bucket.class))).thenReturn(testBucket);
 
-        mockMvc.perform(post("/api/v1/variants")
+        mockMvc.perform(post("/api/v1/buckets")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bucketId").value("control"))
                 .andExpect(jsonPath("$.name").value("对照组"));
 
-        verify(bucketService).createVariant(any(Variant.class));
+        verify(bucketService).createBucket(any(Bucket.class));
     }
 
     @Test
     @DisplayName("创建版本 - 缺少必填字段")
-    void createVariant_MissingRequiredField() throws Exception {
-        VariantCreateRequest request = new VariantCreateRequest();
+    void createBucket_MissingRequiredField() throws Exception {
+        BucketCreateRequest request = new BucketCreateRequest();
         request.setExpId("exp_test_001");
-        request.setName("对照组"); // 缺少variantKey
+        request.setName("对照组"); // 缺少bucketKey
 
-        mockMvc.perform(post("/api/v1/variants")
+        mockMvc.perform(post("/api/v1/buckets")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(bucketService, never()).createVariant(any());
+        verify(bucketService, never()).createBucket(any());
     }
 
     @Test
     @DisplayName("批量创建版本 - 成功")
-    void createVariants_Success() throws Exception {
-        VariantCreateRequest request1 = new VariantCreateRequest();
+    void createBuckets_Success() throws Exception {
+        BucketCreateRequest request1 = new BucketCreateRequest();
         request1.setExpId("exp_test_001");
-        request1.setVariantKey("control");
+        request1.setBucketKey("control");
         request1.setName("对照组");
         request1.setBucketStart(0);
         request1.setBucketEnd(499);
 
-        VariantCreateRequest request2 = new VariantCreateRequest();
+        BucketCreateRequest request2 = new BucketCreateRequest();
         request2.setExpId("exp_test_001");
-        request2.setVariantKey("treatment");
+        request2.setBucketKey("treatment");
         request2.setName("实验组");
         request2.setBucketStart(500);
         request2.setBucketEnd(999);
 
-        List<VariantCreateRequest> requests = List.of(request1, request2);
-        List<Bucket> variants = List.of(testVariant);
+        List<BucketCreateRequest> requests = List.of(request1, request2);
+        List<Bucket> buckets = List.of(testBucket);
 
-        when(bucketService.createVariants(anyList())).thenReturn(variants);
+        when(bucketService.createBuckets(anyList())).thenReturn(buckets);
 
-        mockMvc.perform(post("/api/v1/variants/batch")
+        mockMvc.perform(post("/api/v1/buckets/batch")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(requests)))
                 .andExpect(status().isOk());
 
-        verify(bucketService).createVariants(anyList());
+        verify(bucketService).createBuckets(anyList());
     }
 
     @Test
     @DisplayName("查询版本详情 - 成功")
-    void getVariant_Success() throws Exception {
-        when(bucketService.getVariant(1L)).thenReturn(testVariant);
+    void getBucket_Success() throws Exception {
+        when(bucketService.getBucket(1L)).thenReturn(testBucket);
 
-        mockMvc.perform(get("/api/v1/variants/1"))
+        mockMvc.perform(get("/api/v1/buckets/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.bucketId").value("control"));
 
-        verify(bucketService).getVariant(1L);
+        verify(bucketService).getBucket(1L);
     }
 
     @Test
     @DisplayName("查询版本详情 - 不存在")
-    void getVariant_NotFound() throws Exception {
-        when(bucketService.getVariant(999L)).thenReturn(null);
+    void getBucket_NotFound() throws Exception {
+        when(bucketService.getBucket(999L)).thenReturn(null);
 
-        mockMvc.perform(get("/api/v1/variants/999"))
+        mockMvc.perform(get("/api/v1/buckets/999"))
                 .andExpect(status().isNotFound());
 
-        verify(bucketService).getVariant(999L);
+        verify(bucketService).getBucket(999L);
     }
 
     @Test
     @DisplayName("查询实验版本列表 - 成功")
-    void getVariantsByExperiment_Success() throws Exception {
-        List<Bucket> variants = List.of(testVariant);
-        when(bucketService.getVariantsByExperimentId(1L)).thenReturn(variants);
+    void getBucketsByExperiment_Success() throws Exception {
+        List<Bucket> buckets = List.of(testBucket);
+        when(bucketService.getBucketsByExperimentId(1L)).thenReturn(buckets);
 
-        mockMvc.perform(get("/api/v1/variants/experiment/1"))
+        mockMvc.perform(get("/api/v1/buckets/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bucketId").value("control"));
 
-        verify(bucketService).getVariantsByExperimentId(1L);
+        verify(bucketService).getBucketsByExperimentId(1L);
     }
 
     @Test
     @DisplayName("查询实验版本列表 - 空列表")
-    void getVariantsByExperiment_EmptyList() throws Exception {
-        when(bucketService.getVariantsByExperimentId(1L)).thenReturn(Collections.emptyList());
+    void getBucketsByExperiment_EmptyList() throws Exception {
+        when(bucketService.getBucketsByExperimentId(1L)).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/v1/variants/experiment/1"))
+        mockMvc.perform(get("/api/v1/buckets/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        verify(bucketService).getVariantsByExperimentId(1L);
+        verify(bucketService).getBucketsByExperimentId(1L);
     }
 
     @Test
     @DisplayName("更新版本 - 成功")
-    void updateVariant_Success() throws Exception {
-        VariantUpdateRequest request = new VariantUpdateRequest();
+    void updateBucket_Success() throws Exception {
+        BucketUpdateRequest request = new BucketUpdateRequest();
         request.setName("更新后的名称");
         request.setBucketStart(0);
         request.setBucketEnd(599);
@@ -180,25 +180,25 @@ class BucketControllerTest {
         updated.setId(1L);
         updated.setName("更新后的名称");
 
-        when(bucketService.updateVariant(any(Variant.class))).thenReturn(updated);
+        when(bucketService.updateBucket(any(Bucket.class))).thenReturn(updated);
 
-        mockMvc.perform(put("/api/v1/variants/1")
+        mockMvc.perform(put("/api/v1/buckets/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("更新后的名称"));
 
-        verify(bucketService).updateVariant(any(Variant.class));
+        verify(bucketService).updateBucket(any(Bucket.class));
     }
 
     @Test
     @DisplayName("删除版本 - 成功")
-    void deleteVariant_Success() throws Exception {
-        doNothing().when(bucketService).deleteVariant(1L);
+    void deleteBucket_Success() throws Exception {
+        doNothing().when(bucketService).deleteBucket(1L);
 
-        mockMvc.perform(delete("/api/v1/variants/1"))
+        mockMvc.perform(delete("/api/v1/buckets/1"))
                 .andExpect(status().isNoContent());
 
-        verify(bucketService).deleteVariant(1L);
+        verify(bucketService).deleteBucket(1L);
     }
 }

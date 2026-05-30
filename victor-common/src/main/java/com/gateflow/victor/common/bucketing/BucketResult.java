@@ -21,14 +21,14 @@ public class BucketResult {
     private String experimentKey;
 
     /**
-     * 桶号 (0-9999)
+     * 用户根据分流ID计算到的桶号
      */
     private Integer bucket;
 
     /**
-     * 分配的版本标识 (null表示未命中)
+     * 命中分桶ID
      */
-    private String variant;
+    private String bucketId;
 
     /**
      * 版本参数 (JSON格式，命中时返回对应分桶的参数配置)
@@ -48,13 +48,13 @@ public class BucketResult {
     /**
      * 创建命中结果（含参数）
      */
-    public static BucketResult hit(String userId, String experimentKey, int bucket,
-                                    String variant, String layerId, String params) {
+    public static BucketResult hit(String userId, String experimentKey, Integer bucket,
+                                    String bucketId, String layerId, String params) {
         BucketResult r = new BucketResult();
         r.userId = userId;
         r.experimentKey = experimentKey;
         r.bucket = bucket;
-        r.variant = variant;
+        r.bucketId = bucketId;
         r.layerId = layerId;
         r.params = params;
         r.hit = true;
@@ -64,7 +64,7 @@ public class BucketResult {
     /**
      * 创建未命中结果
      */
-    public static BucketResult notHit(String userId, String experimentKey, int bucket) {
+    public static BucketResult notHit(String userId, String experimentKey, Integer bucket) {
         BucketResult r = new BucketResult();
         r.userId = userId;
         r.experimentKey = experimentKey;
@@ -76,8 +76,8 @@ public class BucketResult {
     /**
      * 获取版本 (未命中时返回null)
      */
-    public String getVariantOrNull() {
-        return hit ? variant : null;
+    public Integer getBucketOrNull() {
+        return hit ? bucket : null;
     }
 
     /**

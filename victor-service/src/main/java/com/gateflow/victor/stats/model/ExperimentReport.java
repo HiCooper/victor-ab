@@ -34,8 +34,8 @@ public class ExperimentReport {
     // 护栏指标检验结果
     private List<SequentialTestResult> guardrailMetrics;
     
-    // 各变体统计
-    private Map<String, VariantSummary> variantSummaries;
+    // 各分桶统计
+    private Map<String, BucketSummary> bucketSummaries;
     
     // 每日趋势数据
     private Map<String, List<DailyMetric>> dailyTrends;
@@ -67,12 +67,12 @@ public class ExperimentReport {
     }
     
     /**
-     * 变体摘要
+     * 分桶摘要
      */
     @Data
     @Builder
-    public static class VariantSummary {
-        private String variant;
+    public static class BucketSummary {
+        private String bucket;
         private long totalUsers;
         private long totalConversions;
         private double conversionRate;

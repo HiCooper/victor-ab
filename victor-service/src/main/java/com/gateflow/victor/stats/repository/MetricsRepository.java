@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * MetricsRepository - 从 ClickHouse 查询聚合指标
- * 提供实验/变体/时间范围的指标查询
+ * 提供实验/分桶/时间范围的指标查询
  */
 @Slf4j
 @Repository
@@ -33,18 +33,18 @@ public class MetricsRepository {
     }
     
     /**
-     * 查询实验变体的累计指标
+     * 查询实验分桶的累计指标
      * 
      * @param expId 实验ID
-     * @param variant 变体名称
+     * @param bucket 分桶名称
      * @param layer 层名称
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @return 样本统计量（用户数、转化数）
      */
-    public SampleStatistics queryVariantStats(
+    public SampleStatistics queryBucketStats(
             String expId, 
-            String variant, 
+            String bucket, 
             String layer,
             LocalDate startDate,
             LocalDate endDate
@@ -54,7 +54,7 @@ public class MetricsRepository {
                 sum(unique_users) AS total_users
             FROM victor.experiment_metrics
             WHERE exp_id = ?
-              AND variant = ?
+              AND bucket = ?
               AND layer = ?
               AND metric_date >= ?
               AND metric_date <= ?
@@ -64,7 +64,7 @@ public class MetricsRepository {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, expId);
-            ps.setString(2, variant);
+            ps.setString(2, bucket);
             ps.setString(3, layer);
             ps.setDate(4, Date.valueOf(startDate));
             ps.setDate(5, Date.valueOf(endDate));
@@ -82,7 +82,7 @@ public class MetricsRepository {
                 }
             }
         } catch (SQLException e) {
-            log.error("Failed to query variant stats for expId={}, variant={}", expId, variant, e);
+            log.error("Failed to query bucket stats for expId={}, bucket={}", expId, bucket, e);
         }
         
         // 返回空统计
@@ -95,18 +95,18 @@ public class MetricsRepository {
     }
     
     /**
-     * 查询实验所有变体的累计指标
+     * 查询实验所有分桶的累计指标
      */
-    public Map<String, VariantStats> queryExperimentStats(
+    public Map<String, BucketStats> queryExperimentStats(
             String expId,
             LocalDate startDate,
             LocalDate endDate
     ) {
-        Map<String, VariantStats> results = new HashMap<>();
+        Map<String, BucketStats> results = new HashMap<>();
         
         String sql = """
             SELECT
-                variant,
+                bucket,
                 layer,
                 sum(unique_users) AS total_users,
                 sum(total_events) AS total_events
@@ -114,7 +114,7 @@ public class MetricsRepository {
             WHERE exp_id = ?
               AND metric_date >= ?
               AND metric_date <= ?
-            GROUP BY variant, layer
+            GROUP BY bucket, layer
             """;
 
         try (Connection conn = dataSource.getConnection();
@@ -126,13 +126,13 @@ public class MetricsRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    VariantStats stats = new VariantStats();
-                    stats.setVariant(rs.getString("variant"));
+                    BucketStats stats = new BucketStats();
+                    stats.setBucket(rs.getString("bucket"));
                     stats.setLayer(rs.getString("layer"));
                     stats.setTotalUsers(rs.getLong("total_users"));
                     stats.setTotalEvents(rs.getLong("total_events"));
 
-                    results.put(stats.getVariant(), stats);
+                    results.put(stats.getBucket(), stats);
                 }
             }
         } catch (SQLException e) {
@@ -147,7 +147,7 @@ public class MetricsRepository {
      */
     public Map<LocalDate, DailyStats> queryDailyTrend(
             String expId,
-            String variant,
+            String bucket,
             LocalDate startDate,
             LocalDate endDate
     ) {
@@ -159,7 +159,7 @@ public class MetricsRepository {
                 sum(unique_users) AS total_users
             FROM victor.experiment_metrics
             WHERE exp_id = ?
-              AND variant = ?
+              AND bucket = ?
               AND metric_date >= ?
               AND metric_date <= ?
             GROUP BY metric_date
@@ -170,7 +170,7 @@ public class MetricsRepository {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, expId);
-            ps.setString(2, variant);
+            ps.setString(2, bucket);
             ps.setDate(3, Date.valueOf(startDate));
             ps.setDate(4, Date.valueOf(endDate));
 
@@ -195,7 +195,7 @@ public class MetricsRepository {
                 }
             }
         } catch (SQLException e) {
-            log.error("Failed to query daily trend for expId={}, variant={}", expId, variant, e);
+            log.error("Failed to query daily trend for expId={}, bucket={}", expId, bucket, e);
         }
         
         return results;
@@ -204,19 +204,19 @@ public class MetricsRepository {
     /**
      * 查询实时指标（最近 N 分钟），从预聚合表读取。
      */
-    public Map<String, VariantStats> queryRealtimeStats(String expId, int minutes) {
-        Map<String, VariantStats> results = new HashMap<>();
+    public Map<String, BucketStats> queryRealtimeStats(String expId, int minutes) {
+        Map<String, BucketStats> results = new HashMap<>();
 
         String sql = """
             SELECT
-                variant,
+                bucket,
                 layer,
                 sum(total_events)         AS total_events,
                 sum(unique_users)         AS total_users
             FROM victor.experiment_metrics FINAL
             WHERE exp_id = ?
               AND minute_bucket >= now() - INTERVAL ? MINUTE
-            GROUP BY variant, layer
+            GROUP BY bucket, layer
             """;
 
         try (Connection conn = dataSource.getConnection();
@@ -227,13 +227,13 @@ public class MetricsRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    VariantStats stats = new VariantStats();
-                    stats.setVariant(rs.getString("variant"));
+                    BucketStats stats = new BucketStats();
+                    stats.setBucket(rs.getString("bucket"));
                     stats.setLayer(rs.getString("layer"));
                     stats.setTotalUsers(rs.getLong("total_users"));
                     stats.setTotalEvents(rs.getLong("total_events"));
 
-                    results.put(stats.getVariant(), stats);
+                    results.put(stats.getBucket(), stats);
                 }
             }
         } catch (SQLException e) {
@@ -252,12 +252,12 @@ public class MetricsRepository {
         String sql = """
             SELECT
                 minute_bucket,
-                variant,
+                bucket,
                 sum(unique_users)  AS users
             FROM victor.experiment_metrics FINAL
             WHERE exp_id = ?
               AND minute_bucket >= now() - INTERVAL ? HOUR
-            GROUP BY minute_bucket, variant
+            GROUP BY minute_bucket, bucket
             ORDER BY minute_bucket
             """;
 
@@ -271,7 +271,7 @@ public class MetricsRepository {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("minute_bucket", rs.getTimestamp("minute_bucket").toLocalDateTime().toString());
-                    row.put("variant", rs.getString("variant"));
+                    row.put("bucket", rs.getString("bucket"));
                     row.put("users", rs.getLong("users"));
                     rows.add(row);
                 }
@@ -298,7 +298,7 @@ public class MetricsRepository {
                 platform,
                 device_id,
                 session_id,
-                variants,
+                buckets,
                 layers,
                 properties
             FROM victor.events
@@ -325,8 +325,8 @@ public class MetricsRepository {
                     event.put("deviceId", rs.getString("device_id"));
                     event.put("sessionId", rs.getString("session_id"));
                     // Array columns - get first element or whole array
-                    Array variantsArray = rs.getArray("variants");
-                    event.put("variant", variantsArray != null ? variantsArray.getArray() : null);
+                    Array bucketsArray = rs.getArray("buckets");
+                    event.put("bucket", bucketsArray != null ? bucketsArray.getArray() : null);
                     Array layersArray = rs.getArray("layers");
                     event.put("layer", layersArray != null ? layersArray.getArray() : null);
                     event.put("properties", rs.getString("properties"));
@@ -341,11 +341,11 @@ public class MetricsRepository {
     }
 
     /**
-     * 变体统计内部类
+     * 分桶统计内部类
      */
     @lombok.Data
-    public static class VariantStats {
-        private String variant;
+    public static class BucketStats {
+        private String bucket;
         private String layer;
         private long totalUsers;
         private long totalConversions;
@@ -360,7 +360,7 @@ public class MetricsRepository {
      * 返回每用户的两个值：实验期转化状态 Y 和 实验前转化率 X
      *
      * @param expId 实验ID
-     * @param variant 变体名称
+     * @param bucket 分桶名称
      * @param startDate 实验开始日期
      * @param endDate 实验结束日期
      * @param preStartDate 实验前窗口开始日期
@@ -368,7 +368,7 @@ public class MetricsRepository {
      */
     public List<UserMetric> queryUserLevelData(
             String expId,
-            String variant,
+            String bucket,
             LocalDate startDate,
             LocalDate endDate,
             LocalDate preStartDate,
@@ -381,7 +381,7 @@ public class MetricsRepository {
             SELECT user_id, converted, conversion_count
             FROM victor.user_experiment_stats FINAL
             WHERE exp_id = ?
-              AND variant = ?
+              AND bucket = ?
               AND stat_date >= ?
               AND stat_date <= ?
             """;
@@ -392,7 +392,7 @@ public class MetricsRepository {
              PreparedStatement ps = conn.prepareStatement(expSql)) {
 
             ps.setString(1, expId);
-            ps.setString(2, variant);
+            ps.setString(2, bucket);
             ps.setDate(3, Date.valueOf(startDate));
             ps.setDate(4, Date.valueOf(endDate));
 
@@ -407,7 +407,7 @@ public class MetricsRepository {
                 }
             }
         } catch (SQLException e) {
-            log.error("Failed to query user-level experiment data for expId={}, variant={}", expId, variant, e);
+            log.error("Failed to query user-level experiment data for expId={}, bucket={}", expId, bucket, e);
             return results;
         }
 
@@ -448,7 +448,7 @@ public class MetricsRepository {
                 }
             }
         } catch (SQLException e) {
-            log.error("Failed to query pre-experiment data for expId={}, variant={}", expId, variant, e);
+            log.error("Failed to query pre-experiment data for expId={}, bucket={}", expId, bucket, e);
         }
 
         results.addAll(userMap.values());
@@ -481,26 +481,26 @@ public class MetricsRepository {
 
     /**
      * Cross-database query: JOIN AB assignments with tracker behavior events.
-     * Returns per-variant metrics including exposure UV/PV and click UV/PV.
+     * Returns per-bucket metrics including exposure UV/PV and click UV/PV.
      */
     public Map<String, BehaviorMetrics> queryBehaviorMetrics(
             String expId, LocalDate startDate, LocalDate endDate,
-            List<String> variantKeys) {
+            List<String> bucketKeys) {
 
         Map<String, BehaviorMetrics> results = new LinkedHashMap<>();
-        for (String vk : variantKeys) {
+        for (String vk : bucketKeys) {
             results.put(vk, new BehaviorMetrics(vk));
         }
 
         String sql = """
             WITH
             assignment AS (
-                SELECT user_id, variants[1] AS variant
+                SELECT user_id, buckets[1] AS bucket
                 FROM victor.events
                 WHERE has(exp_ids, ?)
                   AND toDate(timestamp) >= ?
                   AND toDate(timestamp) <= ?
-                GROUP BY user_id, variant
+                GROUP BY user_id, bucket
             ),
             tracker_exposure AS (
                 SELECT user_id, count() AS pv
@@ -519,7 +519,7 @@ public class MetricsRepository {
                 GROUP BY user_id
             )
             SELECT
-                a.variant,
+                a.bucket,
                 count(DISTINCT a.user_id) AS assignment_uv,
                 count(DISTINCT e.user_id) AS exposure_uv,
                 coalesce(sum(e.pv), 0)  AS exposure_pv,
@@ -528,7 +528,7 @@ public class MetricsRepository {
             FROM assignment a
             LEFT JOIN tracker_exposure e ON a.user_id = e.user_id
             LEFT JOIN tracker_click c ON a.user_id = c.user_id
-            GROUP BY a.variant
+            GROUP BY a.bucket
             """;
 
         try (Connection conn = dataSource.getConnection();
@@ -544,14 +544,14 @@ public class MetricsRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    String variant = rs.getString("variant");
-                    BehaviorMetrics m = results.getOrDefault(variant, new BehaviorMetrics(variant));
+                    String bucket = rs.getString("bucket");
+                    BehaviorMetrics m = results.getOrDefault(bucket, new BehaviorMetrics(bucket));
                     m.assignmentUv = rs.getLong("assignment_uv");
                     m.exposureUv = rs.getLong("exposure_uv");
                     m.exposurePv = rs.getLong("exposure_pv");
                     m.clickUv = rs.getLong("click_uv");
                     m.clickPv = rs.getLong("click_pv");
-                    results.put(variant, m);
+                    results.put(bucket, m);
                 }
             }
         } catch (SQLException e) {
@@ -562,15 +562,15 @@ public class MetricsRepository {
     }
 
     public static class BehaviorMetrics {
-        public String variant;
+        public String bucket;
         public long assignmentUv;
         public long exposureUv;
         public long exposurePv;
         public long clickUv;
         public long clickPv;
 
-        public BehaviorMetrics(String variant) {
-            this.variant = variant;
+        public BehaviorMetrics(String bucket) {
+            this.bucket = bucket;
         }
 
         public double getPenetrationRate() {

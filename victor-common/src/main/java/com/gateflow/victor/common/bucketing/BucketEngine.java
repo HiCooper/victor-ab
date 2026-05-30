@@ -40,15 +40,15 @@ public final class BucketEngine {
      * 根据桶号查找版本
      *
      * @param bucket       桶号 (0-9999)
-     * @param variantSpecs 版本规格列表
+     * @param bucketSpecs 版本规格列表
      * @return 版本标识 (null表示未命中)
      */
-    public static String findVariant(int bucket, List<VariantSpec> variantSpecs) {
-        if (variantSpecs == null || variantSpecs.isEmpty()) {
+    public static String findBucket(int bucket, List<BucketSpec> bucketSpecs) {
+        if (bucketSpecs == null || bucketSpecs.isEmpty()) {
             return null;
         }
 
-        for (VariantSpec spec : variantSpecs) {
+        for (BucketSpec spec : bucketSpecs) {
             if (bucket >= spec.getBucketStart() && bucket <= spec.getBucketEnd()) {
                 return spec.getBucketId();
             }
@@ -85,7 +85,7 @@ public final class BucketEngine {
         }
 
         // 查找命中的版本，同时获取参数
-        for (VariantSpec spec : experiment.getVariants()) {
+        for (BucketSpec spec : experiment.getBuckets()) {
             if (bucket >= spec.getBucketStart() && bucket <= spec.getBucketEnd()) {
                 return BucketResult.hit(userId, experiment.getExpId(), bucket,
                     spec.getBucketId(), experiment.getLayerId(), spec.getParams());
@@ -117,16 +117,16 @@ public final class BucketEngine {
         private final String salt;
         private final int bucketStart;
         private final int bucketEnd;
-        private final List<VariantSpec> variants;
+        private final List<BucketSpec> buckets;
 
         public ExperimentSpec(String expId, String layerId, String salt,
-                             int bucketStart, int bucketEnd, List<VariantSpec> variants) {
+                             int bucketStart, int bucketEnd, List<BucketSpec> buckets) {
             this.expId = expId;
             this.layerId = layerId;
             this.salt = salt;
             this.bucketStart = bucketStart;
             this.bucketEnd = bucketEnd;
-            this.variants = variants;
+            this.buckets = buckets;
         }
 
         public String getExpId() { return expId; }
@@ -134,19 +134,19 @@ public final class BucketEngine {
         public String getSalt() { return salt; }
         public int getBucketStart() { return bucketStart; }
         public int getBucketEnd() { return bucketEnd; }
-        public List<VariantSpec> getVariants() { return variants; }
+        public List<BucketSpec> getBuckets() { return buckets; }
     }
 
     /**
      * 版本规格 - 用于分桶计算的版本配置
      */
-    public static class VariantSpec {
+    public static class BucketSpec {
         private final String bucketId;
         private final int bucketStart;
         private final int bucketEnd;
         private final String params;
 
-        public VariantSpec(String bucketId, int bucketStart, int bucketEnd, String params) {
+        public BucketSpec(String bucketId, int bucketStart, int bucketEnd, String params) {
             this.bucketId = bucketId;
             this.bucketStart = bucketStart;
             this.bucketEnd = bucketEnd;
