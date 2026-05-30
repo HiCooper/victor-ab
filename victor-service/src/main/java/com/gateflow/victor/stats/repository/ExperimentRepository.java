@@ -64,15 +64,15 @@ public class ExperimentRepository {
      */
     public VariantInfo findVariants(String expId) {
         String sql = """
-            SELECT v.variant_key, v.name, v.bucket_start, v.bucket_end, v.is_active
-            FROM victor_variant v
+            SELECT v.bucket_id, v.name, v.bucket_start, v.bucket_end, v.is_active
+            FROM victor_bucket v
             JOIN victor_experiment e ON v.exp_id = e.id
             WHERE e.exp_id = ? AND v.is_active = TRUE
             ORDER BY v.bucket_start ASC
             """;
         List<VariantRow> rows = jdbc.query(sql, (rs, rowNum) -> {
             VariantRow row = new VariantRow();
-            row.variantKey = rs.getString("variant_key");
+            row.variantKey = rs.getString("bucket_id");
             row.name = rs.getString("name");
             row.bucketStart = rs.getInt("bucket_start");
             row.bucketEnd = rs.getInt("bucket_end");

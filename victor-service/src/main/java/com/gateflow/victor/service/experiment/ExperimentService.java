@@ -133,7 +133,7 @@ public class ExperimentService {
         // 3. 转换VariantRequest为Variant实体
         List<Variant> newVariants = processedVariants.stream().map(req -> {
             Variant variant = new Variant();
-            variant.setBucketId(req.getVariantKey());
+            variant.setBucketId(BucketIdGenerator.generate());
             variant.setName(req.getName());
             variant.setBucketStart(req.getBucketStart());
             variant.setBucketEnd(req.getBucketEnd());

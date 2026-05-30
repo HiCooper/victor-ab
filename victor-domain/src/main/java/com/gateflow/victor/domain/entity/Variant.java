@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * 版本实体
  */
 @Data
-@TableName("victor_variant")
+@TableName("victor_bucket")
 public class Variant {
 
     /**
@@ -31,9 +31,9 @@ public class Variant {
     private String version;
 
     /**
-     * 分桶ID (如: control, treatment)
+     * 分桶ID (5位随机数字)
      */
-    @TableField("variant_key")
+    @TableField("bucket_id")
     private String bucketId;
 
     /**
