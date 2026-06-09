@@ -189,7 +189,7 @@ class VictorClientTest {
                         expConfig.getBucketEnd(),
                         buckets.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 
@@ -226,7 +226,7 @@ class VictorClientTest {
                         expConfig.getBucketEnd(),
                         buckets.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 
@@ -281,7 +281,7 @@ class VictorClientTest {
                         expConfig.getBucketEnd(),
                         buckets.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 
@@ -336,7 +336,7 @@ class VictorClientTest {
                         expConfig1.getBucketEnd(),
                         buckets1.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 
@@ -349,7 +349,7 @@ class VictorClientTest {
                         expConfig2.getBucketEnd(),
                         buckets2.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 
@@ -395,7 +395,7 @@ class VictorClientTest {
                         expConfig1.getBucketEnd(),
                         buckets1.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 
@@ -408,7 +408,7 @@ class VictorClientTest {
                         expConfig2.getBucketEnd(),
                         buckets2.stream()
                                 .map(v -> new com.gateflow.victor.common.bucketing.BucketEngine.BucketSpec(
-                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd()))
+                                        v.getBucketKey(), v.getBucketStart(), v.getBucketEnd(), ""))
                                 .toList()
                 );
 

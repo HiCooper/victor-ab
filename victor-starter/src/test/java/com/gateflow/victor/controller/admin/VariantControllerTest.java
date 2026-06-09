@@ -58,7 +58,6 @@ class BucketControllerTest {
     void createBucket_Success() throws Exception {
         BucketCreateRequest request = new BucketCreateRequest();
         request.setExpId("exp_test_001");
-        request.setBucketKey("control");
         request.setName("对照组");
         request.setBucketStart(0);
         request.setBucketEnd(499);
@@ -80,7 +79,7 @@ class BucketControllerTest {
     void createBucket_MissingRequiredField() throws Exception {
         BucketCreateRequest request = new BucketCreateRequest();
         request.setExpId("exp_test_001");
-        request.setName("对照组"); // 缺少bucketKey
+        request.setName("对照组"); 
 
         mockMvc.perform(post("/api/v1/admin/buckets")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -95,14 +94,12 @@ class BucketControllerTest {
     void createBuckets_Success() throws Exception {
         BucketCreateRequest request1 = new BucketCreateRequest();
         request1.setExpId("exp_test_001");
-        request1.setBucketKey("control");
         request1.setName("对照组");
         request1.setBucketStart(0);
         request1.setBucketEnd(499);
 
         BucketCreateRequest request2 = new BucketCreateRequest();
         request2.setExpId("exp_test_001");
-        request2.setBucketKey("treatment");
         request2.setName("实验组");
         request2.setBucketStart(500);
         request2.setBucketEnd(999);

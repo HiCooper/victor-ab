@@ -11,101 +11,22 @@ spring:
   application:
     name: victor-service
 
-  # HTTP编码配置
+  # HTTP encoding
   http:
     encoding:
       charset: UTF-8
       enabled: true
       force: true
 
-  # MVC编码配置
+  # MVC encoding
   mvc:
     charset: UTF-8
 
-  # 数据源配置
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
-    username: ${VICTOR_DB_USER:root}
-    password: ${VICTOR_DB_PASSWORD:root}
-    type: com.alibaba.druid.pool.DruidDataSource
-    druid:
-      initial-size: 5
-      min-idle: 5
-      max-active: 20
-      max-wait: 60000
-      time-between-eviction-runs-millis: 60000
-      min-evictable-idle-time-millis: 300000
-      validation-query: SELECT 1
-      test-while-idle: true
-      test-on-borrow: false
-      test-on-return: false
+  # Active profile — set via SPRING_PROFILES_ACTIVE env var
+  #   dev:  local Docker Compose (MySQL, Redis, Kafka, ClickHouse)
+  #   prod: production (all secrets via env vars, no hardcoded defaults)
 
-  # Redis配置
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password:
-      database: 0
-      timeout: 10000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-wait: -1ms
-          max-idle: 8
-          min-idle: 0
-
-  # Flyway配置 - 仅管理MySQL schema，排除ClickHouse
-  flyway:
-    enabled: true
-    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
-    user: ${VICTOR_DB_USER:root}
-    password: ${VICTOR_DB_PASSWORD:root}
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: false
-    schemas: victor_experiment
-
-  # Kafka配置 - 优化批量处理
-  kafka:
-    bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      # 防止 Kafka 不可用时无限阻塞
-      delivery-timeout-ms: 3000
-      request-timeout-ms: 2000
-      max-block-ms: 3000
-      # 批量发送配置
-      batch-size: 16384
-      buffer-memory: 33554432
-      linger-ms: 5
-      compression-type: lz4
-    consumer:
-      group-id: victor-consumer
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      auto-offset-reset: earliest
-      enable-auto-commit: false
-      # 批量拉取配置
-      max-poll-records: 500
-      fetch-min-size: 1024
-      fetch-max-wait: 500ms
-      properties:
-        spring.json.trusted.packages: "com.gateflow.victor.pipeline.ingestion.dto"
-    listener:
-      # 批量监听器配置
-      type: batch
-      ack-mode: MANUAL_IMMEDIATE
-      concurrency: 3
-      observation-enabled: true
-    template:
-      observation-enabled: true
-
-# MyBatis-Plus配置
+# MyBatis-Plus
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
   type-aliases-package: com.gateflow.victor.domain.entity
@@ -119,7 +40,7 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
-# SpringDoc配置
+# SpringDoc OpenAPI
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -130,7 +51,7 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: alpha
 
-# 日志配置
+# Logging
 logging:
   level:
     root: INFO
@@ -139,22 +60,7 @@ logging:
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 
-# Victor配置
-victor:
-  pipeline:
-    kafka-topic: victor-events
-    batch-size: 100
-  clickhouse:
-    url: ${VICTOR_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
-    user: ${VICTOR_CLICKHOUSE_USER:victor}
-    password: ${VICTOR_CLICKHOUSE_PASSWORD:victor123}
-  security:
-    jwt:
-      secret: ${VICTOR_JWT_SECRET:victor-jwt-secret-key-min-32-chars!!}
-      expiration-ms: ${VICTOR_JWT_EXPIRATION:86400000}
-  cors:
-    allowed-origins: ${VICTOR_CORS_ORIGINS:http://localhost:*}
-# Actuator配置
+# Actuator
 management:
   endpoints:
     web:
@@ -164,10 +70,3 @@ management:
     health:
       show-details: always
       show-components: always
-  # 分布式追踪配置
-  tracing:
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: ${ZIPKIN_ENDPOINT:}

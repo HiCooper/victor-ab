@@ -1,0 +1,115 @@
+# =============================================================================
+# Development profile — local Docker Compose environment
+# Activated by: SPRING_PROFILES_ACTIVE=dev
+# =============================================================================
+
+spring:
+  # MySQL (Docker: victor-mysql)
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${VICTOR_DB_USER:root}
+    password: ${VICTOR_DB_PASSWORD:root}
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+
+  # Redis (Docker: victor-redis)
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      database: 0
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  # Flyway
+  flyway:
+    enabled: true
+    url: ${VICTOR_DB_URL:jdbc:mysql://localhost:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    user: ${VICTOR_DB_USER:root}
+    password: ${VICTOR_DB_PASSWORD:root}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+    schemas: victor_experiment
+
+  # Kafka (Docker: victor-kafka)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      delivery-timeout-ms: 3000
+      request-timeout-ms: 2000
+      max-block-ms: 3000
+      batch-size: 16384
+      buffer-memory: 33554432
+      linger-ms: 5
+      compression-type: lz4
+    consumer:
+      group-id: victor-consumer
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+      fetch-min-size: 1024
+      fetch-max-wait: 500ms
+      properties:
+        spring.json.trusted.packages: "com.gateflow.victor.pipeline.ingestion.dto"
+    listener:
+      type: batch
+      ack-mode: MANUAL_IMMEDIATE
+      concurrency: 3
+      observation-enabled: true
+    template:
+      observation-enabled: true
+
+# Victor application config
+victor:
+  pipeline:
+    kafka-topic: victor-events
+    batch-size: 100
+  clickhouse:
+    url: ${VICTOR_CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/victor}
+    user: ${VICTOR_CLICKHOUSE_USER:victor}
+    password: ${VICTOR_CLICKHOUSE_PASSWORD:victor123}
+  security:
+    jwt:
+      secret: ${VICTOR_JWT_SECRET:victor-jwt-secret-key-min-32-chars!!}
+      expiration-ms: ${VICTOR_JWT_EXPIRATION:86400000}
+  cors:
+    allowed-origins: ${VICTOR_CORS_ORIGINS:http://localhost:*}
+
+logging:
+  level:
+    root: INFO
+    com.gateflow.victor: DEBUG
+
+# Distributed tracing — Zipkin
+# Start locally: docker run -d -p 9411:9411 openzipkin/zipkin
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
