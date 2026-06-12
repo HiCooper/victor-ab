@@ -2,6 +2,7 @@ package com.gateflow.victor.service.bandit;
 
 import com.gateflow.victor.domain.dto.BanditRequest;
 import com.gateflow.victor.domain.dto.BanditResponse;
+import com.gateflow.victor.common.util.StatsUtils;
 import com.gateflow.victor.domain.entity.Bucket;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -223,13 +224,9 @@ public class BanditService {
      * 从Beta分布采样 — Gamma(α,1)/(Gamma(α,1)+Gamma(β,1))
      */
     private double sampleBeta(double alpha, double beta, Random random) {
-        double x = gammaSample(alpha, 1.0);
-        double y = gammaSample(beta, 1.0);
+        double x = StatsUtils.gammaSample(alpha, 1.0);
+        double y = StatsUtils.gammaSample(beta, 1.0);
         return x / (x + y);
-    }
-
-    private double gammaSample(double shape, double scale) {
-        return new org.apache.commons.math3.distribution.GammaDistribution(shape, scale).sample();
     }
 
     /**

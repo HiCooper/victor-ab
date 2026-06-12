@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.*;
 
 /**
@@ -26,6 +27,9 @@ public class ConfigService {
 
     private static final String REDIS_KEY_PREFIX = "victor:config:";
     private static final String REDIS_KEY_LATEST = REDIS_KEY_PREFIX + "latest";
+    private static final String REDIS_KEY_LOCK = REDIS_KEY_PREFIX + "lock:latest";
+    private static final long CACHE_TTL_SECONDS = 300; // 5 minutes
+    private static final long LOCK_TTL_SECONDS = 10;   // 10 seconds mutex lock
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
     private final BucketMapper bucketMapper;
@@ -35,28 +39,66 @@ public class ConfigService {
     private final ObjectMapper objectMapper;
 
     /**
-     * 查询最新配置版本
+     * 查询最新配置版本（Redis 缓存 + 互斥锁防击穿）
      *
      * @return 版本信息
      */
     public VersionInfo getLatestVersion() {
-        // 先查Redis
+        // 先查 Redis 缓存
         String cachedVersion = redisTemplate.opsForValue().get(REDIS_KEY_LATEST);
         if (cachedVersion != null) {
             return new VersionInfo(cachedVersion, System.currentTimeMillis());
         }
 
-        // 查数据库
-        ConfigVersion latest = configVersionMapper.selectLatestVersion();
-        if (latest != null) {
-            // 更新Redis缓存
-            redisTemplate.opsForValue().set(REDIS_KEY_LATEST, latest.getVersion());
-            return new VersionInfo(latest.getVersion(), latest.getCreatedAt().toEpochSecond(java.time.ZoneOffset.UTC) * 1000);
-        }
+        // 缓存未命中 — 尝试获取互斥锁防止缓存击穿
+        Boolean lockAcquired = redisTemplate.opsForValue()
+                .setIfAbsent(REDIS_KEY_LOCK, "1", Duration.ofSeconds(LOCK_TTL_SECONDS));
 
-        // 无版本记录，生成当前配置版本
-        String currentVersion = generateCurrentVersion();
-        return new VersionInfo(currentVersion, System.currentTimeMillis());
+        if (Boolean.TRUE.equals(lockAcquired)) {
+            try {
+                // 双重检查：获取锁后再次检查缓存
+                cachedVersion = redisTemplate.opsForValue().get(REDIS_KEY_LATEST);
+                if (cachedVersion != null) {
+                    return new VersionInfo(cachedVersion, System.currentTimeMillis());
+                }
+
+                // 查数据库
+                ConfigVersion latest = configVersionMapper.selectLatestVersion();
+                if (latest != null) {
+                    redisTemplate.opsForValue().set(REDIS_KEY_LATEST, latest.getVersion(),
+                            Duration.ofSeconds(CACHE_TTL_SECONDS));
+                    return new VersionInfo(latest.getVersion(),
+                            latest.getCreatedAt().toEpochSecond(java.time.ZoneOffset.UTC) * 1000);
+                }
+
+                // 无版本记录，生成当前版本并缓存
+                String currentVersion = generateCurrentVersion();
+                redisTemplate.opsForValue().set(REDIS_KEY_LATEST, currentVersion,
+                        Duration.ofSeconds(CACHE_TTL_SECONDS));
+                return new VersionInfo(currentVersion, System.currentTimeMillis());
+            } finally {
+                redisTemplate.delete(REDIS_KEY_LOCK);
+            }
+        } else {
+            // 未获取锁，短暂等待后重试读取缓存
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            cachedVersion = redisTemplate.opsForValue().get(REDIS_KEY_LATEST);
+            if (cachedVersion != null) {
+                return new VersionInfo(cachedVersion, System.currentTimeMillis());
+            }
+            // 最终降级：直接查数据库
+            ConfigVersion latest = configVersionMapper.selectLatestVersion();
+            if (latest != null) {
+                return new VersionInfo(latest.getVersion(),
+                        latest.getCreatedAt().toEpochSecond(java.time.ZoneOffset.UTC) * 1000);
+            }
+            String currentVersion = generateCurrentVersion();
+            return new VersionInfo(currentVersion, System.currentTimeMillis());
+        }
     }
 
     /**

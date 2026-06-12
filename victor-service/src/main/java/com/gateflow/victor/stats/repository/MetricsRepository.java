@@ -140,7 +140,7 @@ public class MetricsRepository {
     }
 
     /**
-     * 查询每日趋势数据
+     * 查询每日趋势数据（用户数 + 转化数 + 收入）
      */
     public Map<LocalDate, DailyStats> queryDailyTrend(
             String expId,
@@ -153,7 +153,9 @@ public class MetricsRepository {
         String sql = """
                 SELECT
                     metric_date,
-                    sum(unique_users) AS total_users
+                    sum(unique_users)    AS total_users,
+                    sum(conversions)     AS total_conversions,
+                    sum(revenue)         AS total_revenue
                 FROM victor.experiment_metrics
                 WHERE exp_id = ?
                   AND bucket = ?
@@ -177,11 +179,17 @@ public class MetricsRepository {
                     DailyStats stats = new DailyStats();
                     stats.setDate(date);
                     stats.setTotalUsers(rs.getLong("total_users"));
+                    stats.setTotalConversions(rs.getLong("total_conversions"));
+                    stats.setTotalRevenue(rs.getDouble("total_revenue"));
+                    stats.setConversionRate(
+                            stats.getTotalUsers() > 0
+                                    ? (double) stats.getTotalConversions() / stats.getTotalUsers()
+                                    : 0);
                     results.put(date, stats);
                 }
             }
         } catch (SQLException e) {
-            log.error("Failed to query daily trend for expId={}", expId, e);
+            log.error("Failed to query daily trend for expId={}, bucket={}", expId, bucket, e);
         }
 
         return results;
@@ -447,6 +455,42 @@ public class MetricsRepository {
             sb.append("?");
         }
         return sb.toString();
+    }
+
+
+    /**
+     * Query per-bucket revenue variance from ClickHouse events.
+     * Uses varSamp() on the revenue field in event properties.
+     * Returns empty map if query fails — caller should fall back to CV-based proxy.
+     */
+    public Map<String, Double> queryRevenueVariance(
+            String expId, LocalDate startDate, LocalDate endDate,
+            List<String> bucketKeys) {
+        Map<String, Double> results = new LinkedHashMap<>();
+        String sql = "SELECT buckets[1] AS bucket, " +
+                "varSamp(toFloat64OrZero(properties, 'revenue')) AS revenue_variance " +
+                "FROM victor.events " +
+                "WHERE has(exp_ids, ?) AND toDate(timestamp) >= ? " +
+                "AND toDate(timestamp) <= ? AND buckets IS NOT NULL " +
+                "AND length(buckets) > 0 GROUP BY bucket";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, expId);
+            ps.setString(2, startDate.toString());
+            ps.setString(3, endDate.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String bucket = rs.getString("bucket");
+                    double variance = rs.getDouble("revenue_variance");
+                    if (bucket != null && !rs.wasNull() && variance > 0) {
+                        results.put(bucket, variance);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Revenue variance query failed for expId={}: {}", expId, e.getMessage());
+        }
+        return results;
     }
 
     /**

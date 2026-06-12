@@ -210,15 +210,22 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
         }
 
-        experiment.setStatus(ExperimentStatus.RUNNING.getCode());
-        experiment.setStartTime(LocalDateTime.now());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
+        if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
+            throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
+        }
+        try {
+            experiment.setStatus(ExperimentStatus.RUNNING.getCode());
+            experiment.setStartTime(LocalDateTime.now());
+            experiment.setUpdatedAt(LocalDateTime.now());
+            experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(),
-                from, ExperimentStatus.RUNNING, "system", "启动实验");
+            lifecycleService.logTransition(expId, experiment.getExpId(),
+                    from, ExperimentStatus.RUNNING, "system", "启动实验");
 
-        return experiment;
+            return experiment;
+        } finally {
+            lifecycleService.unlockExperiment(experiment.getExpId());
+        }
     }
 
     /**
@@ -234,14 +241,21 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.PENDING_APPROVAL);
 
-        experiment.setStatus(ExperimentStatus.PENDING_APPROVAL.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
+        if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
+            throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
+        }
+        try {
+            experiment.setStatus(ExperimentStatus.PENDING_APPROVAL.getCode());
+            experiment.setUpdatedAt(LocalDateTime.now());
+            experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(),
-                from, ExperimentStatus.PENDING_APPROVAL, operator, "提交审批");
+            lifecycleService.logTransition(expId, experiment.getExpId(),
+                    from, ExperimentStatus.PENDING_APPROVAL, operator, "提交审批");
 
-        return experiment;
+            return experiment;
+        } finally {
+            lifecycleService.unlockExperiment(experiment.getExpId());
+        }
     }
 
     /**
@@ -257,15 +271,22 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
 
-        experiment.setStatus(ExperimentStatus.RUNNING.getCode());
-        experiment.setStartTime(LocalDateTime.now());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
+        if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
+            throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
+        }
+        try {
+            experiment.setStatus(ExperimentStatus.RUNNING.getCode());
+            experiment.setStartTime(LocalDateTime.now());
+            experiment.setUpdatedAt(LocalDateTime.now());
+            experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(),
-                from, ExperimentStatus.RUNNING, operator, "审批通过: " + comment);
+            lifecycleService.logTransition(expId, experiment.getExpId(),
+                    from, ExperimentStatus.RUNNING, operator, "审批通过: " + comment);
 
-        return experiment;
+            return experiment;
+        } finally {
+            lifecycleService.unlockExperiment(experiment.getExpId());
+        }
     }
 
     /**
@@ -281,14 +302,21 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.DRAFT);
 
-        experiment.setStatus(ExperimentStatus.DRAFT.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
+        if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
+            throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
+        }
+        try {
+            experiment.setStatus(ExperimentStatus.DRAFT.getCode());
+            experiment.setUpdatedAt(LocalDateTime.now());
+            experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(),
-                from, ExperimentStatus.DRAFT, operator, "驳回: " + reason);
+            lifecycleService.logTransition(expId, experiment.getExpId(),
+                    from, ExperimentStatus.DRAFT, operator, "驳回: " + reason);
 
-        return experiment;
+            return experiment;
+        } finally {
+            lifecycleService.unlockExperiment(experiment.getExpId());
+        }
     }
 
     /**
@@ -304,15 +332,22 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.STOPPED);
 
-        experiment.setStatus(ExperimentStatus.STOPPED.getCode());
-        experiment.setEndTime(LocalDateTime.now());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
+        if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
+            throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
+        }
+        try {
+            experiment.setStatus(ExperimentStatus.STOPPED.getCode());
+            experiment.setEndTime(LocalDateTime.now());
+            experiment.setUpdatedAt(LocalDateTime.now());
+            experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(),
-                from, ExperimentStatus.STOPPED, "system", "停止实验");
+            lifecycleService.logTransition(expId, experiment.getExpId(),
+                    from, ExperimentStatus.STOPPED, "system", "停止实验");
 
-        return experiment;
+            return experiment;
+        } finally {
+            lifecycleService.unlockExperiment(experiment.getExpId());
+        }
     }
 
     /**
@@ -328,14 +363,21 @@ public class ExperimentService {
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.ARCHIVE);
 
-        experiment.setStatus(ExperimentStatus.ARCHIVE.getCode());
-        experiment.setUpdatedAt(LocalDateTime.now());
-        experimentMapper.updateById(experiment);
+        if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
+            throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
+        }
+        try {
+            experiment.setStatus(ExperimentStatus.ARCHIVE.getCode());
+            experiment.setUpdatedAt(LocalDateTime.now());
+            experimentMapper.updateById(experiment);
 
-        lifecycleService.logTransition(expId, experiment.getExpId(),
-                from, ExperimentStatus.ARCHIVE, operator, "归档: " + decision);
+            lifecycleService.logTransition(expId, experiment.getExpId(),
+                    from, ExperimentStatus.ARCHIVE, operator, "归档: " + decision);
 
-        return experiment;
+            return experiment;
+        } finally {
+            lifecycleService.unlockExperiment(experiment.getExpId());
+        }
     }
 
     /**

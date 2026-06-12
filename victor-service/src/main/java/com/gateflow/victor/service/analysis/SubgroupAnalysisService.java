@@ -1,5 +1,6 @@
 package com.gateflow.victor.service.analysis;
 
+import com.gateflow.victor.common.util.StatsUtils;
 import com.gateflow.victor.domain.dto.SubgroupAnalysisResponse;
 import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
@@ -195,7 +196,7 @@ public class SubgroupAnalysisService {
 
         double se = Math.sqrt(pPool * (1 - pPool) * (1.0 / controlTotal + 1.0 / treatmentTotal));
         double z = (p2 - p1) / se;
-        double pValue = 2 * (1 - normalCDF(Math.abs(z))); // 双侧检验
+        double pValue = 2 * (1 - StatsUtils.normalCDF(Math.abs(z))); // 双侧检验
 
         // 95% CI for lift
         double seDiff = Math.sqrt(p1 * (1 - p1) / controlTotal + p2 * (1 - p2) / treatmentTotal);
@@ -255,13 +256,6 @@ public class SubgroupAnalysisService {
         }
 
         return overall;
-    }
-
-    private static final org.apache.commons.math3.distribution.NormalDistribution STANDARD_NORMAL =
-            new org.apache.commons.math3.distribution.NormalDistribution(0, 1);
-
-    private double normalCDF(double x) {
-        return STANDARD_NORMAL.cumulativeProbability(x);
     }
 
     private static class ZTestResult {

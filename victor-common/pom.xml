@@ -21,6 +21,12 @@
             <artifactId>commons-lang3</artifactId>
         </dependency>
 
+        <!-- Commons Math3 (statistical distributions) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.mockito</groupId>

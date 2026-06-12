@@ -2,7 +2,7 @@ package com.gateflow.victor.stats.algorithm;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.math3.distribution.NormalDistribution;
+import com.gateflow.victor.common.util.StatsUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +36,6 @@ public class PowerAnalysis {
     private static final double Z_BETA_080 = 0.842;   // 80% 功效
     private static final double Z_BETA_090 = 1.282;   // 90% 功效
     private static final double Z_BETA_095 = 1.645;  // 95% 功效
-    private static final NormalDistribution STANDARD_NORMAL = new NormalDistribution(0, 1);
-
     /**
      * 计算两比例z检验所需的样本量
      *
@@ -112,7 +110,7 @@ public class PowerAnalysis {
         double zBeta = z - zAlpha;
 
         // 计算功效 (标准正态分布的累积分布)
-        return normalCDF(zBeta);
+        return StatsUtils.normalCDF(zBeta);
     }
 
     /**
@@ -204,13 +202,6 @@ public class PowerAnalysis {
         if (power >= 0.95) return Z_BETA_095;
         if (power >= 0.90) return Z_BETA_090;
         return Z_BETA_080;
-    }
-
-    /**
-     * 标准正态分布累积分布函数
-     */
-    private static double normalCDF(double z) {
-        return STANDARD_NORMAL.cumulativeProbability(z);
     }
 
     @Data

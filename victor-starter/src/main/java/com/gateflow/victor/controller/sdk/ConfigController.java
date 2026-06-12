@@ -4,6 +4,7 @@ import com.gateflow.victor.config.RateLimit;
 import com.gateflow.victor.domain.dto.ConfigResponse;
 import com.gateflow.victor.domain.dto.VersionCheckResponse;
 import com.gateflow.victor.service.config.ConfigService;
+import com.gateflow.victor.service.observability.MetricsCollector;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ConfigController {
 
     private final ConfigService configService;
+    private final MetricsCollector metrics;
 
     /**
      * 版本查询接口 - SDK快速比对版本
@@ -43,11 +45,12 @@ public class ConfigController {
         ConfigService.VersionInfo latest = configService.getLatestVersion();
 
         if (version != null && version.equals(latest.getVersion())) {
-            // 版本一致，无更新
+            metrics.recordConfigFetch(true);
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
         }
 
         // 有更新，返回最新版本号
+        metrics.recordConfigFetch(false);
         VersionCheckResponse response = new VersionCheckResponse();
         response.setVersion(latest.getVersion());
         response.setTimestamp(latest.getTimestamp());
@@ -69,12 +72,10 @@ public class ConfigController {
             @Parameter(description = "起始版本号(增量拉取)") @RequestParam(required = false) String fromVersion,
             @Parameter(description = "平台标识") @RequestParam String platform) {
 
+        metrics.recordConfigFetch(false);
         if (fromVersion != null) {
-            // 增量拉取
             return configService.getIncrementalConfig(fromVersion, platform);
         }
-
-        // 全量拉取
         return configService.getFullConfig(platform);
     }
 }

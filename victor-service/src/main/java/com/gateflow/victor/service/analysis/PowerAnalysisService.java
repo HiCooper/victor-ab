@@ -1,5 +1,6 @@
 package com.gateflow.victor.service.analysis;
 
+import com.gateflow.victor.common.util.StatsUtils;
 import com.gateflow.victor.domain.dto.PowerAnalysisRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -93,7 +94,7 @@ public class PowerAnalysisService {
 
         // 计算功效
         double zBeta = (effectSize - criticalValue) / seAlt;
-        double power = normalCDF(zBeta);
+        double power = StatsUtils.normalCDF(zBeta);
 
         return Math.max(0, Math.min(1, power));
     }
@@ -192,10 +193,4 @@ public class PowerAnalysisService {
         return power >= 0.90 ? Z_BETA_10 : Z_BETA_20;
     }
 
-    private static final org.apache.commons.math3.distribution.NormalDistribution STANDARD_NORMAL =
-            new org.apache.commons.math3.distribution.NormalDistribution(0, 1);
-
-    private double normalCDF(double x) {
-        return STANDARD_NORMAL.cumulativeProbability(x);
-    }
 }

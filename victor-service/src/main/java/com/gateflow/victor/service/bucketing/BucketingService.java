@@ -10,6 +10,7 @@ import com.gateflow.victor.infra.mapper.BucketMapper;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
 import com.gateflow.victor.infra.mapper.LayerMapper;
 import com.gateflow.victor.service.whitelist.ExperimentWhitelistService;
+import com.gateflow.victor.service.observability.MetricsCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,37 +32,43 @@ public class BucketingService {
     private final LayerMapper layerMapper;
     private final BucketMapper bucketMapper;
     private final ExperimentWhitelistService whitelistService;
+    private final MetricsCollector metrics;
 
     /**
      * 获取用户在指定实验中的分桶结果
      */
     public BucketResult getBucket(String userId, String experimentKey) {
-        // 查询实验
-        Experiment experiment = experimentMapper.selectByExpId(experimentKey);
-        if (experiment == null || !isBucketable(experiment.getStatus())) {
-            return BucketResult.notHit(userId, experimentKey, -1);
+        long start = System.currentTimeMillis();
+        try {
+            // 查询实验
+            Experiment experiment = experimentMapper.selectByExpId(experimentKey);
+            if (experiment == null || !isBucketable(experiment.getStatus())) {
+                return BucketResult.notHit(userId, experimentKey, -1);
+            }
+
+            // 查询层
+            Layer layer = layerMapper.selectById(experiment.getLayerId());
+            if (layer == null) {
+                return BucketResult.notHit(userId, experimentKey, -1);
+            }
+
+            // 查询版本
+            List<Bucket> buckets = bucketMapper.selectByExpId(experiment.getExpId());
+
+            // 先检查白名单
+            String whitelistBucketId = whitelistService.getBucketIdForWhitelistedUser(experiment.getExpId(), userId);
+            if (whitelistBucketId != null) {
+                return BucketResult.hit(userId, experimentKey, -1, whitelistBucketId, layer.getLayerId(), null);
+            }
+
+            // 构建实验规格
+            BucketEngine.ExperimentSpec spec = buildExperimentSpec(experiment, layer, buckets);
+
+            // 计算分桶
+            return BucketEngine.computeBucketResult(userId, spec);
+        } finally {
+            metrics.recordBucketingRequest(System.currentTimeMillis() - start);
         }
-
-        // 查询层
-        Layer layer = layerMapper.selectById(experiment.getLayerId());
-        if (layer == null) {
-            return BucketResult.notHit(userId, experimentKey, -1);
-        }
-
-        // 查询版本
-        List<Bucket> buckets = bucketMapper.selectByExpId(experiment.getExpId());
-
-        // 先检查白名单
-        String whitelistBucketId = whitelistService.getBucketIdForWhitelistedUser(experiment.getExpId(), userId);
-        if (whitelistBucketId != null) {
-            return BucketResult.hit(userId, experimentKey, -1, whitelistBucketId, layer.getLayerId(), null);
-        }
-
-        // 构建实验规格
-        BucketEngine.ExperimentSpec spec = buildExperimentSpec(experiment, layer, buckets);
-
-        // 计算分桶
-        return BucketEngine.computeBucketResult(userId, spec);
     }
 
     /**
@@ -71,7 +78,9 @@ public class BucketingService {
      * @return 分桶结果列表
      */
     public List<BucketResult> getAllBuckets(String userId) {
-        List<Experiment> experiments = experimentMapper.selectRunningExperiments();
+        long start = System.currentTimeMillis();
+        try {
+            List<Experiment> experiments = experimentMapper.selectRunningExperiments();
 
         if (experiments.isEmpty()) {
             return Collections.emptyList();
@@ -101,7 +110,10 @@ public class BucketingService {
                 ))
                 .toList();
 
-        return BucketEngine.computeAllBucketResults(userId, specs);
+            return BucketEngine.computeAllBucketResults(userId, specs);
+        } finally {
+            metrics.recordBucketingRequest(System.currentTimeMillis() - start);
+        }
     }
 
     /**

@@ -2,8 +2,11 @@ package com.gateflow.victor.service.statistics;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gateflow.victor.domain.entity.Experiment;
+import com.gateflow.victor.domain.entity.ReportJob;
 import com.gateflow.victor.infra.mapper.ExperimentMapper;
+import com.gateflow.victor.infra.mapper.ReportJobMapper;
 import com.gateflow.victor.stats.repository.MetricsRepository;
+import com.gateflow.victor.stats.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,8 @@ public class MetricsService {
 
     private final MetricsRepository metricsRepository;
     private final ExperimentMapper experimentMapper;
+    private final ReportRepository reportRepository;
+    private final ReportJobMapper reportJobMapper;
 
     /**
      * Get real-time metrics for an experiment
@@ -118,13 +123,23 @@ public class MetricsService {
                 .ge(Experiment::getUpdatedAt, weekAgo.atStartOfDay());
         long completedThisWeek = experimentMapper.selectCount(completedWrapper);
 
+        // Query significant positive/negative from latest reports
+        long[] significantCounts = reportRepository.countSignificantReports();
+        long significantPositive = significantCounts[0];
+        long significantNegative = significantCounts[1];
+
+        // Count pending/report jobs
+        LambdaQueryWrapper<ReportJob> pendingWrapper = new LambdaQueryWrapper<>();
+        pendingWrapper.in(ReportJob::getStatus, List.of("pending", "running"));
+        long pendingReports = reportJobMapper.selectCount(pendingWrapper);
+
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalExperiments", totalExperiments);
         stats.put("activeExperiments", activeExperiments);
         stats.put("completedThisWeek", completedThisWeek);
-        stats.put("significantPositive", 0);  // Requires ClickHouse aggregation — placeholder
-        stats.put("significantNegative", 0);  // Requires ClickHouse aggregation — placeholder
-        stats.put("pendingReports", 0);       // Requires report job tracking — placeholder
+        stats.put("significantPositive", significantPositive);
+        stats.put("significantNegative", significantNegative);
+        stats.put("pendingReports", pendingReports);
 
         return stats;
     }

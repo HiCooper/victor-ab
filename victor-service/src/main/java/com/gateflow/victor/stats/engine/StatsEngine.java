@@ -105,7 +105,7 @@ public class StatsEngine {
         List<TestResult> secondaryResults = runSecondaryMetricsTest(controlStats, bucketStats, treatmentBuckets);
 
         // Step 6: 护栏指标序贯检验 - mSPRT
-        List<SequentialTestResult> guardrailResults = runGuardrailTests(controlStats, bucketStats, guardrailMetricNames);
+        List<SequentialTestResult> guardrailResults = runGuardrailTests(expId, controlBucketName, startDate, endDate, controlStats, bucketStats, guardrailMetricNames);
 
         // Step 7: 生成决策建议
         Recommendation recommendation = generateRecommendation(
@@ -322,6 +322,10 @@ public class StatsEngine {
      *                             为 null 或空时默认使用 avgRevenue。
      */
     private List<SequentialTestResult> runGuardrailTests(
+            String expId,
+            String controlBucketName,
+            LocalDate startDate,
+            LocalDate endDate,
             MetricsRepository.BucketStats controlStats,
             Map<String, MetricsRepository.BucketStats> bucketStats,
             List<String> guardrailMetricNames
@@ -352,12 +356,15 @@ public class StatsEngine {
                     default:
                         ctrlMean = controlStats.getAvgRevenue();
                         treatMean = treatmentStats.getAvgRevenue();
-                        // Revenue variance: mean^2 * 0.5 as a rough proxy for continuous data.
-                        // This assumes a CV ≈ 0.7 for revenue which is more conservative than
-                        // mean^2 alone. Note: proper per-user variance requires ClickHouse query;
-                        // this estimate is suitable as a guardrail check without schema changes.
-                        ctrlVar = Math.max(ctrlMean * ctrlMean * 0.5, 0.01);
-                        treatVar = Math.max(treatMean * treatMean * 0.5, 0.01);
+                        // Use per-user revenue variance from ClickHouse when available.
+                        // Fall back to CV-based proxy: mean^2 * 0.5 (conservative, CV approx 0.7).
+                        Map<String, Double> revenueVar = metricsRepository.queryRevenueVariance(
+                                expId, startDate, endDate,
+                                List.of(controlBucketName, entry.getKey()));
+                        ctrlVar = revenueVar.getOrDefault(controlBucketName,
+                                Math.max(ctrlMean * ctrlMean * 0.5, 0.01));
+                        treatVar = revenueVar.getOrDefault(entry.getKey(),
+                                Math.max(treatMean * treatMean * 0.5, 0.01));
                         break;
                 }
 

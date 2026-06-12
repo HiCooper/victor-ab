@@ -302,9 +302,84 @@ public class StatisticsService {
         return TrafficDataResponse.builder().data(dataPoints).build();
     }
 
+    /**
+     * 获取置信度趋势 — 逐日累积计算 Z-Test 的置信度（1 - pValue）。
+     * <p>
+     * 从实验开始日期起，逐日累加对照组和治疗组的数据量并计算统计显著性，
+     * 展示随着样本量增长置信度的变化趋势。
+     */
     public ConfidenceTrendResponse getConfidenceTrend(Long experimentId, Integer days) {
-        throw new UnsupportedOperationException(
-                "置信度趋势功能开发中，暂不可用。实验 " + experimentId + " 请使用 /timeseries 和 /metrics 端点获取数据。");
+        Experiment experiment = experimentService.getExperiment(experimentId);
+        if (experiment == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experimentId));
+        }
+
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experimentId);
+        if (buckets.size() < 2) {
+            return ConfidenceTrendResponse.builder().data(List.of()).build();
+        }
+
+        int d = days != null ? days : 30;
+        LocalDate startDate = experiment.getStartTime() != null
+                ? experiment.getStartTime().toLocalDate()
+                : LocalDate.now().minusDays(d);
+        LocalDate endDate = LocalDate.now();
+
+        String expId = experiment.getExpId();
+        String controlBucket = buckets.get(0).getBucketId();
+        String treatmentBucket = buckets.get(1).getBucketId();
+
+        // Fetch full daily data for both buckets
+        Map<LocalDate, MetricsRepository.DailyStats> controlDaily =
+                statsEngine.getMetricsRepository().queryDailyTrend(expId, controlBucket, startDate, endDate);
+        Map<LocalDate, MetricsRepository.DailyStats> treatmentDaily =
+                statsEngine.getMetricsRepository().queryDailyTrend(expId, treatmentBucket, startDate, endDate);
+
+        if (controlDaily.isEmpty() || treatmentDaily.isEmpty()) {
+            return ConfidenceTrendResponse.builder()
+                    .data(List.of(ConfidenceTrendResponse.DataPoint.builder()
+                            .date(LocalDate.now().toString())
+                            .confidence(0)
+                            .build()))
+                    .build();
+        }
+
+        // Accumulate data day by day and compute confidence
+        List<ConfidenceTrendResponse.DataPoint> dataPoints = new ArrayList<>();
+        long cumCtrlUsers = 0, cumCtrlConversions = 0;
+        long cumTreatUsers = 0, cumTreatConversions = 0;
+
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            MetricsRepository.DailyStats cStats = controlDaily.get(date);
+            MetricsRepository.DailyStats tStats = treatmentDaily.get(date);
+
+            if (cStats != null) {
+                cumCtrlUsers += cStats.getTotalUsers();
+                cumCtrlConversions += cStats.getTotalConversions();
+            }
+            if (tStats != null) {
+                cumTreatUsers += tStats.getTotalUsers();
+                cumTreatConversions += tStats.getTotalConversions();
+            }
+
+            double confidence;
+            if (cumCtrlUsers > 0 && cumTreatUsers > 0
+                    && cumCtrlConversions > 0 && cumTreatConversions > 0) {
+                TestResult result = zTest.executeProportion(
+                        cumCtrlConversions, cumCtrlUsers,
+                        cumTreatConversions, cumTreatUsers);
+                confidence = Math.max(0, 1 - result.getPValue());
+            } else {
+                confidence = 0;
+            }
+
+            dataPoints.add(ConfidenceTrendResponse.DataPoint.builder()
+                    .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    .confidence(Math.round(confidence * 10000.0) / 10000.0)
+                    .build());
+        }
+
+        return ConfidenceTrendResponse.builder().data(dataPoints).build();
     }
 
     // ========== 私有方法 ==========

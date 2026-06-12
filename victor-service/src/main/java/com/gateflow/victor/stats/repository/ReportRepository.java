@@ -320,4 +320,29 @@ public class ReportRepository {
         private Double cupedAdjustedMean;
         private Double cupedAdjustedVariance;
     }
+
+    /**
+     * Count experiments whose latest report shows significant positive or negative results.
+     * Returns long[2] where [0]=significantPositive, [1]=significantNegative.
+     */
+    public long[] countSignificantReports() {
+        String sql = """
+                SELECT
+                    COALESCE(SUM(CASE WHEN r.primary_significant = 1 AND r.primary_lift > 0 THEN 1 ELSE 0 END), 0) AS significant_positive,
+                    COALESCE(SUM(CASE WHEN r.primary_significant = 1 AND r.primary_lift <= 0 THEN 1 ELSE 0 END), 0) AS significant_negative
+                FROM victor_experiment_report r
+                INNER JOIN (
+                    SELECT exp_id, MAX(report_date) AS max_date
+                    FROM victor_experiment_report
+                    GROUP BY exp_id
+                ) latest ON r.exp_id = latest.exp_id AND r.report_date = latest.max_date
+                """;
+
+        return jdbc.query(sql, rs -> {
+            if (rs.next()) {
+                return new long[]{rs.getLong("significant_positive"), rs.getLong("significant_negative")};
+            }
+            return new long[]{0, 0};
+        });
+    }
 }

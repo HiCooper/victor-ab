@@ -43,6 +43,7 @@ public enum ErrorCode {
 
     // ========== 生命周期 (LFC) ==========
     LFC_INVALID_TRANSITION("LFC_001", "无效的状态转换"),
+    LFC_LOCK_FAILED("LFC_002", "实验正在被其他操作处理，请稍后重试"),
 
     // ========== 分域 (DOM) ==========
     DOMAIN_NOT_FOUND("DOM_001", "分域不存在"),

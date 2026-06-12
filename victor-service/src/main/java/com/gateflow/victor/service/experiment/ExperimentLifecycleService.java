@@ -3,6 +3,7 @@ package com.gateflow.victor.service.experiment;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.service.observability.MetricsCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -26,6 +27,7 @@ public class ExperimentLifecycleService {
     private static final Duration LOCK_TTL = Duration.ofSeconds(30);
 
     private final StringRedisTemplate redisTemplate;
+    private final MetricsCollector metrics;
 
     private static final Map<ExperimentStatus, Set<ExperimentStatus>> ALLOWED_TRANSITIONS = new HashMap<>();
 
@@ -73,6 +75,7 @@ public class ExperimentLifecycleService {
                 experimentId, expId,
                 from.getDescription(), to.getDescription(),
                 operator, reason);
+        metrics.recordExperimentTransition(from.getDescription(), to.getDescription());
     }
 
     /**

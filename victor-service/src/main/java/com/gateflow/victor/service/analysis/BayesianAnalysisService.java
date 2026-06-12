@@ -1,6 +1,7 @@
 package com.gateflow.victor.service.analysis;
 
 import com.gateflow.victor.domain.dto.BayesianAnalysisRequest;
+import com.gateflow.victor.common.util.StatsUtils;
 import com.gateflow.victor.domain.dto.BayesianAnalysisResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -70,15 +71,11 @@ public class BayesianAnalysisService {
     private double[] sampleBeta(double alpha, double beta, int n) {
         double[] samples = new double[n];
         for (int i = 0; i < n; i++) {
-            double x = gammaSample(alpha, 1.0);
-            double y = gammaSample(beta, 1.0);
+            double x = StatsUtils.gammaSample(alpha, 1.0);
+            double y = StatsUtils.gammaSample(beta, 1.0);
             samples[i] = x / (x + y);
         }
         return samples;
-    }
-
-    private double gammaSample(double shape, double scale) {
-        return new org.apache.commons.math3.distribution.GammaDistribution(shape, scale).sample();
     }
 
     /**
