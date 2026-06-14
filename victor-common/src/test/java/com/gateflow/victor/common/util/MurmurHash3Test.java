@@ -36,7 +36,7 @@ class MurmurHash3Test {
         for (int i = 0; i < 10000; i++) {
             String userId = "user_" + i;
             int hash = MurmurHash3.hash32(userId);
-            int bucket = Math.abs(hash) % 100;
+            int bucket = (hash & Integer.MAX_VALUE) % 100;
             buckets[bucket]++;
         }
 
@@ -97,7 +97,7 @@ class MurmurHash3Test {
             String salt = "victor_salt";
             String hashInput = userId + "#" + layerId + "#" + salt;
             int hash = MurmurHash3.hash32(hashInput);
-            int bucket = Math.abs(hash) % totalBuckets;
+            int bucket = (hash & Integer.MAX_VALUE) % totalBuckets;
             bucketCounts[bucket]++;
         }
 

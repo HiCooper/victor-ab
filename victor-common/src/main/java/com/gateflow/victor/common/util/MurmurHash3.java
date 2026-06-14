@@ -58,10 +58,11 @@ public final class MurmurHash3 {
             h = h * 5 + 0xe6546b64;
         }
 
-        // 处理剩余字节
+        // 处理剩余字节 (标准 MurmurHash3 尾部处理: 首字节在 LSB)
         int k = 0;
-        for (int i = roundedEnd; i < offset + length; i++) {
-            k = (k << 8) | (data[i] & 0xff);
+        int tailLen = offset + length - roundedEnd;
+        for (int i = 0; i < tailLen; i++) {
+            k |= (data[roundedEnd + i] & 0xff) << (i * 8);
         }
 
         if (k != 0) {
@@ -150,10 +151,11 @@ public final class MurmurHash3 {
             h = h * 5 + 0x52dce729;
         }
 
-        // 处理剩余字节
+        // 处理剩余字节 (标准 MurmurHash3 尾部处理: 首字节在 LSB)
         long k = 0;
-        for (int i = roundedEnd; i < offset + length; i++) {
-            k = (k << 8) | ((long) data[i] & 0xff);
+        int tailLen = offset + length - roundedEnd;
+        for (int i = 0; i < tailLen; i++) {
+            k |= ((long) data[roundedEnd + i] & 0xff) << (i * 8);
         }
 
         if (k != 0) {

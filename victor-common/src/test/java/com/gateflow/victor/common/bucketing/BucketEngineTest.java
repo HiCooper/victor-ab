@@ -61,13 +61,13 @@ class BucketEngineTest {
     @Test
     void crossPlatformVector_user456_layerRecommend_salt2024() {
         int bucket = BucketEngine.computeBucket("user_456", "layer_recommend", "salt_2024");
-        assertEquals(6358, bucket, "跨平台一致性测试向量");
+        assertEquals(2896, bucket, "跨平台一致性测试向量");
     }
 
     @Test
     void crossPlatformVector_user789_layerSearch_saltProd() {
         int bucket = BucketEngine.computeBucket("user_789", "layer_search", "salt_prod");
-        assertEquals(1117, bucket, "跨平台一致性测试向量");
+        assertEquals(1511, bucket, "跨平台一致性测试向量");
     }
 
     @Test
