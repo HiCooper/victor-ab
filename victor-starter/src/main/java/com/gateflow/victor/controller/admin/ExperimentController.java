@@ -68,7 +68,7 @@ public class ExperimentController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "查询实验详情", description = "根据ID查询实验信息")
+    @Operation(summary = "查询实验详情", description = "根据ID查询实验信息，包含当前活跃版本的分桶配置")
     @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<Experiment> getExperiment(
             @Parameter(description = "实验ID") @PathVariable Long id) {
@@ -76,11 +76,13 @@ public class ExperimentController {
         if (experiment == null) {
             return ResponseEntity.notFound().build();
         }
+        List<Bucket> buckets = experimentService.getExperimentBuckets(id);
+        experiment.setBuckets(buckets);
         return ResponseEntity.ok(experiment);
     }
 
     @GetMapping("/key/{expKey}")
-    @Operation(summary = "根据业务标识查询实验", description = "根据expId查询实验信息")
+    @Operation(summary = "根据业务标识查询实验", description = "根据expId查询实验信息，包含当前活跃版本的分桶配置")
     @RequirePermission(Permission.VIEW_EXPERIMENT)
     public ResponseEntity<Experiment> getExperimentByKey(
             @Parameter(description = "实验业务标识") @PathVariable String expKey) {
@@ -88,6 +90,8 @@ public class ExperimentController {
         if (experiment == null) {
             return ResponseEntity.notFound().build();
         }
+        List<Bucket> buckets = experimentService.getExperimentBuckets(experiment.getId());
+        experiment.setBuckets(buckets);
         return ResponseEntity.ok(experiment);
     }
 
