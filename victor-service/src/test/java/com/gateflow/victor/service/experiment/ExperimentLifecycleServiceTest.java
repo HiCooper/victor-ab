@@ -2,6 +2,7 @@ package com.gateflow.victor.service.experiment;
 
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.exception.VictorException;
+import com.gateflow.victor.service.observability.MetricsCollector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,12 +27,15 @@ class ExperimentLifecycleServiceTest {
     @Mock
     private ValueOperations<String, String> valueOps;
 
+    @Mock
+    private MetricsCollector metricsCollector;
+
     private ExperimentLifecycleService lifecycleService;
 
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        lifecycleService = new ExperimentLifecycleService(redisTemplate);
+        lifecycleService = new ExperimentLifecycleService(redisTemplate, metricsCollector);
     }
 
     @Test

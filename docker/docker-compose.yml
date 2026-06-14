@@ -5,15 +5,20 @@ services:
       dockerfile: Dockerfile
     container_name: victor-service
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       VICTOR_DB_URL: jdbc:mysql://mysql:3306/victor_experiment?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       VICTOR_DB_USER: root
       VICTOR_DB_PASSWORD: root
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      VICTOR_CLICKHOUSE_URL: jdbc:clickhouse://clickhouse:8123/victor
+      VICTOR_CLICKHOUSE_USER: victor
+      VICTOR_CLICKHOUSE_PASSWORD: victor123
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
