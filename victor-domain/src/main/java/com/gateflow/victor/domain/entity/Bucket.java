@@ -69,4 +69,11 @@ public class Bucket {
      */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+
+    /**
+     * 变体占「本实验流量」的百分比 (1-100)，非数据库字段。
+     * 仅用于创建/更新时由服务端在实验桶段内切分计算 bucketStart/bucketEnd。
+     */
+    @TableField(exist = false)
+    private Integer trafficPercentage;
 }

@@ -58,11 +58,9 @@ public class ExperimentController {
             v.setName(vr.getName());
             v.setBucketStart(vr.getBucketStart());
             v.setBucketEnd(vr.getBucketEnd());
-            String params = vr.getParams() != null ? vr.getParams() : "{}";
-            if (vr.getTrafficPercentage() != null) {
-                params = "{\"trafficPercentage\":" + vr.getTrafficPercentage() + "}";
-            }
-            v.setParams(params);
+            // 流量百分比走独立字段，参数原样保留（不再被 trafficPercentage 覆盖丢失）
+            v.setTrafficPercentage(vr.getTrafficPercentage());
+            v.setParams(vr.getParams() != null ? vr.getParams() : "{}");
             return v;
         }).toList()
                 : null;

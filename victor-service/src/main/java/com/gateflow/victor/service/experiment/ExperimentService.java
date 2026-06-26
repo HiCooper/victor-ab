@@ -734,7 +734,11 @@ public class ExperimentService {
     }
 
     private int getBucketTrafficPercentage(Bucket bucket) {
-        // If params contain traffic info, use it; otherwise equal distribution
+        // 优先使用独立的 trafficPercentage 字段
+        if (bucket.getTrafficPercentage() != null) {
+            return bucket.getTrafficPercentage();
+        }
+        // 向后兼容：从 params JSON 中读取 trafficPercentage
         if (bucket.getParams() != null) {
             try {
                 com.fasterxml.jackson.databind.JsonNode params =

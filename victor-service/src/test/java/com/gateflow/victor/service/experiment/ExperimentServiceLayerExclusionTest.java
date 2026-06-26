@@ -72,6 +72,16 @@ class ExperimentServiceLayerExclusionTest {
         return b;
     }
 
+    /** 变体：流量百分比走独立字段，params 保留用户自定义参数 */
+    private Bucket variantWithConfig(String key, int pct, String params) {
+        Bucket b = new Bucket();
+        b.setBucketId(key);
+        b.setName(key);
+        b.setTrafficPercentage(pct);
+        b.setParams(params);
+        return b;
+    }
+
     @Test
     @DisplayName("创建实验 - 显式桶段与同层运行中实验重叠 → BKT_OVERLAP")
     void create_explicitRangeOverlap_throws() {
@@ -130,6 +140,27 @@ class ExperimentServiceLayerExclusionTest {
 
         assertEquals(0, created.getBucketStart());
         assertEquals(9999, created.getBucketEnd());
+    }
+
+    @Test
+    @DisplayName("创建实验 - 变体流量走独立字段时保留用户自定义 params")
+    void create_preservesVariantConfigParams() {
+        when(experimentMapper.selectByLayerId(1L)).thenReturn(List.of());
+        when(experimentMapper.insert(any(Experiment.class))).thenReturn(1);
+        when(versionService.generateVersion()).thenReturn("v1");
+        when(bucketMapper.insert(any(Bucket.class))).thenReturn(1);
+
+        Experiment exp = new Experiment();
+        exp.setLayerId(1L);
+
+        service.createExperiment(exp, List.of(variantWithConfig("control", 100, "{\"color\":\"red\"}")));
+
+        ArgumentCaptor<Bucket> captor = ArgumentCaptor.forClass(Bucket.class);
+        verify(bucketMapper).insert(captor.capture());
+        // 流量百分比用于切分桶段，但 params 不被覆盖
+        assertEquals("{\"color\":\"red\"}", captor.getValue().getParams());
+        assertEquals(0, captor.getValue().getBucketStart());
+        assertEquals(9999, captor.getValue().getBucketEnd());
     }
 
     @Test
