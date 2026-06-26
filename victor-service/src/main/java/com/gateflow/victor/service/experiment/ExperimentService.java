@@ -2,6 +2,7 @@ package com.gateflow.victor.service.experiment;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.gateflow.victor.common.bucketing.LayerTrafficAllocator;
 import com.gateflow.victor.common.constant.ErrorCode;
 import com.gateflow.victor.common.enums.ExperimentStatus;
 import com.gateflow.victor.common.exception.VictorException;
@@ -55,11 +56,17 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(experiment.getLayerId()));
         }
 
-        // 计算分桶桶边界（如果前端未提供）
-        List<Bucket> processedBuckets = calculateBucketRanges(buckets);
+        // 解析实验在层内占用的桶段（层内互斥）：显式区间 / 按百分比自动分配 / 默认整层
+        LayerTrafficAllocator.Range expRange = resolveExperimentRange(
+                experiment.getLayerId(), null,
+                experiment.getBucketStart(), experiment.getBucketEnd(),
+                experiment.getLayerTrafficPercentage());
+        experiment.setBucketStart(expRange.start());
+        experiment.setBucketEnd(expRange.end());
 
-        // 验证版本桶范围
-        validateBucketRanges(processedBuckets);
+        // 在实验桶段内切分变体并校验完全覆盖
+        List<Bucket> processedBuckets = distributeVariantRanges(buckets, expRange);
+        validateVariantRanges(processedBuckets, expRange);
 
         // 生成实验ID（格式：年最后一位+月日+随机数，共7位）
         String expId = ExperimentIdGenerator.generate();
@@ -124,23 +131,44 @@ public class ExperimentService {
     public Experiment updateExperimentWithBuckets(Experiment experiment, List<ExperimentCreateRequest.BucketRequest> bucketRequests) {
         log.info("Updating experiment {} with new version", experiment.getId());
 
-        // 1. 更新实验基本信息
+        Experiment existing = experimentMapper.selectById(experiment.getId());
+        if (existing == null) {
+            throw new VictorException(ErrorCode.EXP_NOT_FOUND, String.valueOf(experiment.getId()));
+        }
+
+        // 实验在层内的桶段在编辑变体时保持不变（改流量占位是另一动作），变体在该桶段内切分
+        LayerTrafficAllocator.Range expRange = experimentRangeOf(existing);
+
+        // 1. 更新实验基本信息（不允许通过本接口改动层内桶段）
+        experiment.setBucketStart(existing.getBucketStart());
+        experiment.setBucketEnd(existing.getBucketEnd());
         experiment.setUpdatedAt(LocalDateTime.now());
         experimentMapper.updateById(experiment);
 
-        // 2. 根据trafficPercentage自动计算bucket边界
-        List<ExperimentCreateRequest.BucketRequest> processedBuckets = calculateBucketBoundaries(bucketRequests);
+        // 2. 在实验桶段内按 trafficPercentage 切分变体
+        List<Integer> percentages = bucketRequests.stream()
+                .map(req -> {
+                    if (req.getTrafficPercentage() == null) {
+                        throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE,
+                                req.getBucketKey() + " 缺少trafficPercentage字段");
+                    }
+                    return req.getTrafficPercentage();
+                })
+                .toList();
+        List<LayerTrafficAllocator.Range> ranges = splitVariants(expRange, percentages);
 
         // 3. 转换BucketRequest为Bucket实体
-        List<Bucket> newBuckets = processedBuckets.stream().map(req -> {
+        List<Bucket> newBuckets = new java.util.ArrayList<>(bucketRequests.size());
+        for (int i = 0; i < bucketRequests.size(); i++) {
+            ExperimentCreateRequest.BucketRequest req = bucketRequests.get(i);
             Bucket bucket = new Bucket();
             bucket.setBucketId(BucketIdGenerator.generate());
             bucket.setName(req.getName());
-            bucket.setBucketStart(req.getBucketStart());
-            bucket.setBucketEnd(req.getBucketEnd());
+            bucket.setBucketStart(ranges.get(i).start());
+            bucket.setBucketEnd(ranges.get(i).end());
             bucket.setParams(req.getParams());
-            return bucket;
-        }).collect(Collectors.toList());
+            newBuckets.add(bucket);
+        }
 
         // 4. 创建新版本
         String newVersion = versionService.createNewVersion(experiment.getId(), newBuckets);
@@ -149,47 +177,159 @@ public class ExperimentService {
         return experimentMapper.selectById(experiment.getId());
     }
 
-    /**
-     * 根据trafficPercentage自动计算bucket边界
-     * 后端使用0-9999的bucket系统表示0%-100%
-     */
-    private List<ExperimentCreateRequest.BucketRequest> calculateBucketBoundaries(
-            List<ExperimentCreateRequest.BucketRequest> bucketRequests) {
+    // ===================== 层内互斥 / 桶段分配 =====================
 
-        if (bucketRequests == null || bucketRequests.isEmpty()) {
-            return bucketRequests;
+    /**
+     * 取实验在层内占用的桶段（存量实验未设置时默认整层 0-9999）。
+     */
+    private LayerTrafficAllocator.Range experimentRangeOf(Experiment experiment) {
+        int start = experiment.getBucketStart() != null ? experiment.getBucketStart() : LayerTrafficAllocator.LAYER_MIN;
+        int end = experiment.getBucketEnd() != null ? experiment.getBucketEnd() : LayerTrafficAllocator.LAYER_MAX;
+        return new LayerTrafficAllocator.Range(start, end);
+    }
+
+    /**
+     * 查询同层中已占用桶段的实验（仅运行中实验真正占用流量），可排除指定实验。
+     */
+    private List<LayerTrafficAllocator.Range> occupiedRangesInLayer(Long layerId, Long excludeExpId) {
+        List<Experiment> inLayer = experimentMapper.selectByLayerId(layerId);
+        if (inLayer == null) {
+            return Collections.emptyList();
+        }
+        return inLayer.stream()
+                .filter(e -> ExperimentStatus.RUNNING.getCode().equals(e.getStatus()))
+                .filter(e -> excludeExpId == null || !excludeExpId.equals(e.getId()))
+                .filter(e -> e.getBucketStart() != null && e.getBucketEnd() != null)
+                .map(this::experimentRangeOf)
+                .toList();
+    }
+
+    /**
+     * 解析实验在层内的桶段：
+     * <ul>
+     *   <li>显式给定 [reqStart, reqEnd] → 校验越界与同层重叠后采用（手动占位）；</li>
+     *   <li>给定 layerTrafficPct → 在层内自动寻找该宽度的首个空闲段；</li>
+     *   <li>都未给定 → 默认整层 [0, 9999]，仅当层内无运行中实验占用时允许。</li>
+     * </ul>
+     */
+    private LayerTrafficAllocator.Range resolveExperimentRange(
+            Long layerId, Long excludeExpId, Integer reqStart, Integer reqEnd, Integer layerTrafficPct) {
+
+        List<LayerTrafficAllocator.Range> occupied = occupiedRangesInLayer(layerId, excludeExpId);
+
+        if (reqStart != null && reqEnd != null) {
+            LayerTrafficAllocator.Range candidate;
+            try {
+                candidate = new LayerTrafficAllocator.Range(reqStart, reqEnd);
+                LayerTrafficAllocator.validateNoOverlap(candidate, occupied);
+            } catch (IllegalArgumentException e) {
+                throw new VictorException(ErrorCode.BKT_OUT_OF_RANGE, e.getMessage());
+            } catch (IllegalStateException e) {
+                throw new VictorException(ErrorCode.BKT_OVERLAP, e.getMessage());
+            }
+            return candidate;
         }
 
-        // 验证trafficPercentage必填
-        for (ExperimentCreateRequest.BucketRequest req : bucketRequests) {
-            if (req.getTrafficPercentage() == null) {
-                throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, req.getBucketKey() + " 缺少trafficPercentage字段");
+        if (layerTrafficPct != null) {
+            if (layerTrafficPct <= 0 || layerTrafficPct > 100) {
+                throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE,
+                        "layerTrafficPercentage 必须在 (0,100] 之间，当前为: " + layerTrafficPct);
+            }
+            try {
+                // 百分比 -> 桶宽：1% = 100 桶
+                return LayerTrafficAllocator.findFreeGap(layerTrafficPct * 100, occupied);
+            } catch (IllegalStateException e) {
+                throw new VictorException(ErrorCode.BKT_OVERLAP,
+                        "层内剩余空间不足以容纳 " + layerTrafficPct + "% 流量");
             }
         }
 
-        // 验证trafficPercentage总和
-        int totalPercentage = bucketRequests.stream()
-                .mapToInt(ExperimentCreateRequest.BucketRequest::getTrafficPercentage)
-                .sum();
+        // 默认整层；仅当层内无运行中实验占用时允许，否则要求显式指定，避免静默重叠
+        if (!occupied.isEmpty()) {
+            throw new VictorException(ErrorCode.BKT_OVERLAP,
+                    "该层已存在运行中实验占用桶段，请显式指定实验的 bucketStart/bucketEnd 或 layerTrafficPercentage");
+        }
+        return new LayerTrafficAllocator.Range(LayerTrafficAllocator.LAYER_MIN, LayerTrafficAllocator.LAYER_MAX);
+    }
 
-        if (totalPercentage != 100) {
-            throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, "当前为: " + totalPercentage + "%");
+    /**
+     * 在实验桶段内为变体分配子区间。
+     * 整层实验且变体已带显式区间时沿用（向后兼容旧前端）；否则按 trafficPercentage 切分。
+     */
+    private List<Bucket> distributeVariantRanges(List<Bucket> buckets, LayerTrafficAllocator.Range expRange) {
+        if (buckets == null || buckets.isEmpty()) {
+            return buckets;
         }
 
-        // 自动计算bucket边界
-        int currentBucket = 0;
-        for (ExperimentCreateRequest.BucketRequest req : bucketRequests) {
-            int percentage = req.getTrafficPercentage();
-            // bucket = percentage * 100 (0-100% -> 0-9999)
-            req.setBucketStart(currentBucket * 100);
-            req.setBucketEnd((currentBucket + percentage) * 100 - 1);
-            currentBucket += percentage;
-
-            log.debug("Bucket {}: trafficPercentage={}%, bucketStart={}, bucketEnd={}",
-                    req.getBucketKey(), percentage, req.getBucketStart(), req.getBucketEnd());
+        boolean allExplicit = buckets.stream()
+                .allMatch(b -> b.getBucketStart() != null && b.getBucketEnd() != null);
+        boolean isFullLayer = expRange.start() == LayerTrafficAllocator.LAYER_MIN
+                && expRange.end() == LayerTrafficAllocator.LAYER_MAX;
+        if (allExplicit && isFullLayer) {
+            return buckets;
         }
 
-        return bucketRequests;
+        List<Integer> percentages = buckets.stream()
+                .map(this::getBucketTrafficPercentage)
+                .collect(Collectors.toList());
+        List<LayerTrafficAllocator.Range> ranges = splitVariants(expRange, percentages);
+        for (int i = 0; i < buckets.size(); i++) {
+            buckets.get(i).setBucketStart(ranges.get(i).start());
+            buckets.get(i).setBucketEnd(ranges.get(i).end());
+        }
+        return buckets;
+    }
+
+    /**
+     * 按百分比将实验桶段切分为变体子区间，并把分配器的校验异常转为业务异常。
+     */
+    private List<LayerTrafficAllocator.Range> splitVariants(
+            LayerTrafficAllocator.Range expRange, List<Integer> percentages) {
+        try {
+            return LayerTrafficAllocator.splitByPercentage(expRange, percentages);
+        } catch (IllegalArgumentException e) {
+            throw new VictorException(ErrorCode.BKT_TRAFFIC_PERCENTAGE, e.getMessage());
+        }
+    }
+
+    /**
+     * 校验变体子区间连续、无缝隙且完全覆盖实验桶段。
+     */
+    private void validateVariantRanges(List<Bucket> buckets, LayerTrafficAllocator.Range expRange) {
+        if (buckets == null || buckets.isEmpty()) {
+            return;
+        }
+        List<LayerTrafficAllocator.Range> ranges = buckets.stream()
+                .map(b -> {
+                    if (b.getBucketStart() == null || b.getBucketEnd() == null) {
+                        throw new VictorException(ErrorCode.VARIANT_BUCKET_INVALID, "变体桶范围不能为空");
+                    }
+                    return new LayerTrafficAllocator.Range(b.getBucketStart(), b.getBucketEnd());
+                })
+                .toList();
+        try {
+            LayerTrafficAllocator.validateVariantsCoverExperiment(expRange, ranges);
+        } catch (IllegalArgumentException e) {
+            throw new VictorException(ErrorCode.VARIANT_BUCKET_MUST_COVER, e.getMessage());
+        }
+    }
+
+    /**
+     * 激活（启动/审批通过）前校验实验桶段不与同层其他运行中实验重叠（层内互斥的权威检查点）。
+     */
+    private void validateNoLayerOverlapOnActivation(Experiment experiment) {
+        if (experiment.getBucketStart() == null || experiment.getBucketEnd() == null) {
+            return;
+        }
+        List<LayerTrafficAllocator.Range> occupied =
+                occupiedRangesInLayer(experiment.getLayerId(), experiment.getId());
+        try {
+            LayerTrafficAllocator.validateNoOverlap(experimentRangeOf(experiment), occupied);
+        } catch (IllegalArgumentException e) {
+            throw new VictorException(ErrorCode.BKT_OUT_OF_RANGE, e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new VictorException(ErrorCode.BKT_OVERLAP, e.getMessage());
+        }
     }
 
     /**
@@ -209,6 +349,9 @@ public class ExperimentService {
         if (buckets.isEmpty()) {
             throw new VictorException(ErrorCode.EXP_NO_ACTIVE_VARIANT);
         }
+
+        // 层内互斥：启动前确认桶段不与同层其他运行中实验重叠
+        validateNoLayerOverlapOnActivation(experiment);
 
         if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
             throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
@@ -270,6 +413,9 @@ public class ExperimentService {
 
         ExperimentStatus from = ExperimentStatus.fromCode(experiment.getStatus());
         lifecycleService.validateTransition(from, ExperimentStatus.RUNNING);
+
+        // 层内互斥：进入运行中前确认桶段不与同层其他运行中实验重叠
+        validateNoLayerOverlapOnActivation(experiment);
 
         if (!lifecycleService.tryLockExperiment(experiment.getExpId())) {
             throw new VictorException(ErrorCode.LFC_LOCK_FAILED, experiment.getExpId());
@@ -402,6 +548,9 @@ public class ExperimentService {
         cloned.setName(source.getName() + " (Clone)");
         cloned.setDescription(source.getDescription());
         cloned.setLayerId(source.getLayerId());
+        // 沿用源实验的层内桶段（草稿态可共存；启动时若与运行中实验冲突会被互斥校验拦截）
+        cloned.setBucketStart(source.getBucketStart());
+        cloned.setBucketEnd(source.getBucketEnd());
         cloned.setTargetingRules(source.getTargetingRules());
         cloned.setPrimaryMetric(source.getPrimaryMetric());
         cloned.setSecondaryMetrics(source.getSecondaryMetrics());
@@ -584,58 +733,6 @@ public class ExperimentService {
         return versionService.getVersionHistory(expId);
     }
 
-    /**
-     * 计算分桶桶边界（当分桶未提供 bucketStart/bucketEnd 时）
-     * 默认使用完整的 0-9999 桶范围
-     */
-    private List<Bucket> calculateBucketRanges(List<Bucket> buckets) {
-        if (buckets == null || buckets.isEmpty()) {
-            return buckets;
-        }
-
-        boolean needsCalculation = buckets.stream()
-                .anyMatch(v -> v.getBucketStart() == null || v.getBucketEnd() == null);
-
-        if (!needsCalculation) {
-            return buckets;
-        }
-
-        int totalPercentage = buckets.stream()
-                .mapToInt(v -> getBucketTrafficPercentage(v))
-                .sum();
-
-        if (totalPercentage == 0) {
-            // 未指定比例，均分 0-9999
-            int bucketRange = 10000;
-            int perBucket = bucketRange / buckets.size();
-            int remainder = bucketRange % buckets.size();
-            int currentStart = 0;
-
-            for (int i = 0; i < buckets.size(); i++) {
-                Bucket v = buckets.get(i);
-                int end = currentStart + perBucket + (i < remainder ? 1 : 0) - 1;
-                v.setBucketStart(currentStart);
-                v.setBucketEnd(end);
-                currentStart = end + 1;
-            }
-        } else {
-            if (totalPercentage != 100) {
-                throw new VictorException("BKT_002", "流量比例总和必须为100%，当前为: " + totalPercentage + "%");
-            }
-
-            int currentStart = 0;
-            for (Bucket v : buckets) {
-                int percentage = getBucketTrafficPercentage(v);
-                int bucketSpan = (int) Math.round(percentage / 100.0 * 10000);
-                v.setBucketStart(currentStart);
-                v.setBucketEnd(currentStart + bucketSpan - 1);
-                currentStart += bucketSpan;
-            }
-        }
-
-        return buckets;
-    }
-
     private int getBucketTrafficPercentage(Bucket bucket) {
         // If params contain traffic info, use it; otherwise equal distribution
         if (bucket.getParams() != null) {
@@ -650,31 +747,6 @@ public class ExperimentService {
             }
         }
         return 0;
-    }
-
-    /**
-     * 验证版本桶范围
-     */
-    private void validateBucketRanges(List<Bucket> buckets) {
-        if (buckets == null || buckets.isEmpty()) {
-            return;
-        }
-
-        int totalBuckets = 0;
-        for (Bucket bucket : buckets) {
-            if (bucket.getBucketStart() == null || bucket.getBucketEnd() == null) {
-                throw new VictorException("BKT_002", "Bucket bucket range must not be null");
-            }
-            if (bucket.getBucketStart() < 0 || bucket.getBucketEnd() > 9999) {
-                throw new VictorException("BKT_002", "Bucket bucket range must be within [0, 9999]");
-            }
-            totalBuckets += (bucket.getBucketEnd() - bucket.getBucketStart() + 1);
-        }
-
-        // 分桶桶范围总和必须覆盖 0-9999 (即 10000 个桶)
-        if (totalBuckets != 10000) {
-            throw new VictorException("BKT_002", "Bucket bucket ranges must cover entire 0-9999 bucket range, total: " + totalBuckets);
-        }
     }
 
 }

@@ -131,13 +131,15 @@ public class BucketingService {
                 ))
                 .toList();
 
-        // 实验级别的桶范围已从实体移除，使用 0-9999 作为默认范围
+        // 实验在所属层内的桶段（层内互斥）；存量实验未设置时默认整层 0-9999
+        int expStart = experiment.getBucketStart() != null ? experiment.getBucketStart() : 0;
+        int expEnd = experiment.getBucketEnd() != null ? experiment.getBucketEnd() : 9999;
         return new BucketEngine.ExperimentSpec(
                 experiment.getExpId(),
                 layer.getLayerId(),
                 layer.getSalt(),
-                0,  // 默认从 0 开始
-                9999, // 默认到 9999
+                expStart,
+                expEnd,
                 bucketSpecs
         );
     }

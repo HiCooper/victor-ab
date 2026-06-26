@@ -1,0 +1,37 @@
+id: "D-20260626-001"
+timestamp: "2026-06-26T00:00:00"
+topic: "实现层内互斥 + 层间正交的分桶模型"
+context: >
+  此前实验级桶范围被从实体移除，BucketingService/ConfigService 硬编码 0-9999，
+  导致同一层内多个实验占满全层、共用同一 (userId#layerId#salt) 哈希，分配完全相关，
+  无法做层内互斥。错误码 BKT_OVERLAP / VARIANT_BUCKET_MUST_COVER 早已预留，说明
+  互斥本是设计意图，只是实现回退。本次恢复该能力。
+chosen: >
+  单哈希嵌套区间方案：实验在所属层内占用一段 [bucketStart,bucketEnd]，同层各运行中实验
+  互不重叠（层内互斥）；变体在该桶段内连续切分并完全覆盖。沿用既有 BucketEngine
+  （本就支持 ExperimentSpec 区间 + isInExperiment）。层内占位采用混合策略：显式区间→校验
+  不重叠；layerTrafficPercentage→在层内首个空闲段自动分配；皆空→默认整层（仅当层内无运行
+  中实验占用）。互斥的权威校验点在 start/approve（进入 running 前）。
+rejected:
+  - "双哈希解耦(eligibility 与 variant 各用一个哈希): 更稳健(ramp 不重洗用户)，但需改造引擎与 SDK 语义，属更大重构。先做对再迭代，避免一上来上复杂度。"
+  - "保持现状/仅文档说明一层一实验: 放弃了 layered 实验框架的核心价值(层内互斥)，与已预留的错误码和产品诉求不符。"
+rationale: >
+  与现有引擎形态一致、改动面可控、统计上无偏(子段内哈希仍均匀)、且 SDK 几乎无需改动
+  (SdkConfigResponse 已带实验区间，VictorClient 已按区间本地判定命中)，符合“不过度设计”。
+constraints_ref:
+  - "ErrorCode.BKT_OVERLAP / VARIANT_BUCKET_MUST_COVER (既有契约)"
+  - "BucketEngine.isInExperiment / ExperimentSpec (既有能力)"
+impact:
+  files:
+    - "victor-common/.../bucketing/LayerTrafficAllocator.java (新增)"
+    - "victor-domain/.../entity/Experiment.java (新增 bucketStart/bucketEnd + 瞬态 layerTrafficPercentage)"
+    - "victor-domain/.../dto/ExperimentCreateRequest.java (新增层内占位字段)"
+    - "victor-service/.../experiment/ExperimentService.java (分配/校验/互斥)"
+    - "victor-service/.../bucketing/BucketingService.java、config/ConfigService.java (下发真实区间)"
+    - "victor-service/.../mapper/ExperimentMapper.xml (列映射)"
+    - "victor-service/.../db/migration/V4__add_experiment_bucket_range.sql (新增列, 存量默认 0-9999)"
+    - "victor-starter/.../controller/admin/ExperimentController.java (透传占位)"
+  risk: "medium"
+notes: >
+  存量实验默认占满整层，保持“一层一实验”旧行为向后兼容。前端表单的层内流量分配 UI 为后续工作。
+  双哈希解耦、ramp 期用户稳定性可作为后续迭代。

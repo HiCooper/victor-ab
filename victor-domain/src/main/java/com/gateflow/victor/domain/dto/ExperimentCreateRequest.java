@@ -38,6 +38,23 @@ public class ExperimentCreateRequest {
     private Long layerId;
 
     /**
+     * 实验在所属层内占用的桶起始位置 (0-9999)，与 bucketEnd 同时提供表示手动占位。
+     * 层内互斥：同层各运行中实验的桶段互不重叠。
+     */
+    private Integer bucketStart;
+
+    /**
+     * 实验在所属层内占用的桶结束位置 (0-9999)。
+     */
+    private Integer bucketEnd;
+
+    /**
+     * 实验占用所属层的流量百分比 (1-100)。
+     * 未显式提供 bucketStart/bucketEnd 时，系统按此百分比在层内自动寻找空闲桶段放置。
+     */
+    private Integer layerTrafficPercentage;
+
+    /**
      * 定向规则 (JSON字符串)
      */
     private String targetingRules;

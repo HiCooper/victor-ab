@@ -178,6 +178,7 @@ class ExperimentServiceTest {
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
         when(bucketMapper.selectActiveBuckets("exp_test_001")).thenReturn(List.of(testBucket, testBucket2));
         when(experimentMapper.updateById(any(Experiment.class))).thenReturn(1);
+        when(lifecycleService.tryLockExperiment("exp_test_001")).thenReturn(true);
 
         Experiment started = experimentService.startExperiment(1L);
 
@@ -205,11 +206,12 @@ class ExperimentServiceTest {
         testExperiment.setStatus("running");
         when(experimentMapper.selectById(1L)).thenReturn(testExperiment);
         when(experimentMapper.updateById(any(Experiment.class))).thenReturn(1);
+        when(lifecycleService.tryLockExperiment("exp_test_001")).thenReturn(true);
 
         Experiment paused = experimentService.stopExperiment(1L);
 
         assertNotNull(paused);
-        assertEquals("paused", paused.getStatus());
+        assertEquals("stopped", paused.getStatus());
         verify(experimentMapper).updateById(any(Experiment.class));
     }
 

@@ -175,8 +175,9 @@ public class ConfigService {
 
         ConfigResponse.ExperimentConfig config = new ConfigResponse.ExperimentConfig();
         config.setExpId(exp.getExpId());
-        config.setBucketStart(0);
-        config.setBucketEnd(9999);
+        // 下发实验在所属层内的真实桶段，SDK 据此本地判定命中（层内互斥）
+        config.setBucketStart(exp.getBucketStart() != null ? exp.getBucketStart() : 0);
+        config.setBucketEnd(exp.getBucketEnd() != null ? exp.getBucketEnd() : 9999);
 
         if (layer != null) {
             config.setLayerId(layer.getLayerId());

@@ -40,6 +40,10 @@ public class ExperimentController {
         experiment.setName(request.getName());
         experiment.setDescription(request.getDescription());
         experiment.setLayerId(request.getLayerId());
+        // 层内桶段占位（层内互斥）：显式区间 / 按百分比自动分配，二者皆空则默认整层
+        experiment.setBucketStart(request.getBucketStart());
+        experiment.setBucketEnd(request.getBucketEnd());
+        experiment.setLayerTrafficPercentage(request.getLayerTrafficPercentage());
         experiment.setTargetingRules(request.getTargetingRules());
         experiment.setPrimaryMetric(request.getPrimaryMetric());
         experiment.setSecondaryMetrics(request.getSecondaryMetrics());

@@ -41,6 +41,19 @@ public class Experiment {
     private Long layerId;
 
     /**
+     * 实验在所属层内占用的桶起始位置 (0-9999)。
+     * 层内互斥：同层各运行中实验的 [bucketStart, bucketEnd] 互不重叠。
+     */
+    @TableField("bucket_start")
+    private Integer bucketStart;
+
+    /**
+     * 实验在所属层内占用的桶结束位置 (0-9999)。
+     */
+    @TableField("bucket_end")
+    private Integer bucketEnd;
+
+    /**
      * 实验状态
      */
     private String status;
@@ -116,4 +129,11 @@ public class Experiment {
      */
     @TableField(exist = false)
     private java.util.List<Bucket> buckets;
+
+    /**
+     * 创建实验时的层内流量占位提示 (1-100，非数据库字段)。
+     * 仅当未显式指定 bucketStart/bucketEnd 时生效：系统按该百分比在层内自动寻找空闲桶段。
+     */
+    @TableField(exist = false)
+    private Integer layerTrafficPercentage;
 }

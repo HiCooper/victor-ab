@@ -9,6 +9,8 @@
         <result column="name" property="name"/>
         <result column="description" property="description"/>
         <result column="layer_id" property="layerId"/>
+        <result column="bucket_start" property="bucketStart"/>
+        <result column="bucket_end" property="bucketEnd"/>
         <result column="status" property="status"/>
         <result column="targeting_rules" property="targetingRules"/>
         <result column="primary_metric" property="primaryMetric"/>
@@ -25,7 +27,7 @@
     <!-- 基础列 -->
     <sql id="Base_Column_List">
         id
-        , exp_id, name, description, layer_id, status,
+        , exp_id, name, description, layer_id, bucket_start, bucket_end, status,
         targeting_rules, primary_metric,
         secondary_metrics, guardrail_metrics, auto_ramp_enabled,
         start_time, end_time, created_by, created_at, updated_at
