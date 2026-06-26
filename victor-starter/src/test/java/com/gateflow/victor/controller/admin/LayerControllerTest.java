@@ -8,11 +8,13 @@ import com.gateflow.victor.service.layer.LayerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import com.gateflow.victor.config.GlobalExceptionHandler;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,24 +26,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * LayerController 集成测试
+ * LayerController 测试 — standalone MockMvc，仅装配控制器与其 mock 依赖。
  */
-@WebMvcTest(LayerController.class)
+@ExtendWith(MockitoExtension.class)
 class LayerControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private LayerService layerService;
+
+    private MockMvc mockMvc;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private Layer testLayer;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new LayerController(layerService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
         testLayer = new Layer();
         testLayer.setId(1L);
         testLayer.setLayerId("layer_ui");
@@ -90,7 +94,7 @@ class LayerControllerTest {
     void getLayer_Success() throws Exception {
         when(layerService.getLayer(1L)).thenReturn(testLayer);
 
-        mockMvc.perform(get("/api/v1/layers/1"))
+        mockMvc.perform(get("/api/v1/admin/layers/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.layerId").value("layer_ui"));
@@ -103,7 +107,7 @@ class LayerControllerTest {
     void getLayer_NotFound() throws Exception {
         when(layerService.getLayer(999L)).thenReturn(null);
 
-        mockMvc.perform(get("/api/v1/layers/999"))
+        mockMvc.perform(get("/api/v1/admin/layers/999"))
                 .andExpect(status().isNotFound());
 
         verify(layerService).getLayer(999L);
@@ -114,7 +118,7 @@ class LayerControllerTest {
     void getLayerByKey_Success() throws Exception {
         when(layerService.getLayerByKey("layer_ui")).thenReturn(testLayer);
 
-        mockMvc.perform(get("/api/v1/layers/key/layer_ui"))
+        mockMvc.perform(get("/api/v1/admin/layers/key/layer_ui"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.layerId").value("layer_ui"));
 
@@ -126,7 +130,7 @@ class LayerControllerTest {
     void getLayerByKey_NotFound() throws Exception {
         when(layerService.getLayerByKey("not_exist")).thenReturn(null);
 
-        mockMvc.perform(get("/api/v1/layers/key/not_exist"))
+        mockMvc.perform(get("/api/v1/admin/layers/key/not_exist"))
                 .andExpect(status().isNotFound());
 
         verify(layerService).getLayerByKey("not_exist");
@@ -163,7 +167,7 @@ class LayerControllerTest {
         List<Layer> layers = List.of(testLayer);
         when(layerService.getLayersByDomain(1L)).thenReturn(layers);
 
-        mockMvc.perform(get("/api/v1/layers/domain/1"))
+        mockMvc.perform(get("/api/v1/admin/layers/domain/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].domainId").value(1));
 
@@ -184,7 +188,7 @@ class LayerControllerTest {
 
         when(layerService.updateLayer(any(Layer.class))).thenReturn(updated);
 
-        mockMvc.perform(put("/api/v1/layers/1")
+        mockMvc.perform(put("/api/v1/admin/layers/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -198,7 +202,7 @@ class LayerControllerTest {
     void enableLayer_Success() throws Exception {
         when(layerService.enableLayer(1L)).thenReturn(testLayer);
 
-        mockMvc.perform(post("/api/v1/layers/1/enable"))
+        mockMvc.perform(post("/api/v1/admin/layers/1/enable"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -214,7 +218,7 @@ class LayerControllerTest {
 
         when(layerService.disableLayer(1L)).thenReturn(disabled);
 
-        mockMvc.perform(post("/api/v1/layers/1/disable"))
+        mockMvc.perform(post("/api/v1/admin/layers/1/disable"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -226,7 +230,7 @@ class LayerControllerTest {
     void deleteLayer_Success() throws Exception {
         doNothing().when(layerService).deleteLayer(1L);
 
-        mockMvc.perform(delete("/api/v1/layers/1"))
+        mockMvc.perform(delete("/api/v1/admin/layers/1"))
                 .andExpect(status().isNoContent());
 
         verify(layerService).deleteLayer(1L);

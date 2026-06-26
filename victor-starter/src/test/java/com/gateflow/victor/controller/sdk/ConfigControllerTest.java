@@ -6,10 +6,13 @@ import com.gateflow.victor.service.config.ConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import com.gateflow.victor.config.GlobalExceptionHandler;
+import com.gateflow.victor.service.observability.MetricsCollector;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,24 +26,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * ConfigController 集成测试
+ * ConfigController 测试 — standalone MockMvc，仅装配控制器与其 mock 依赖。
  */
-@WebMvcTest(ConfigController.class)
+@ExtendWith(MockitoExtension.class)
 class ConfigControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private ConfigService configService;
+
+    @Mock
+    private MetricsCollector metrics;
+
+    private MockMvc mockMvc;
 
     private ConfigResponse testConfigResponse;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new ConfigController(configService, metrics))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
         testConfigResponse = new ConfigResponse();
         testConfigResponse.setVersion("20240505-120000");
         testConfigResponse.setChangeType("FULL");

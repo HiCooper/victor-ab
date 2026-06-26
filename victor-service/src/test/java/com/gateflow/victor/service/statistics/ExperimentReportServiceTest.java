@@ -1,6 +1,5 @@
 package com.gateflow.victor.service.statistics;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.domain.entity.Bucket;
 import com.gateflow.victor.domain.entity.Experiment;
@@ -188,9 +187,8 @@ class ExperimentReportServiceTest {
     @Test
     @DisplayName("guardrail metrics 解析 — JSON 字符串数组格式")
     void shouldParseGuardrailMetricsStringArray() throws Exception {
+        // guardrail 解析走 GuardrailParser（真实解析），无需 stub objectMapper
         String json = "[\"avgRevenue\",\"conversionRate\"]";
-        when(objectMapper.readValue(eq(json), any(TypeReference.class)))
-                .thenReturn(List.of("avgRevenue", "conversionRate"));
 
         Experiment exp = buildExperiment(EXP_ID, "ramp");
         exp.setGuardrailMetrics(json);

@@ -8,11 +8,13 @@ import com.gateflow.victor.service.bucket.BucketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import com.gateflow.victor.config.GlobalExceptionHandler;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,24 +27,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * BucketController 集成测试
+ * BucketController 测试 — standalone MockMvc，仅装配控制器与其 mock 依赖。
  */
-@WebMvcTest(BucketController.class)
+@ExtendWith(MockitoExtension.class)
 class BucketControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private BucketService bucketService;
+
+    private MockMvc mockMvc;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private Bucket testBucket;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new BucketController(bucketService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
         testBucket = new Bucket();
         testBucket.setId(1L);
         testBucket.setExpId("exp_test_001");
@@ -109,7 +113,7 @@ class BucketControllerTest {
 
         when(bucketService.createBuckets(anyList())).thenReturn(buckets);
 
-        mockMvc.perform(post("/api/v1/buckets/batch")
+        mockMvc.perform(post("/api/v1/admin/buckets/batch")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requests)))
                 .andExpect(status().isOk());
@@ -122,7 +126,7 @@ class BucketControllerTest {
     void getBucket_Success() throws Exception {
         when(bucketService.getBucket(1L)).thenReturn(testBucket);
 
-        mockMvc.perform(get("/api/v1/buckets/1"))
+        mockMvc.perform(get("/api/v1/admin/buckets/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.bucketId").value("control"));
@@ -135,7 +139,7 @@ class BucketControllerTest {
     void getBucket_NotFound() throws Exception {
         when(bucketService.getBucket(999L)).thenReturn(null);
 
-        mockMvc.perform(get("/api/v1/buckets/999"))
+        mockMvc.perform(get("/api/v1/admin/buckets/999"))
                 .andExpect(status().isNotFound());
 
         verify(bucketService).getBucket(999L);
@@ -147,7 +151,7 @@ class BucketControllerTest {
         List<Bucket> buckets = List.of(testBucket);
         when(bucketService.getBucketsByExperimentId(1L)).thenReturn(buckets);
 
-        mockMvc.perform(get("/api/v1/buckets/experiment/1"))
+        mockMvc.perform(get("/api/v1/admin/buckets/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bucketId").value("control"));
 
@@ -159,7 +163,7 @@ class BucketControllerTest {
     void getBucketsByExperiment_EmptyList() throws Exception {
         when(bucketService.getBucketsByExperimentId(1L)).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/api/v1/buckets/experiment/1"))
+        mockMvc.perform(get("/api/v1/admin/buckets/experiment/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
@@ -180,7 +184,7 @@ class BucketControllerTest {
 
         when(bucketService.updateBucket(any(Bucket.class))).thenReturn(updated);
 
-        mockMvc.perform(put("/api/v1/buckets/1")
+        mockMvc.perform(put("/api/v1/admin/buckets/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -194,7 +198,7 @@ class BucketControllerTest {
     void deleteBucket_Success() throws Exception {
         doNothing().when(bucketService).deleteBucket(1L);
 
-        mockMvc.perform(delete("/api/v1/buckets/1"))
+        mockMvc.perform(delete("/api/v1/admin/buckets/1"))
                 .andExpect(status().isNoContent());
 
         verify(bucketService).deleteBucket(1L);

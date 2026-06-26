@@ -222,16 +222,15 @@ class ConfigServiceTest {
     }
 
     @Test
-    @DisplayName("获取增量配置 - 无变更")
-    void getIncrementalConfig_NoChanges() {
-        when(configVersionMapper.selectChangesAfterVersion(anyString()))
-                .thenReturn(Collections.emptyList());
+    @DisplayName("获取增量配置 - 已弃用，降级为全量拉取")
+    void getIncrementalConfig_FallsBackToFullPull() {
+        // 增量模式已弃用：getIncrementalConfig 直接返回全量配置（changeType=FULL）
+        when(experimentMapper.selectRunningExperiments()).thenReturn(Collections.emptyList());
 
         ConfigResponse response = configService.getIncrementalConfig("20240505-120000", "server");
 
         assertNotNull(response);
-        assertEquals("20240505-120000", response.getVersion());
-        assertEquals("INCREMENTAL", response.getChangeType());
+        assertEquals("FULL", response.getChangeType());
         assertTrue(response.getExperiments().isEmpty());
     }
 }

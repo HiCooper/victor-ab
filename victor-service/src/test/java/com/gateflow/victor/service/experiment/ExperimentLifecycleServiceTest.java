@@ -16,6 +16,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +35,8 @@ class ExperimentLifecycleServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        // 仅锁相关用例会用到 Redis；状态流转用例为纯逻辑，故用 lenient 避免 UnnecessaryStubbing
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
         lifecycleService = new ExperimentLifecycleService(redisTemplate, metricsCollector);
     }
 

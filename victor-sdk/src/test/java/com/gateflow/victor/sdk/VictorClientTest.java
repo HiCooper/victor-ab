@@ -240,9 +240,10 @@ class VictorClientTest {
             com.gateflow.victor.common.bucketing.BucketResult result =
                     com.gateflow.victor.common.bucketing.BucketEngine.computeBucketResult(userId, spec);
             if (result.isHit()) {
-                if ("control".equals(result.getBucket())) {
+                // 命中的变体标识是 bucketId（getBucket() 返回的是桶号 Integer）
+                if ("control".equals(result.getBucketId())) {
                     controlCount++;
-                } else if ("treatment".equals(result.getBucket())) {
+                } else if ("treatment".equals(result.getBucketId())) {
                     treatmentCount++;
                 }
             }
