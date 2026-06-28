@@ -1,0 +1,32 @@
+id: "D-20260628-001"
+timestamp: "2026-06-28T00:00:00"
+topic: "修复配置版本机制不自洽（A2），统一 /config/version 与 /config/fetch 的版本"
+context: >
+  此前 getFullConfig 用 generateCurrentVersion()（当前时间戳）作为返回版本，而
+  /config/version 走 getLatestVersion()（Redis/ConfigVersion 表里的另一个值）。两者
+  永不相等，导致 checkVersion 永远返回 200“有更新”，SDK 每个轮询周期都全量重拉。
+  同一方法还存在 N+1 查询，且误用 selectByExpId（全量历史版本）而非活跃分桶。
+chosen: >
+  版本由「运行中配置内容」派生：对所有运行中实验的 (expId, updatedAt) 排序后用
+  MurmurHash3.hash64 生成指纹（computeVersion）。getLatestVersion 与 getFullConfig
+  均调用同一函数，因此两端版本天然一致；SDK 仅在配置真正变化时才重新拉取。
+  getFullConfig 同时改为批量查询（selectByIds / selectActiveBucketsByExpIds）消除
+  N+1，并只下发活跃分桶。版本缓存 TTL 由 300s 降到 30s（变更最大感知延迟）。
+rejected:
+  - "时间戳版本（原实现）：非确定性，两端不一致，是问题根因。"
+  - "ConfigVersion 表 + selectChangesAfterVersion 的版本/增量方案：需要额外维护版本写入链路；增量模式已弃用，徒增复杂度。"
+  - "内容全量哈希（对整个 payload 求哈希）：需先构建完整 payload 才能算版本，使 /version 轻量轮询变重。"
+rationale: >
+  (expId, updatedAt) 指纹既确定又随变更而变 —— 创建/编辑/启停实验、编辑变体都会更新
+  experiment.updated_at，实验集合增删改变指纹；查询轻量（仅投影），适合被高频轮询。
+constraints_ref:
+  - "ConfigController.checkVersion 依赖 getLatestVersion()"
+  - "VictorClient 轮询 /config/version 比对版本，命中才拉 /config/fetch"
+impact:
+  files:
+    - "victor-service/.../service/config/ConfigService.java（computeVersion / getLatestVersion / getFullConfig；移除 generateCurrentVersion、isBucketable、configVersionMapper 依赖）"
+    - "victor-service/.../test/.../config/ConfigServiceTest.java（重写版本与全量配置用例，新增两端一致性测试）"
+  risk: "medium"
+notes: >
+  已知局限：层 salt 变更不会改 experiment.updated_at，故纯改 salt 暂不触发版本变化（罕见，
+  后续可把层信息纳入指纹）。ConfigVersion 实体/表仍保留但 ConfigService 不再依赖。

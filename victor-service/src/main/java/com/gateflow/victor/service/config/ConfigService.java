@@ -2,10 +2,9 @@ package com.gateflow.victor.service.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gateflow.victor.common.enums.ExperimentStatus;
+import com.gateflow.victor.common.util.MurmurHash3;
 import com.gateflow.victor.domain.dto.ConfigResponse;
 import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.domain.entity.ConfigVersion;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.infra.mapper.*;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 配置服务 - SDK配置拉取
@@ -28,18 +28,20 @@ public class ConfigService {
     private static final String REDIS_KEY_PREFIX = "victor:config:";
     private static final String REDIS_KEY_LATEST = REDIS_KEY_PREFIX + "latest";
     private static final String REDIS_KEY_LOCK = REDIS_KEY_PREFIX + "lock:latest";
-    private static final long CACHE_TTL_SECONDS = 300; // 5 minutes
+    private static final long CACHE_TTL_SECONDS = 30; // 版本缓存 TTL：配置变更最迟在此时间内被 SDK 感知
     private static final long LOCK_TTL_SECONDS = 10;   // 10 seconds mutex lock
     private final ExperimentMapper experimentMapper;
     private final LayerMapper layerMapper;
     private final BucketMapper bucketMapper;
     private final DomainMapper domainMapper;
-    private final ConfigVersionMapper configVersionMapper;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
     /**
-     * 查询最新配置版本（Redis 缓存 + 互斥锁防击穿）
+     * 查询最新配置版本（Redis 缓存 + 互斥锁防击穿）。
+     * <p>
+     * 版本由运行中配置内容派生（见 {@link #computeVersion}），与 {@link #getFullConfig}
+     * 下发的版本一致，因此 SDK 仅在配置真正变化时才重新拉取全量；缓存 TTL 决定变更的最大感知延迟。
      *
      * @return 版本信息
      */
@@ -62,20 +64,10 @@ public class ConfigService {
                     return new VersionInfo(cachedVersion, System.currentTimeMillis());
                 }
 
-                // 查数据库
-                ConfigVersion latest = configVersionMapper.selectLatestVersion();
-                if (latest != null) {
-                    redisTemplate.opsForValue().set(REDIS_KEY_LATEST, latest.getVersion(),
-                            Duration.ofSeconds(CACHE_TTL_SECONDS));
-                    return new VersionInfo(latest.getVersion(),
-                            latest.getCreatedAt().toEpochSecond(java.time.ZoneOffset.UTC) * 1000);
-                }
-
-                // 无版本记录，生成当前版本并缓存
-                String currentVersion = generateCurrentVersion();
-                redisTemplate.opsForValue().set(REDIS_KEY_LATEST, currentVersion,
+                String version = computeVersion(experimentMapper.selectRunningExperiments());
+                redisTemplate.opsForValue().set(REDIS_KEY_LATEST, version,
                         Duration.ofSeconds(CACHE_TTL_SECONDS));
-                return new VersionInfo(currentVersion, System.currentTimeMillis());
+                return new VersionInfo(version, System.currentTimeMillis());
             } finally {
                 redisTemplate.delete(REDIS_KEY_LOCK);
             }
@@ -90,15 +82,29 @@ public class ConfigService {
             if (cachedVersion != null) {
                 return new VersionInfo(cachedVersion, System.currentTimeMillis());
             }
-            // 最终降级：直接查数据库
-            ConfigVersion latest = configVersionMapper.selectLatestVersion();
-            if (latest != null) {
-                return new VersionInfo(latest.getVersion(),
-                        latest.getCreatedAt().toEpochSecond(java.time.ZoneOffset.UTC) * 1000);
-            }
-            String currentVersion = generateCurrentVersion();
-            return new VersionInfo(currentVersion, System.currentTimeMillis());
+            // 最终降级：直接计算
+            return new VersionInfo(
+                    computeVersion(experimentMapper.selectRunningExperiments()),
+                    System.currentTimeMillis());
         }
+    }
+
+    /**
+     * 计算配置版本指纹：对所有运行中实验的 (expId, updatedAt) 排序后哈希。
+     * <p>
+     * 确定性（同一配置恒得同一版本），且随配置变更而变 —— 创建/编辑/启停实验、编辑变体
+     * 都会更新 {@code experiment.updated_at}，实验集合的增删也会改变指纹。因此
+     * {@code /config/version} 与 {@code /config/fetch} 返回的版本天然一致。
+     */
+    private String computeVersion(List<Experiment> runningExperiments) {
+        if (runningExperiments == null || runningExperiments.isEmpty()) {
+            return "v0-empty";
+        }
+        String fingerprint = runningExperiments.stream()
+                .sorted(Comparator.comparing(Experiment::getExpId))
+                .map(e -> e.getExpId() + "@" + (e.getUpdatedAt() != null ? e.getUpdatedAt() : ""))
+                .collect(Collectors.joining(","));
+        return "v" + Long.toHexString(MurmurHash3.hash64(fingerprint));
     }
 
     /**
@@ -122,26 +128,34 @@ public class ConfigService {
         // 查询所有运行中的实验
         List<Experiment> experiments = experimentMapper.selectRunningExperiments();
 
-        // 查询关联数据
-        Map<Long, Layer> layerMap = new HashMap<>();
-        Map<String, List<Bucket>> bucketMap = new HashMap<>();
+        ConfigResponse response = new ConfigResponse();
+        response.setChangeType("FULL");
+        // 版本与 /config/version 一致，由配置内容派生
+        response.setVersion(computeVersion(experiments));
 
-        for (Experiment exp : experiments) {
-            Layer layer = layerMapper.selectById(exp.getLayerId());
-            if (layer != null) {
-                layerMap.put(exp.getLayerId(), layer);
-            }
-            bucketMap.put(exp.getExpId(), bucketMapper.selectByExpId(exp.getExpId()));
+        if (experiments.isEmpty()) {
+            response.setExperiments(Collections.emptyList());
+            return response;
         }
 
-        // 构建配置
+        // 批量查询关联数据，避免 N+1；仅取活跃版本的分桶（不下发历史版本）
+        List<Long> layerIds = experiments.stream()
+                .map(Experiment::getLayerId)
+                .distinct()
+                .toList();
+        Map<Long, Layer> layerMap = layerMapper.selectByIds(layerIds).stream()
+                .collect(Collectors.toMap(Layer::getId, l -> l));
+
+        List<String> expIds = experiments.stream()
+                .map(Experiment::getExpId)
+                .distinct()
+                .toList();
+        Map<String, List<Bucket>> bucketMap = bucketMapper.selectActiveBucketsByExpIds(expIds).stream()
+                .collect(Collectors.groupingBy(Bucket::getExpId));
+
         List<ConfigResponse.ExperimentConfig> expConfigs = experiments.stream()
                 .map(exp -> buildExperimentConfig(exp, layerMap, bucketMap))
                 .toList();
-
-        ConfigResponse response = new ConfigResponse();
-        response.setVersion(generateCurrentVersion());
-        response.setChangeType("FULL");
         response.setExperiments(expConfigs);
 
         return response;
@@ -213,22 +227,6 @@ public class ConfigService {
             log.warn("Failed to parse params JSON: {}", e.getMessage());
             return Collections.emptyMap();
         }
-    }
-
-    /**
-     * 生成当前版本号
-     */
-    private String generateCurrentVersion() {
-        return java.time.LocalDateTime.now()
-                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-    }
-
-    /**
-     * 判断实验是否可分桶
-     */
-    private boolean isBucketable(String status) {
-        ExperimentStatus s = ExperimentStatus.fromCode(status);
-        return s != null && s.isBucketable();
     }
 
     /**

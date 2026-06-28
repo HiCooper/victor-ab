@@ -3,7 +3,6 @@ package com.gateflow.victor.service.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateflow.victor.domain.dto.ConfigResponse;
 import com.gateflow.victor.domain.entity.Bucket;
-import com.gateflow.victor.domain.entity.ConfigVersion;
 import com.gateflow.victor.domain.entity.Experiment;
 import com.gateflow.victor.domain.entity.Layer;
 import com.gateflow.victor.infra.mapper.*;
@@ -18,11 +17,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -42,9 +43,6 @@ class ConfigServiceTest {
 
     @Mock
     private DomainMapper domainMapper;
-
-    @Mock
-    private ConfigVersionMapper configVersionMapper;
 
     @Mock
     private StringRedisTemplate redisTemplate;
@@ -76,22 +74,32 @@ class ConfigServiceTest {
         testExperiment.setName("测试实验");
         testExperiment.setLayerId(1L);
         testExperiment.setStatus("running");
+        testExperiment.setBucketStart(0);
+        testExperiment.setBucketEnd(9999);
+        testExperiment.setUpdatedAt(LocalDateTime.of(2026, 6, 1, 10, 0, 0));
 
         testBucket = new Bucket();
         testBucket.setId(1L);
         testBucket.setExpId("exp_test_001");
         testBucket.setBucketId("control");
         testBucket.setBucketStart(0);
-        testBucket.setBucketEnd(499);
+        testBucket.setBucketEnd(9999);
         testBucket.setParams("{\"color\":\"blue\"}");
     }
 
+    /** 让 getLatestVersion 走「缓存未命中 → 抢到锁 → 计算」路径的公共桩 */
+    private void stubRedisCacheMissWithLock() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
+    }
+
     @Test
-    @DisplayName("获取完整配置 - 成功")
+    @DisplayName("获取完整配置 - 成功（批量查询 + 仅活跃分桶）")
     void getFullConfig_Success() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
-        when(layerMapper.selectById(1L)).thenReturn(testLayer);
-        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testBucket));
+        when(layerMapper.selectByIds(anyList())).thenReturn(List.of(testLayer));
+        when(bucketMapper.selectActiveBucketsByExpIds(anyList())).thenReturn(List.of(testBucket));
 
         ConfigResponse response = configService.getFullConfig("server");
 
@@ -106,9 +114,10 @@ class ConfigServiceTest {
         assertEquals("ui_salt", expConfig.getSalt());
         assertEquals(1, expConfig.getBuckets().size());
 
+        // 不再有 N+1：批量查询、活跃分桶
         verify(experimentMapper).selectRunningExperiments();
-        verify(layerMapper).selectById(1L);
-        verify(bucketMapper).selectByExpId("exp_test_001");
+        verify(layerMapper).selectByIds(anyList());
+        verify(bucketMapper).selectActiveBucketsByExpIds(anyList());
     }
 
     @Test
@@ -120,6 +129,7 @@ class ConfigServiceTest {
 
         assertNotNull(response);
         assertEquals("FULL", response.getChangeType());
+        assertEquals("v0-empty", response.getVersion());
         assertTrue(response.getExperiments().isEmpty());
 
         verify(experimentMapper).selectRunningExperiments();
@@ -129,8 +139,8 @@ class ConfigServiceTest {
     @DisplayName("获取完整配置 - 层不存在")
     void getFullConfig_LayerNotFound() {
         when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
-        when(layerMapper.selectById(1L)).thenReturn(null);
-        when(bucketMapper.selectByExpId("exp_test_001")).thenReturn(List.of(testBucket));
+        when(layerMapper.selectByIds(anyList())).thenReturn(Collections.emptyList());
+        when(bucketMapper.selectActiveBucketsByExpIds(anyList())).thenReturn(List.of(testBucket));
 
         ConfigResponse response = configService.getFullConfig("server");
 
@@ -143,82 +153,75 @@ class ConfigServiceTest {
     }
 
     @Test
-    @DisplayName("检查版本更新 - 有更新")
-    void hasUpdate_True() {
-        ConfigVersion version = new ConfigVersion();
-        version.setVersion("20240505-120000");
-        version.setCreatedAt(java.time.LocalDateTime.now());
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-        when(configVersionMapper.selectLatestVersion()).thenReturn(version);
-
-        boolean hasUpdate = configService.hasUpdate("20240505-110000");
-
-        assertTrue(hasUpdate);
-        verify(configVersionMapper).selectLatestVersion();
-    }
-
-    @Test
-    @DisplayName("检查版本更新 - 无更新")
-    void hasUpdate_False() {
-        ConfigVersion version = new ConfigVersion();
-        version.setVersion("20240505-120000");
-        version.setCreatedAt(java.time.LocalDateTime.now());
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-        when(configVersionMapper.selectLatestVersion()).thenReturn(version);
-
-        boolean hasUpdate = configService.hasUpdate("20240505-120000");
-
-        assertFalse(hasUpdate);
-    }
-
-    @Test
-    @DisplayName("获取最新版本 - 从Redis")
+    @DisplayName("获取最新版本 - 命中 Redis 缓存")
     void getLatestVersion_FromRedis() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn("20240505-120000");
+        when(valueOperations.get(anyString())).thenReturn("v-cached");
 
         ConfigService.VersionInfo versionInfo = configService.getLatestVersion();
 
         assertNotNull(versionInfo);
-        assertEquals("20240505-120000", versionInfo.getVersion());
-        verify(redisTemplate.opsForValue()).get(anyString());
-        verify(configVersionMapper, never()).selectLatestVersion();
+        assertEquals("v-cached", versionInfo.getVersion());
+        verify(experimentMapper, never()).selectRunningExperiments();
     }
 
     @Test
-    @DisplayName("获取最新版本 - 从数据库")
-    void getLatestVersion_FromDatabase() {
-        ConfigVersion version = new ConfigVersion();
-        version.setVersion("20240505-120000");
-        version.setCreatedAt(java.time.LocalDateTime.now());
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-        when(configVersionMapper.selectLatestVersion()).thenReturn(version);
+    @DisplayName("获取最新版本 - 缓存未命中时由运行中配置派生并回填缓存")
+    void getLatestVersion_ComputesFromRunningConfig() {
+        stubRedisCacheMissWithLock();
+        when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
 
         ConfigService.VersionInfo versionInfo = configService.getLatestVersion();
 
         assertNotNull(versionInfo);
-        assertEquals("20240505-120000", versionInfo.getVersion());
-        verify(configVersionMapper).selectLatestVersion();
+        assertTrue(versionInfo.getVersion().startsWith("v"));
+        // 回填缓存
+        verify(valueOperations).set(anyString(), eq(versionInfo.getVersion()), any(Duration.class));
     }
 
     @Test
-    @DisplayName("获取最新版本 - 无版本记录")
-    void getLatestVersion_NoVersionRecord() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-        when(configVersionMapper.selectLatestVersion()).thenReturn(null);
+    @DisplayName("版本一致性 - /config/version 与 /config/fetch 返回相同版本")
+    void version_isConsistentBetweenLatestAndFullConfig() {
+        // getLatestVersion 走 Redis 计算路径
+        stubRedisCacheMissWithLock();
+        when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
+        when(layerMapper.selectByIds(anyList())).thenReturn(List.of(testLayer));
+        when(bucketMapper.selectActiveBucketsByExpIds(anyList())).thenReturn(List.of(testBucket));
 
-        ConfigService.VersionInfo versionInfo = configService.getLatestVersion();
+        String fromVersionEndpoint = configService.getLatestVersion().getVersion();
+        String fromFetchEndpoint = configService.getFullConfig("server").getVersion();
 
-        assertNotNull(versionInfo);
-        assertNotNull(versionInfo.getVersion());
-        verify(configVersionMapper).selectLatestVersion();
+        // 关键：两端版本必须一致，否则 SDK 会每次轮询都误判“有更新”而全量重拉
+        assertEquals(fromVersionEndpoint, fromFetchEndpoint);
+    }
+
+    @Test
+    @DisplayName("hasUpdate - 仅在配置版本变化时返回 true")
+    void hasUpdate_detectsRealChange() {
+        stubRedisCacheMissWithLock();
+        when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
+
+        String current = configService.getLatestVersion().getVersion();
+
+        assertFalse(configService.hasUpdate(current), "相同版本不应判定为有更新");
+        assertTrue(configService.hasUpdate("some-stale-version"), "不同版本应判定为有更新");
+    }
+
+    @Test
+    @DisplayName("版本随配置内容变化 - updatedAt 改变则版本改变")
+    void version_changesWhenConfigChanges() {
+        stubRedisCacheMissWithLock();
+
+        when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
+        String v1 = configService.getLatestVersion().getVersion();
+
+        Experiment edited = new Experiment();
+        edited.setExpId("exp_test_001");
+        edited.setUpdatedAt(testExperiment.getUpdatedAt().plusSeconds(1));
+        when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(edited));
+        String v2 = configService.getLatestVersion().getVersion();
+
+        assertNotEquals(v1, v2);
     }
 
     @Test
