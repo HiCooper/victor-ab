@@ -99,6 +99,8 @@ victor:
       # Generate with: openssl rand -base64 64
       secret: ${VICTOR_JWT_SECRET}
       expiration-ms: ${VICTOR_JWT_EXPIRATION:86400000}
+    # 逗号分隔的 SDK API Key；强烈建议在生产配置以校验 SDK 面向接口
+    sdk-api-keys: ${VICTOR_SDK_API_KEYS:}
   cors:
     # Comma-separated origins, e.g. "https://admin.example.com,https://app.example.com"
     allowed-origins: ${VICTOR_CORS_ORIGINS}

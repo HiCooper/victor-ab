@@ -96,6 +96,8 @@ victor:
     jwt:
       secret: ${VICTOR_JWT_SECRET:victor-jwt-secret-key-min-32-chars!!}
       expiration-ms: ${VICTOR_JWT_EXPIRATION:86400000}
+    # 逗号分隔的 SDK API Key；留空表示不校验（开发默认关闭）
+    sdk-api-keys: ${VICTOR_SDK_API_KEYS:}
   cors:
     allowed-origins: ${VICTOR_CORS_ORIGINS:http://localhost:*}
 

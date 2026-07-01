@@ -27,6 +27,9 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private RateLimitInterceptor rateLimitInterceptor;
 
+    @Autowired
+    private SdkApiKeyInterceptor sdkApiKeyInterceptor;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -52,6 +55,9 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/v1/**");
+        // SDK 面向接口的 API Key 校验（配置了 key 才启用）
+        registry.addInterceptor(sdkApiKeyInterceptor)
+                .addPathPatterns("/api/v1/config/**", "/api/v1/bucketing/**", "/api/v1/events/**");
         registry.addInterceptor(permissionInterceptor)
                 .addPathPatterns("/api/v1/**");
     }
