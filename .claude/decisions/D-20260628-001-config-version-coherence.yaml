@@ -28,5 +28,7 @@ impact:
     - "victor-service/.../test/.../config/ConfigServiceTest.java（重写版本与全量配置用例，新增两端一致性测试）"
   risk: "medium"
 notes: >
-  已知局限：层 salt 变更不会改 experiment.updated_at，故纯改 salt 暂不触发版本变化（罕见，
-  后续可把层信息纳入指纹）。ConfigVersion 实体/表仍保留但 ConfigService 不再依赖。
+  更新（2026-06-28 后续）：已把层信息纳入版本指纹 —— computeVersion 现同时哈希运行中实验的
+  (expId, updatedAt) 与其所属层的 (layerId, updatedAt)，改层 salt/排序会更新 layer.updated_at
+  从而触发版本变化。原“纯改 salt 不触发版本”的局限已闭合。ConfigVersion 实体/表仍保留但
+  ConfigService 不再依赖。

@@ -64,7 +64,8 @@ public class ConfigService {
                     return new VersionInfo(cachedVersion, System.currentTimeMillis());
                 }
 
-                String version = computeVersion(experimentMapper.selectRunningExperiments());
+                List<Experiment> running = experimentMapper.selectRunningExperiments();
+                String version = computeVersion(running, layersFor(running));
                 redisTemplate.opsForValue().set(REDIS_KEY_LATEST, version,
                         Duration.ofSeconds(CACHE_TTL_SECONDS));
                 return new VersionInfo(version, System.currentTimeMillis());
@@ -83,28 +84,53 @@ public class ConfigService {
                 return new VersionInfo(cachedVersion, System.currentTimeMillis());
             }
             // 最终降级：直接计算
+            List<Experiment> running = experimentMapper.selectRunningExperiments();
             return new VersionInfo(
-                    computeVersion(experimentMapper.selectRunningExperiments()),
+                    computeVersion(running, layersFor(running)),
                     System.currentTimeMillis());
         }
     }
 
     /**
-     * 计算配置版本指纹：对所有运行中实验的 (expId, updatedAt) 排序后哈希。
+     * 计算配置版本指纹：对所有运行中实验的 (expId, updatedAt) 及其所属层的 (layerId, updatedAt)
+     * 排序后哈希。
      * <p>
-     * 确定性（同一配置恒得同一版本），且随配置变更而变 —— 创建/编辑/启停实验、编辑变体
-     * 都会更新 {@code experiment.updated_at}，实验集合的增删也会改变指纹。因此
-     * {@code /config/version} 与 {@code /config/fetch} 返回的版本天然一致。
+     * 确定性（同一配置恒得同一版本），且随配置变更而变 —— 创建/编辑/启停实验、编辑变体都会更新
+     * {@code experiment.updated_at}，实验集合增删改变实验部分；层的 salt/排序等变更会更新
+     * {@code layer.updated_at}，改变层部分。因此 {@code /config/version} 与 {@code /config/fetch}
+     * 返回的版本天然一致，且下发内容的任何变化（含层 salt）都会触发版本变化。
      */
-    private String computeVersion(List<Experiment> runningExperiments) {
+    private String computeVersion(List<Experiment> runningExperiments, List<Layer> layers) {
         if (runningExperiments == null || runningExperiments.isEmpty()) {
             return "v0-empty";
         }
-        String fingerprint = runningExperiments.stream()
+        String expPart = runningExperiments.stream()
                 .sorted(Comparator.comparing(Experiment::getExpId))
                 .map(e -> e.getExpId() + "@" + (e.getUpdatedAt() != null ? e.getUpdatedAt() : ""))
                 .collect(Collectors.joining(","));
-        return "v" + Long.toHexString(MurmurHash3.hash64(fingerprint));
+        String layerPart = (layers == null ? List.<Layer>of() : layers).stream()
+                .filter(l -> l.getId() != null)
+                .sorted(Comparator.comparing(Layer::getId))
+                .map(l -> l.getId() + "@" + (l.getUpdatedAt() != null ? l.getUpdatedAt() : ""))
+                .collect(Collectors.joining(","));
+        return "v" + Long.toHexString(MurmurHash3.hash64(expPart + "|" + layerPart));
+    }
+
+    /** 查询运行中实验涉及的层（用于版本指纹与配置构建），保证 /version 与 /fetch 使用相同的层集合。 */
+    private List<Layer> layersFor(List<Experiment> experiments) {
+        if (experiments == null || experiments.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = experiments.stream()
+                .map(Experiment::getLayerId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<Layer> layers = layerMapper.selectByIds(ids);
+        return layers != null ? layers : List.of();
     }
 
     /**
@@ -130,20 +156,18 @@ public class ConfigService {
 
         ConfigResponse response = new ConfigResponse();
         response.setChangeType("FULL");
-        // 版本与 /config/version 一致，由配置内容派生
-        response.setVersion(computeVersion(experiments));
 
         if (experiments.isEmpty()) {
+            response.setVersion(computeVersion(experiments, List.of()));
             response.setExperiments(Collections.emptyList());
             return response;
         }
 
-        // 批量查询关联数据，避免 N+1；仅取活跃版本的分桶（不下发历史版本）
-        List<Long> layerIds = experiments.stream()
-                .map(Experiment::getLayerId)
-                .distinct()
-                .toList();
-        Map<Long, Layer> layerMap = layerMapper.selectByIds(layerIds).stream()
+        // 批量查询关联数据，避免 N+1；层集合与 /config/version 一致，用于派生版本
+        List<Layer> layers = layersFor(experiments);
+        // 版本与 /config/version 一致，由实验 + 层内容派生
+        response.setVersion(computeVersion(experiments, layers));
+        Map<Long, Layer> layerMap = layers.stream()
                 .collect(Collectors.toMap(Layer::getId, l -> l));
 
         List<String> expIds = experiments.stream()

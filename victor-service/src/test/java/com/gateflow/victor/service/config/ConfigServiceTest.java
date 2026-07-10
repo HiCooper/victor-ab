@@ -225,6 +225,27 @@ class ConfigServiceTest {
     }
 
     @Test
+    @DisplayName("版本随层变化 - 层 updatedAt 改变（如 salt 变更）则版本改变")
+    void version_changesWhenLayerChanges() {
+        stubRedisCacheMissWithLock();
+        when(experimentMapper.selectRunningExperiments()).thenReturn(List.of(testExperiment));
+
+        Layer l1 = new Layer();
+        l1.setId(1L);
+        l1.setUpdatedAt(LocalDateTime.of(2026, 6, 1, 10, 0, 0));
+        when(layerMapper.selectByIds(anyList())).thenReturn(List.of(l1));
+        String v1 = configService.getLatestVersion().getVersion();
+
+        Layer l2 = new Layer();
+        l2.setId(1L);
+        l2.setUpdatedAt(LocalDateTime.of(2026, 6, 2, 10, 0, 0)); // 层被修改（如改 salt）
+        when(layerMapper.selectByIds(anyList())).thenReturn(List.of(l2));
+        String v2 = configService.getLatestVersion().getVersion();
+
+        assertNotEquals(v1, v2);
+    }
+
+    @Test
     @DisplayName("获取增量配置 - 已弃用，降级为全量拉取")
     void getIncrementalConfig_FallsBackToFullPull() {
         // 增量模式已弃用：getIncrementalConfig 直接返回全量配置（changeType=FULL）

@@ -76,9 +76,9 @@ class ExperimentIdGeneratorTest {
             ids.add(id);
         }
 
-        // 使用ThreadLocalRandom生成随机数，大部分ID应该是唯一的
-        // 允许极少量重复（生日悖论）
-        assertTrue(ids.size() >= generationCount * 0.999,
+        // 4 位随机后缀（10000 槽），50 次抽取按生日悖论约有 ~11% 概率发生 1 次碰撞，
+        // 因此阈值取 90%（与注释/断言文案一致），容忍少量重复，避免测试偶发翻红。
+        assertTrue(ids.size() >= generationCount * 0.9,
                 String.format("生成的%d个ID中至少有90%%应该是唯一的，实际唯一ID数: %d",
                         generationCount, ids.size()));
     }
