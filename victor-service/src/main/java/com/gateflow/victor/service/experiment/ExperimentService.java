@@ -55,11 +55,24 @@ public class ExperimentService {
             throw new VictorException(ErrorCode.LAYER_NOT_FOUND, String.valueOf(experiment.getLayerId()));
         }
 
-        // 计算分桶桶边界（如果前端未提供）
-        List<Bucket> processedBuckets = calculateBucketRanges(buckets);
+        // 设置实验桶范围默认值（未提供时使用层全范围 0-9999）
+        if (experiment.getBucketStart() == null) {
+            experiment.setBucketStart(0);
+        }
+        if (experiment.getBucketEnd() == null) {
+            experiment.setBucketEnd(9999);
+        }
 
-        // 验证版本桶范围
-        validateBucketRanges(processedBuckets);
+        // 验证实验桶范围不与同层已有实验重叠（同层互斥）
+        validateNoOverlap(experiment);
+
+        // 计算变体桶边界（相对于实验桶范围）
+        int expBucketStart = experiment.getBucketStart();
+        int expBucketEnd = experiment.getBucketEnd();
+        List<Bucket> processedBuckets = calculateBucketRanges(buckets, expBucketStart, expBucketEnd);
+
+        // 验证变体桶范围覆盖实验桶范围
+        validateBucketRanges(processedBuckets, expBucketStart, expBucketEnd);
 
         // 生成实验ID（格式：年最后一位+月日+随机数，共7位）
         String expId = ExperimentIdGenerator.generate();
@@ -73,7 +86,8 @@ public class ExperimentService {
         // 插入实验
         experimentMapper.insert(experiment);
 
-        log.info("Created experiment with ID: {}", expId);
+        log.info("Created experiment with ID: {} (layer={}, bucket=[{}, {}])",
+                expId, experiment.getLayerId(), expBucketStart, expBucketEnd);
 
         // 插入版本（使用版本控制服务）
         if (processedBuckets != null && !processedBuckets.isEmpty()) {
@@ -588,10 +602,19 @@ public class ExperimentService {
      * 计算分桶桶边界（当分桶未提供 bucketStart/bucketEnd 时）
      * 默认使用完整的 0-9999 桶范围
      */
-    private List<Bucket> calculateBucketRanges(List<Bucket> buckets) {
+    /**
+     * 计算变体桶边界，相对于实验的桶范围
+     *
+     * @param buckets         变体列表
+     * @param expBucketStart  实验桶范围起始
+     * @param expBucketEnd    实验桶范围结束
+     */
+    private List<Bucket> calculateBucketRanges(List<Bucket> buckets, int expBucketStart, int expBucketEnd) {
         if (buckets == null || buckets.isEmpty()) {
             return buckets;
         }
+
+        int expRange = expBucketEnd - expBucketStart + 1;
 
         boolean needsCalculation = buckets.stream()
                 .anyMatch(v -> v.getBucketStart() == null || v.getBucketEnd() == null);
@@ -605,11 +628,10 @@ public class ExperimentService {
                 .sum();
 
         if (totalPercentage == 0) {
-            // 未指定比例，均分 0-9999
-            int bucketRange = 10000;
-            int perBucket = bucketRange / buckets.size();
-            int remainder = bucketRange % buckets.size();
-            int currentStart = 0;
+            // 未指定比例，均分实验桶范围
+            int perBucket = expRange / buckets.size();
+            int remainder = expRange % buckets.size();
+            int currentStart = expBucketStart;
 
             for (int i = 0; i < buckets.size(); i++) {
                 Bucket v = buckets.get(i);
@@ -623,10 +645,10 @@ public class ExperimentService {
                 throw new VictorException("BKT_002", "流量比例总和必须为100%，当前为: " + totalPercentage + "%");
             }
 
-            int currentStart = 0;
+            int currentStart = expBucketStart;
             for (Bucket v : buckets) {
                 int percentage = getBucketTrafficPercentage(v);
-                int bucketSpan = (int) Math.round(percentage / 100.0 * 10000);
+                int bucketSpan = (int) Math.round(percentage / 100.0 * expRange);
                 v.setBucketStart(currentStart);
                 v.setBucketEnd(currentStart + bucketSpan - 1);
                 currentStart += bucketSpan;
@@ -653,27 +675,65 @@ public class ExperimentService {
     }
 
     /**
-     * 验证版本桶范围
+     * 验证变体桶范围是否完整覆盖实验桶范围
+     *
+     * @param buckets         变体列表
+     * @param expBucketStart  实验桶范围起始
+     * @param expBucketEnd    实验桶范围结束
      */
-    private void validateBucketRanges(List<Bucket> buckets) {
+    private void validateBucketRanges(List<Bucket> buckets, int expBucketStart, int expBucketEnd) {
         if (buckets == null || buckets.isEmpty()) {
             return;
         }
 
+        int expectedTotal = expBucketEnd - expBucketStart + 1;
         int totalBuckets = 0;
         for (Bucket bucket : buckets) {
             if (bucket.getBucketStart() == null || bucket.getBucketEnd() == null) {
-                throw new VictorException("BKT_002", "Bucket bucket range must not be null");
+                throw new VictorException("BKT_002", "变体桶范围不能为空");
             }
-            if (bucket.getBucketStart() < 0 || bucket.getBucketEnd() > 9999) {
-                throw new VictorException("BKT_002", "Bucket bucket range must be within [0, 9999]");
+            if (bucket.getBucketStart() < expBucketStart || bucket.getBucketEnd() > expBucketEnd) {
+                throw new VictorException("BKT_002",
+                        String.format("变体桶范围 [%d, %d] 超出实验桶范围 [%d, %d]",
+                                bucket.getBucketStart(), bucket.getBucketEnd(), expBucketStart, expBucketEnd));
             }
             totalBuckets += (bucket.getBucketEnd() - bucket.getBucketStart() + 1);
         }
 
-        // 分桶桶范围总和必须覆盖 0-9999 (即 10000 个桶)
-        if (totalBuckets != 10000) {
-            throw new VictorException("BKT_002", "Bucket bucket ranges must cover entire 0-9999 bucket range, total: " + totalBuckets);
+        // 变体桶范围总和必须覆盖实验桶范围
+        if (totalBuckets != expectedTotal) {
+            throw new VictorException("BKT_002",
+                    String.format("变体桶范围总和 (%d) 必须等于实验桶范围 (%d) [%d, %d]",
+                            totalBuckets, expectedTotal, expBucketStart, expBucketEnd));
+        }
+    }
+
+    /**
+     * 验证新实验的桶范围不与同层已有实验重叠（同层互斥）
+     */
+    private void validateNoOverlap(Experiment newExperiment) {
+        List<Experiment> existingInLayer = experimentMapper.selectByLayerId(newExperiment.getLayerId());
+        if (existingInLayer == null || existingInLayer.isEmpty()) {
+            return;
+        }
+
+        for (Experiment existing : existingInLayer) {
+            // 跳过自身（更新场景）
+            if (newExperiment.getId() != null && newExperiment.getId().equals(existing.getId())) {
+                continue;
+            }
+            if (existing.getBucketStart() == null || existing.getBucketEnd() == null) {
+                continue;
+            }
+            // 重叠判断: [a_start, a_end] 与 [b_start, b_end] 重叠 ⇔ a_start <= b_end && a_end >= b_start
+            if (newExperiment.getBucketStart() <= existing.getBucketEnd()
+                    && newExperiment.getBucketEnd() >= existing.getBucketStart()) {
+                throw new VictorException(ErrorCode.BKT_OVERLAP,
+                        String.format("实验桶范围 [%d, %d] 与同层已有实验 '%s' [%d, %d] 重叠",
+                                newExperiment.getBucketStart(), newExperiment.getBucketEnd(),
+                                existing.getName(),
+                                existing.getBucketStart(), existing.getBucketEnd()));
+            }
         }
     }
 

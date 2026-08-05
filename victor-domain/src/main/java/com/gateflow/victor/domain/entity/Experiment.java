@@ -41,6 +41,18 @@ public class Experiment {
     private Long layerId;
 
     /**
+     * 实验在层内的桶范围起始 (0-9999)，默认 0
+     */
+    @TableField("bucket_start")
+    private Integer bucketStart;
+
+    /**
+     * 实验在层内的桶范围结束 (0-9999)，默认 9999
+     */
+    @TableField("bucket_end")
+    private Integer bucketEnd;
+
+    /**
      * 实验状态
      */
     private String status;

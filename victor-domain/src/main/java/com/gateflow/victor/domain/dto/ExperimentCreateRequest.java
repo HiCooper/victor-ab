@@ -38,6 +38,16 @@ public class ExperimentCreateRequest {
     private Long layerId;
 
     /**
+     * 实验在层内的桶范围起始 (0-9999)，为空时默认 0
+     */
+    private Integer bucketStart;
+
+    /**
+     * 实验在层内的桶范围结束 (0-9999)，为空时默认 9999
+     */
+    private Integer bucketEnd;
+
+    /**
      * 定向规则 (JSON字符串)
      */
     private String targetingRules;
